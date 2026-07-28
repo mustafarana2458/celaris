@@ -45,6 +45,7 @@ export type Deal = {
   value: number | null;
   stage: DealStage;
   expected_close: string | null;
+  ai_score: number | null;
   created_at: string;
   contacts?: { id: string; name: string } | null;
 };

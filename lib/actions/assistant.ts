@@ -3,12 +3,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { callOllama } from "@/lib/ollama";
 import type { DealStage, ProjectStatus, TaskStatus } from "@/lib/types";
 
 export type AssistantResult = { answer?: string; error?: string };
 
-const OLLAMA_MODEL = "llama3.2:3b";
-const TIMEOUT_MS = 60_000;
 const MAX_QUESTION_LENGTH = 500;
 
 const DEAL_STAGES: DealStage[] = ["new", "qualified", "proposal", "won", "lost"];
@@ -135,11 +134,6 @@ export async function askAssistant(question: string): Promise<AssistantResult> {
     return { error: `Please keep your question under ${MAX_QUESTION_LENGTH} characters.` };
   }
 
-  const ollamaUrl = process.env.OLLAMA_URL;
-  if (!ollamaUrl) {
-    return { error: "AI service is not configured (missing OLLAMA_URL)." };
-  }
-
   const supabase = await createClient();
   const {
     data: { user },
@@ -157,39 +151,10 @@ export async function askAssistant(question: string): Promise<AssistantResult> {
   const summary = await buildWorkspaceSummary(supabase, workspace.id);
   const prompt = buildPrompt(formatSummary(summary), trimmed);
 
-  const controller = new AbortController();
-  const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
-
-  try {
-    const response = await fetch(ollamaUrl, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({
-        model: OLLAMA_MODEL,
-        prompt,
-        stream: false,
-      }),
-      signal: controller.signal,
-    });
-
-    if (!response.ok) {
-      return { error: `AI service returned an error (${response.status}).` };
-    }
-
-    const data = (await response.json()) as { response?: unknown };
-    const answer = typeof data.response === "string" ? data.response.trim() : "";
-
-    if (!answer) {
-      return { error: "The AI didn't return an answer. Please try again." };
-    }
-
-    return { answer };
-  } catch (err) {
-    if (err instanceof Error && err.name === "AbortError") {
-      return { error: "The AI took too long to respond. Please try again." };
-    }
-    return { error: "Could not reach the AI service. Please try again later." };
-  } finally {
-    clearTimeout(timeout);
+  const result = await callOllama(prompt);
+  if (result.error) {
+    return { error: result.error };
   }
+
+  return { answer: result.text };
 }

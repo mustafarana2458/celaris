@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { DealModal } from "./DealModal";
 import { DeleteDealDialog } from "./DeleteDealDialog";
 import { STAGES } from "./stages";
-import { updateDealStage } from "@/lib/actions/deals";
+import { scoreDeal, updateDealStage } from "@/lib/actions/deals";
 import type { Contact, Deal, DealStage } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -23,6 +23,12 @@ function formatDate(value: string | null) {
   });
 }
 
+function scoreBadgeClass(score: number) {
+  if (score <= 40) return "bg-red-50 text-red-700";
+  if (score <= 70) return "bg-amber-50 text-amber-700";
+  return "bg-emerald-50 text-emerald-700";
+}
+
 export function DealsPageClient({
   initialDeals,
   contacts,
@@ -35,6 +41,9 @@ export function DealsPageClient({
   const [editing, setEditing] = useState<Deal | null>(null);
   const [deleting, setDeleting] = useState<Deal | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [scoringId, setScoringId] = useState<string | null>(null);
+  const [scoreReasons, setScoreReasons] = useState<Record<string, string>>({});
+  const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
 
   const columns = useMemo(
     () =>
@@ -85,6 +94,21 @@ export function DealsPageClient({
     }
   }
 
+  async function handleScore(deal: Deal) {
+    setScoringId(deal.id);
+    setScoreErrors((prev) => ({ ...prev, [deal.id]: "" }));
+    const result = await scoreDeal(deal.id);
+    setScoringId(null);
+
+    if (result.error) {
+      setScoreErrors((prev) => ({ ...prev, [deal.id]: result.error! }));
+      return;
+    }
+
+    setScoreReasons((prev) => ({ ...prev, [deal.id]: result.reason ?? "" }));
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -131,9 +155,27 @@ export function DealsPageClient({
                       key={deal.id}
                       className="rounded-xl border border-slate-200 p-3 hover:border-slate-300"
                     >
-                      <p className="text-sm font-medium text-slate-900">{deal.title}</p>
+                      <div className="flex items-start justify-between gap-2">
+                        <p className="text-sm font-medium text-slate-900">{deal.title}</p>
+                        {deal.ai_score != null && (
+                          <span
+                            title="AI likelihood-to-close score"
+                            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${scoreBadgeClass(deal.ai_score)}`}
+                          >
+                            {deal.ai_score}
+                          </span>
+                        )}
+                      </div>
                       {deal.contacts?.name && (
                         <p className="mt-1 text-xs text-slate-500">{deal.contacts.name}</p>
+                      )}
+                      {scoreReasons[deal.id] && (
+                        <p className="mt-1 text-xs italic text-slate-400">
+                          {scoreReasons[deal.id]}
+                        </p>
+                      )}
+                      {scoreErrors[deal.id] && (
+                        <p className="mt-1 text-xs text-red-600">{scoreErrors[deal.id]}</p>
                       )}
                       <div className="mt-2 flex items-center justify-between">
                         <span className="text-sm font-semibold text-slate-700">
@@ -146,14 +188,14 @@ export function DealsPageClient({
                         )}
                       </div>
 
-                      <div className="mt-3 flex items-center justify-between gap-2">
+                      <div className="mt-3 flex flex-col gap-2">
                         <select
                           value={deal.stage}
                           disabled={movingId === deal.id}
                           onChange={(e) =>
                             handleStageChange(deal, e.target.value as DealStage)
                           }
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-blue-500 disabled:opacity-60"
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-blue-500 disabled:opacity-60"
                         >
                           {STAGES.map((s) => (
                             <option key={s.value} value={s.value}>
@@ -161,19 +203,31 @@ export function DealsPageClient({
                             </option>
                           ))}
                         </select>
-                        <div className="flex gap-1">
+                        <div className="flex items-center justify-between gap-1">
                           <button
-                            onClick={() => openEdit(deal)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                            onClick={() => handleScore(deal)}
+                            disabled={scoringId === deal.id}
+                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 disabled:opacity-60"
                           >
-                            Edit
+                            {scoringId === deal.id && (
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+                            )}
+                            {scoringId === deal.id ? "Scoring…" : "AI Score"}
                           </button>
-                          <button
-                            onClick={() => setDeleting(deal)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
-                          >
-                            Delete
-                          </button>
+                          <div className="flex gap-1">
+                            <button
+                              onClick={() => openEdit(deal)}
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                            >
+                              Edit
+                            </button>
+                            <button
+                              onClick={() => setDeleting(deal)}
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                            >
+                              Delete
+                            </button>
+                          </div>
                         </div>
                       </div>
                     </div>
