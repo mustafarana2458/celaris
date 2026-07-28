@@ -6,6 +6,7 @@ export const navLinks = [
   { href: "/dashboard/tasks", label: "Tasks", icon: "check" },
   { href: "/dashboard/invoices", label: "Invoices", icon: "invoice" },
   { href: "/dashboard/team", label: "Team", icon: "team" },
+  { href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant" },
   { href: "/dashboard/settings", label: "Settings", icon: "settings" },
 ] as const;
 
