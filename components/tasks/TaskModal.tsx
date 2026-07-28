@@ -1,0 +1,136 @@
+"use client";
+
+import { useState, useTransition } from "react";
+import { Modal } from "@/components/ui/Modal";
+import { Input } from "@/components/ui/Input";
+import { Textarea } from "@/components/ui/Textarea";
+import { Button } from "@/components/ui/Button";
+import { createTask, updateTask } from "@/lib/actions/tasks";
+import { TASK_PRIORITIES, TASK_STATUSES } from "./statuses";
+import type { Project, Task } from "@/lib/types";
+
+export function TaskModal({
+  open,
+  onClose,
+  task,
+  projects,
+  onSaved,
+}: {
+  open: boolean;
+  onClose: () => void;
+  task: Task | null;
+  projects: Pick<Project, "id" | "name">[];
+  onSaved: () => void;
+}) {
+  const [error, setError] = useState<string | null>(null);
+  const [isPending, startTransition] = useTransition();
+  const isEdit = !!task;
+
+  function handleSubmit(formData: FormData) {
+    setError(null);
+    startTransition(async () => {
+      const result = isEdit
+        ? await updateTask(task!.id, formData)
+        : await createTask(formData);
+
+      if (result.error) {
+        setError(result.error);
+        return;
+      }
+      onSaved();
+    });
+  }
+
+  return (
+    <Modal open={open} onClose={onClose} title={isEdit ? "Edit task" : "Add task"}>
+      <form key={task?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
+        {error && (
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+            {error}
+          </div>
+        )}
+
+        <Input label="Title" name="title" defaultValue={task?.title} required />
+
+        <Textarea
+          label="Description"
+          name="description"
+          rows={3}
+          defaultValue={task?.description ?? ""}
+        />
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="project_id" className="text-sm font-medium text-slate-700">
+            Project
+          </label>
+          <select
+            id="project_id"
+            name="project_id"
+            defaultValue={task?.project_id ?? ""}
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          >
+            <option value="">No project linked</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="status" className="text-sm font-medium text-slate-700">
+              Status
+            </label>
+            <select
+              id="status"
+              name="status"
+              defaultValue={task?.status ?? "todo"}
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {TASK_STATUSES.map((s) => (
+                <option key={s.value} value={s.value}>
+                  {s.label}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="priority" className="text-sm font-medium text-slate-700">
+              Priority
+            </label>
+            <select
+              id="priority"
+              name="priority"
+              defaultValue={task?.priority ?? "medium"}
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            >
+              {TASK_PRIORITIES.map((p) => (
+                <option key={p.value} value={p.value}>
+                  {p.label}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
+
+        <Input
+          label="Due date"
+          name="due_date"
+          type="date"
+          defaultValue={task?.due_date ?? ""}
+        />
+
+        <div className="mt-2 flex justify-end gap-3">
+          <Button type="button" variant="secondary" onClick={onClose}>
+            Cancel
+          </Button>
+          <Button type="submit" loading={isPending}>
+            {isEdit ? "Save changes" : "Add task"}
+          </Button>
+        </div>
+      </form>
+    </Modal>
+  );
+}
