@@ -15,9 +15,9 @@ export function Sidebar({ className = "" }: { className?: string }) {
         className="mb-6 flex items-center gap-2 px-2 text-lg font-semibold text-slate-900"
       >
         <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-          B
+          C
         </span>
-        BizSuite AI
+        Celaris
       </Link>
 
       {navLinks.map((link) => {

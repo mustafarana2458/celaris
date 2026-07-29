@@ -1,5 +1,5 @@
 {
-  "name": "bizsuite-ai",
+  "name": "celaris",
   "version": "0.1.0",
   "private": true,
   "scripts": {
@@ -13,7 +13,8 @@
     "@supabase/supabase-js": "^2.110.9",
     "next": "14.2.35",
     "react": "^18",
-    "react-dom": "^18"
+    "react-dom": "^18",
+    "react-qr-code": "^2.2.0"
   },
   "devDependencies": {
     "@types/node": "^20",

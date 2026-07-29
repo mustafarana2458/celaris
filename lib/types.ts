@@ -90,7 +90,13 @@ export type Invoice = {
   status: InvoiceStatus;
   due_date: string | null;
   issued_at: string;
-  contacts?: { id: string; name: string } | null;
+  public_token: string;
+  contacts?: {
+    id: string;
+    name: string;
+    company?: string | null;
+    email?: string | null;
+  } | null;
 };
 
 export type TeamRole = "owner" | "admin" | "member";

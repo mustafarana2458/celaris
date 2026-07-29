@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { InvoiceModal } from "./InvoiceModal";
 import { DeleteInvoiceDialog } from "./DeleteInvoiceDialog";
+import { PrintInvoiceModal } from "./PrintInvoiceModal";
 import { INVOICE_STATUSES } from "./statuses";
 import { updateInvoiceStatus } from "@/lib/actions/invoices";
 import type { Contact, Invoice, InvoiceStatus } from "@/lib/types";
@@ -38,6 +39,7 @@ export function InvoicesPageClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
   const [deleting, setDeleting] = useState<Invoice | null>(null);
+  const [printing, setPrinting] = useState<Invoice | null>(null);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
 
   const totals = useMemo(() => {
@@ -217,6 +219,12 @@ export function InvoicesPageClient({
                           </button>
                         )}
                         <button
+                          onClick={() => setPrinting(invoice)}
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                        >
+                          Print
+                        </button>
+                        <button
                           onClick={() => openEdit(invoice)}
                           className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
                         >
@@ -251,6 +259,8 @@ export function InvoicesPageClient({
         onClose={() => setDeleting(null)}
         onDeleted={handleDeleted}
       />
+
+      <PrintInvoiceModal invoice={printing} onClose={() => setPrinting(null)} />
     </div>
   );
 }

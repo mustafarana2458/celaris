@@ -6,7 +6,7 @@ export default function LoginPage() {
   return (
     <AuthCard
       title="Welcome back"
-      subtitle="Sign in to your BizSuite AI account."
+      subtitle="Sign in to your Celaris account."
       footer={
         <>
           Don&apos;t have an account?{" "}

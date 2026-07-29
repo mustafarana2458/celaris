@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { AiInsightsCard } from "@/components/dashboard/AiInsightsCard";
 import type { Contact, Task } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -145,6 +146,8 @@ export default async function DashboardPage() {
           </Link>
         ))}
       </div>
+
+      <AiInsightsCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
         <div className="rounded-2xl border border-slate-200 bg-white p-5">

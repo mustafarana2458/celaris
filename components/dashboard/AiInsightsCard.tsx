@@ -1,0 +1,82 @@
+"use client";
+
+import { useState } from "react";
+import { Button } from "@/components/ui/Button";
+import { generateInsights } from "@/lib/actions/insights";
+
+function parseBullets(text: string): string[] {
+  return text
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean)
+    .map((line) => line.replace(/^(?:[-*•]\s*)+/, ""))
+    .filter(Boolean);
+}
+
+export function AiInsightsCard() {
+  const [loading, setLoading] = useState(false);
+  const [insights, setInsights] = useState<string[] | null>(null);
+  const [error, setError] = useState<string | null>(null);
+
+  async function handleGenerate() {
+    setLoading(true);
+    setError(null);
+
+    const result = await generateInsights();
+    setLoading(false);
+
+    if (result.error) {
+      setError(result.error);
+      return;
+    }
+
+    setInsights(parseBullets(result.insights ?? ""));
+  }
+
+  return (
+    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h2 className="text-sm font-semibold text-slate-900">AI Insights</h2>
+          <p className="mt-1 text-xs text-slate-500">
+            AI-generated recommendations based on your current business data.
+          </p>
+        </div>
+        <Button onClick={handleGenerate} loading={loading} disabled={loading} className="shrink-0">
+          {insights ? "Regenerate" : "Generate Insights"}
+        </Button>
+      </div>
+
+      {loading && (
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+          Analyzing your business data… this can take up to 30 seconds.
+        </div>
+      )}
+
+      {!loading && error && (
+        <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+      )}
+
+      {!loading && insights && insights.length > 0 && (
+        <ul className="mt-4 flex flex-col gap-2">
+          {insights.map((insight, i) => (
+            <li
+              key={i}
+              className="flex gap-2 rounded-lg bg-blue-50/60 px-3 py-2 text-sm text-slate-700"
+            >
+              <span className="mt-0.5 shrink-0 text-blue-600">•</span>
+              <span>{insight}</span>
+            </li>
+          ))}
+        </ul>
+      )}
+
+      {!loading && insights && insights.length === 0 && (
+        <p className="mt-4 text-sm text-slate-500">
+          The AI didn&apos;t return any insights. Try regenerating.
+        </p>
+      )}
+    </div>
+  );
+}

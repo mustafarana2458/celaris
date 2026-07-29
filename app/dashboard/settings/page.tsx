@@ -1,3 +1,4 @@
+import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 
@@ -54,6 +55,15 @@ export default async function SettingsPage() {
             </div>
           ))}
         </dl>
+      </div>
+
+      <div className="flex items-center gap-4 text-xs text-slate-400">
+        <Link href="/terms" className="hover:text-slate-600 hover:underline">
+          Terms and Conditions
+        </Link>
+        <Link href="/privacy" className="hover:text-slate-600 hover:underline">
+          Privacy Policy
+        </Link>
       </div>
     </div>
   );

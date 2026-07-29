@@ -20,7 +20,7 @@ export default async function InvoicesPage() {
     ? await Promise.all([
         supabase
           .from("invoices")
-          .select("*, contacts(id, name)")
+          .select("*, contacts(id, name, company, email)")
           .eq("workspace_id", workspace.id)
           .order("issued_at", { ascending: false }),
         supabase

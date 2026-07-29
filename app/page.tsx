@@ -31,9 +31,9 @@ export default function Home() {
       <header className="mx-auto flex max-w-6xl items-center justify-between px-6 py-6">
         <div className="flex items-center gap-2 text-lg font-semibold text-slate-900">
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-            B
+            C
           </span>
-          BizSuite AI
+          Celaris
         </div>
         <div className="flex items-center gap-3">
           <Link
@@ -59,8 +59,8 @@ export default function Home() {
           Run your entire business from one clean dashboard
         </h1>
         <p className="mx-auto mt-4 max-w-xl text-lg text-slate-500">
-          Contacts, deals, projects, tasks, invoices and your team — BizSuite
-          AI brings it all together so you can focus on growth.
+          Contacts, deals, projects, tasks, invoices and your team — Celaris
+          brings it all together so you can focus on growth.
         </p>
         <div className="mt-8 flex items-center justify-center gap-4">
           <Link
@@ -98,7 +98,15 @@ export default function Home() {
       </main>
 
       <footer className="border-t border-slate-200 py-8 text-center text-sm text-slate-400">
-        © {new Date().getFullYear()} BizSuite AI. All rights reserved.
+        <p>© {new Date().getFullYear()} Celaris. All rights reserved.</p>
+        <div className="mt-2 flex items-center justify-center gap-4">
+          <Link href="/terms" className="hover:text-slate-600 hover:underline">
+            Terms
+          </Link>
+          <Link href="/privacy" className="hover:text-slate-600 hover:underline">
+            Privacy
+          </Link>
+        </div>
       </footer>
     </div>
   );

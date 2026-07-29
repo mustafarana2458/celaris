@@ -20,9 +20,9 @@ export function AuthCard({
           className="mb-8 flex items-center justify-center gap-2 text-lg font-semibold text-slate-900"
         >
           <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-            B
+            C
           </span>
-          BizSuite AI
+          Celaris
         </Link>
 
         <div className="rounded-2xl border border-slate-200 bg-white p-8 shadow-sm">

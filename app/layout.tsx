@@ -14,7 +14,7 @@ const geistMono = localFont({
 });
 
 export const metadata: Metadata = {
-  title: "BizSuite AI — All-in-one business management",
+  title: "Celaris — All-in-one business management",
   description:
     "Contacts, deals, projects, tasks, invoices and your team in one place.",
 };

@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useTransition } from "react";
+import Link from "next/link";
 import { signUp } from "@/lib/actions/auth";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
@@ -76,6 +77,18 @@ export function SignupForm() {
       <Button type="submit" loading={isPending} className="mt-2 w-full">
         Create account
       </Button>
+
+      <p className="text-center text-xs text-slate-500">
+        By signing up, you agree to our{" "}
+        <Link href="/terms" className="font-medium text-blue-600 hover:text-blue-700">
+          Terms
+        </Link>{" "}
+        and{" "}
+        <Link href="/privacy" className="font-medium text-blue-600 hover:text-blue-700">
+          Privacy Policy
+        </Link>
+        .
+      </p>
     </form>
   );
 }
