@@ -7,6 +7,8 @@ import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { createContact, updateContact } from "@/lib/actions/contacts";
 import { CompanyCombobox } from "./CompanyCombobox";
+import { TagInput } from "./TagInput";
+import { resolveContactTagNames } from "@/lib/tags";
 import type { Company, Contact } from "@/lib/types";
 
 export function ContactModal({
@@ -14,12 +16,14 @@ export function ContactModal({
   onClose,
   contact,
   companies,
+  tagSuggestions,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   contact: Contact | null;
   companies: Pick<Company, "id" | "name">[];
+  tagSuggestions: string[];
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -93,11 +97,10 @@ export function ContactModal({
           </div>
         </div>
 
-        <Input
-          label="Tags"
+        <TagInput
           name="tags"
-          placeholder="vip, newsletter, referral"
-          defaultValue={contact?.tags?.join(", ") ?? ""}
+          suggestions={tagSuggestions}
+          defaultTags={resolveContactTagNames(contact)}
         />
 
         <Textarea

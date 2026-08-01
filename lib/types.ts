@@ -36,6 +36,14 @@ export type Contact = {
   notes: string | null;
   created_at: string;
   companies?: { id: string; name: string } | null;
+  contact_tags?: { tags: { id: string; name: string } | null }[] | null;
+};
+
+export type Tag = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  created_at: string;
 };
 
 export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";

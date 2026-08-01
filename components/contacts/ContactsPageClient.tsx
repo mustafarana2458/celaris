@@ -7,6 +7,8 @@ import { NavIcon } from "@/components/dashboard/NavIcon";
 import { ContactModal } from "./ContactModal";
 import { DeleteContactDialog } from "./DeleteContactDialog";
 import { AiFollowUpModal } from "./AiFollowUpModal";
+import { tagColor } from "@/lib/tagColors";
+import { resolveContactTagNames } from "@/lib/tags";
 import type { Company, Contact } from "@/lib/types";
 
 const typeStyles: Record<Contact["type"], string> = {
@@ -17,9 +19,11 @@ const typeStyles: Record<Contact["type"], string> = {
 export function ContactsPageClient({
   initialContacts,
   companies,
+  tagSuggestions,
 }: {
   initialContacts: Contact[];
   companies: Pick<Company, "id" | "name">[];
+  tagSuggestions: string[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -165,10 +169,10 @@ export function ContactsPageClient({
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex flex-wrap gap-1">
-                        {(c.tags ?? []).map((tag) => (
+                        {resolveContactTagNames(c).map((tag) => (
                           <span
                             key={tag}
-                            className="rounded-full bg-slate-100 px-2 py-0.5 text-xs text-slate-600 dark:bg-slate-700 dark:text-slate-300"
+                            className={`rounded-full px-2 py-0.5 text-xs font-medium ${tagColor(tag).badge}`}
                           >
                             {tag}
                           </span>
@@ -210,6 +214,7 @@ export function ContactsPageClient({
         onClose={closeModal}
         contact={editing}
         companies={companies}
+        tagSuggestions={tagSuggestions}
         onSaved={handleSaved}
       />
 

@@ -16,11 +16,11 @@ export default async function ContactsPage() {
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
 
-  const [{ data: contacts }, { data: companies }] = workspace
+  const [{ data: contacts }, { data: companies }, { data: tags }] = workspace
     ? await Promise.all([
         supabase
           .from("contacts")
-          .select("*, companies(id, name)")
+          .select("*, companies(id, name), contact_tags(tags(id, name))")
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -28,13 +28,19 @@ export default async function ContactsPage() {
           .select("id, name")
           .eq("workspace_id", workspace.id)
           .order("name", { ascending: true }),
+        supabase
+          .from("tags")
+          .select("name")
+          .eq("workspace_id", workspace.id)
+          .order("name", { ascending: true }),
       ])
-    : [{ data: [] as Contact[] }, { data: [] as Company[] }];
+    : [{ data: [] as Contact[] }, { data: [] as Company[] }, { data: [] as { name: string }[] }];
 
   return (
     <ContactsPageClient
       initialContacts={(contacts as Contact[]) ?? []}
       companies={(companies as Pick<Company, "id" | "name">[]) ?? []}
+      tagSuggestions={(tags ?? []).map((t) => t.name)}
     />
   );
 }
