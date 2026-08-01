@@ -34,14 +34,14 @@ export function DeleteTeamMemberDialog({
   return (
     <Modal open={!!member} onClose={onClose} title="Remove team member">
       <div className="flex flex-col gap-4">
-        <p className="text-sm text-slate-600">
+        <p className="text-sm text-slate-600 dark:text-slate-300">
           Are you sure you want to remove{" "}
-          <span className="font-medium text-slate-900">{member?.member_name}</span>{" "}
+          <span className="font-medium text-slate-900 dark:text-slate-100">{member?.member_name}</span>{" "}
           from the team directory? This action cannot be undone.
         </p>
 
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}

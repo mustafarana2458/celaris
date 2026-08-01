@@ -53,27 +53,27 @@ export function AiFollowUpModal({
     <Modal open={!!contact} onClose={onClose} title="AI follow-up message">
       <div className="flex flex-col gap-4">
         {contact && (
-          <p className="text-sm text-slate-500">
+          <p className="text-sm text-slate-500 dark:text-slate-400">
             Personalized follow-up for{" "}
-            <span className="font-medium text-slate-900">{contact.name}</span>
+            <span className="font-medium text-slate-900 dark:text-slate-100">{contact.name}</span>
           </p>
         )}
 
         {loading && (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-lg bg-slate-50 py-10">
-            <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
-            <p className="text-sm text-slate-500">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-lg bg-slate-50 py-10 dark:bg-slate-700/40">
+            <span className="h-6 w-6 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
+            <p className="text-sm text-slate-500 dark:text-slate-400">
               Generating message… this can take up to 30 seconds.
             </p>
           </div>
         )}
 
         {!loading && error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">{error}</div>
         )}
 
         {!loading && message && (
-          <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800">
+          <div className="whitespace-pre-wrap rounded-lg border border-slate-200 bg-slate-50 p-4 text-sm text-slate-800 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-200">
             {message}
           </div>
         )}

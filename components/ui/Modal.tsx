@@ -26,14 +26,14 @@ export function Modal({
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-slate-900/40" onClick={onClose} />
-      <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl">
+      <div className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60" onClick={onClose} />
+      <div className="relative w-full max-w-lg rounded-2xl bg-white p-6 shadow-xl dark:bg-slate-800">
         <div className="mb-4 flex items-center justify-between">
-          <h2 className="text-lg font-semibold text-slate-900">{title}</h2>
+          <h2 className="text-lg font-semibold text-slate-900 dark:text-slate-100">{title}</h2>
           <button
             onClick={onClose}
             aria-label="Close"
-            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600"
+            className="rounded-lg p-1 text-slate-400 hover:bg-slate-100 hover:text-slate-600 dark:hover:bg-slate-700 dark:hover:text-slate-300"
           >
             <svg
               viewBox="0 0 24 24"

@@ -18,7 +18,7 @@ function roleBadge(role: string) {
       {r.label}
     </span>
   ) : (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
+    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
       {role}
     </span>
   );
@@ -66,30 +66,30 @@ export function TeamPageClient({
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Team</h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Team</h1>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Manage who has access to this workspace and keep a directory of your team.
         </p>
       </div>
 
       <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-900">Workspace members</h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Workspace members</h2>
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                 <tr>
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Role</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {workspaceMembers.map((m) => (
-                  <tr key={m.user_id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-slate-900">
+                  <tr key={m.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
                       {m.users?.full_name || "Unnamed user"}
                       {m.user_id === currentUserId && (
-                        <span className="ml-2 rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+                        <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-hover dark:bg-accent/15 dark:text-accent">
                           You
                         </span>
                       )}
@@ -99,7 +99,7 @@ export function TeamPageClient({
                 ))}
                 {workspaceMembers.length === 0 && (
                   <tr>
-                    <td colSpan={2} className="px-5 py-6 text-center text-sm text-slate-500">
+                    <td colSpan={2} className="px-5 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
                       No workspace members found.
                     </td>
                   </tr>
@@ -108,7 +108,7 @@ export function TeamPageClient({
             </table>
           </div>
         </div>
-        <p className="text-xs text-slate-400">
+        <p className="text-xs text-slate-400 dark:text-slate-500">
           Workspace members are the accounts that can sign in to this workspace. There&apos;s no
           invite flow yet, so this list reflects signups only.
         </p>
@@ -116,17 +116,17 @@ export function TeamPageClient({
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-slate-900">Team directory</h2>
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Team directory</h2>
           <Button onClick={openAdd}>+ Add team member</Button>
         </div>
 
         {initialTeamMembers.length === 0 ? (
-          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
-            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+          <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+            <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent">
               <NavIcon name="team" className="h-6 w-6" />
             </span>
-            <p className="text-sm font-medium text-slate-700">No team members yet</p>
-            <p className="max-w-sm text-sm text-slate-500">
+            <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No team members yet</p>
+            <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
               Add people to your team directory to keep track of who&apos;s who, even before they
               have a login.
             </p>
@@ -135,10 +135,10 @@ export function TeamPageClient({
             </Button>
           </div>
         ) : (
-          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+          <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
             <div className="overflow-x-auto">
               <table className="w-full text-left text-sm">
-                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                   <tr>
                     <th className="px-5 py-3 font-medium">Name</th>
                     <th className="px-5 py-3 font-medium">Email</th>
@@ -146,13 +146,13 @@ export function TeamPageClient({
                     <th className="px-5 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-slate-100">
+                <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                   {initialTeamMembers.map((member) => (
-                    <tr key={member.id} className="hover:bg-slate-50">
-                      <td className="px-5 py-3 font-medium text-slate-900">
+                    <tr key={member.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                      <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
                         {member.member_name}
                       </td>
-                      <td className="px-5 py-3 text-slate-600">
+                      <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                         {member.member_email || "—"}
                       </td>
                       <td className="px-5 py-3">{roleBadge(member.role)}</td>
@@ -160,13 +160,13 @@ export function TeamPageClient({
                         <div className="flex justify-end gap-2">
                           <button
                             onClick={() => openEdit(member)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => setDeleting(member)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                           >
                             Delete
                           </button>

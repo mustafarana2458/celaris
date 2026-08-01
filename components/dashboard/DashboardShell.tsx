@@ -16,18 +16,18 @@ export function DashboardShell({
   const [mobileOpen, setMobileOpen] = useState(false);
 
   return (
-    <div className="flex min-h-screen bg-slate-50">
-      <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
+      <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block dark:border-slate-700 dark:bg-slate-800">
         <Sidebar />
       </aside>
 
       {mobileOpen && (
         <div className="fixed inset-0 z-40 md:hidden">
           <div
-            className="absolute inset-0 bg-slate-900/40"
+            className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60"
             onClick={() => setMobileOpen(false)}
           />
-          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl">
+          <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl dark:bg-slate-800">
             <Sidebar />
           </aside>
         </div>

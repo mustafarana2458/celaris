@@ -53,7 +53,7 @@ export function InvoiceModal({
     <Modal open={open} onClose={onClose} title={isEdit ? "Edit invoice" : "Add invoice"}>
       <form key={invoice?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}
@@ -67,14 +67,14 @@ export function InvoiceModal({
         />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700">
+          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Contact
           </label>
           <select
             id="contact_id"
             name="contact_id"
             defaultValue={invoice?.contact_id ?? ""}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             <option value="">No contact linked</option>
             {contacts.map((c) => (
@@ -106,21 +106,21 @@ export function InvoiceModal({
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5">
-          <span className="text-sm font-medium text-slate-600">Total</span>
-          <span className="text-sm font-semibold text-slate-900">{currency.format(total)}</span>
+        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5 dark:bg-slate-700/40">
+          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total</span>
+          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{currency.format(total)}</span>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="status" className="text-sm font-medium text-slate-700">
+            <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Status
             </label>
             <select
               id="status"
               name="status"
               defaultValue={invoice?.status ?? "unpaid"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               {INVOICE_STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>

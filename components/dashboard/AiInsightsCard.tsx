@@ -34,11 +34,11 @@ export function AiInsightsCard() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5">
+    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h2 className="text-sm font-semibold text-slate-900">AI Insights</h2>
-          <p className="mt-1 text-xs text-slate-500">
+          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Insights</h2>
+          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
             AI-generated recommendations based on your current business data.
           </p>
         </div>
@@ -48,14 +48,14 @@ export function AiInsightsCard() {
       </div>
 
       {loading && (
-        <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500">
-          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-blue-600" />
+        <div className="mt-4 flex items-center gap-2 rounded-lg bg-slate-50 px-4 py-3 text-sm text-slate-500 dark:bg-slate-700/50 dark:text-slate-400">
+          <span className="h-4 w-4 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
           Analyzing your business data… this can take up to 30 seconds.
         </div>
       )}
 
       {!loading && error && (
-        <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700">{error}</div>
+        <div className="mt-4 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">{error}</div>
       )}
 
       {!loading && insights && insights.length > 0 && (
@@ -63,9 +63,9 @@ export function AiInsightsCard() {
           {insights.map((insight, i) => (
             <li
               key={i}
-              className="flex gap-2 rounded-lg bg-blue-50/60 px-3 py-2 text-sm text-slate-700"
+              className="flex gap-2 rounded-lg bg-accent/5 px-3 py-2 text-sm text-slate-700 dark:bg-accent/10 dark:text-slate-300"
             >
-              <span className="mt-0.5 shrink-0 text-blue-600">•</span>
+              <span className="mt-0.5 shrink-0 text-accent-hover dark:text-accent">•</span>
               <span>{insight}</span>
             </li>
           ))}
@@ -73,7 +73,7 @@ export function AiInsightsCard() {
       )}
 
       {!loading && insights && insights.length === 0 && (
-        <p className="mt-4 text-sm text-slate-500">
+        <p className="mt-4 text-sm text-slate-500 dark:text-slate-400">
           The AI didn&apos;t return any insights. Try regenerating.
         </p>
       )}

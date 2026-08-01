@@ -46,7 +46,7 @@ export function TeamMemberModal({
     >
       <form key={member?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}
@@ -66,14 +66,14 @@ export function TeamMemberModal({
         />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="role" className="text-sm font-medium text-slate-700">
+          <label htmlFor="role" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Role
           </label>
           <select
             id="role"
             name="role"
             defaultValue={member?.role ?? "member"}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             {TEAM_ROLES.map((r) => (
               <option key={r.value} value={r.value}>

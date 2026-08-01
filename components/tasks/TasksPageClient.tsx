@@ -87,8 +87,8 @@ export function TasksPageClient({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Tasks</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Tasks</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {initialTasks.length} task{initialTasks.length === 1 ? "" : "s"} across your board.
           </p>
         </div>
@@ -96,9 +96,9 @@ export function TasksPageClient({
       </div>
 
       {initialTasks.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
-          <p className="text-sm font-medium text-slate-700">No tasks yet</p>
-          <p className="max-w-sm text-sm text-slate-500">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No tasks yet</p>
+          <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first task to start tracking what needs to get done.
           </p>
           <Button onClick={openAdd} className="mt-1">
@@ -110,11 +110,11 @@ export function TasksPageClient({
           {columns.map((col) => (
             <div
               key={col.value}
-              className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 ${col.column}`}
+              className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${col.column}`}
             >
               <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-semibold text-slate-900">{col.label}</h2>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{col.label}</h2>
+                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                   {col.tasks.length}
                 </span>
               </div>
@@ -125,21 +125,21 @@ export function TasksPageClient({
                   return (
                     <div
                       key={task.id}
-                      className="rounded-xl border border-slate-200 p-3 hover:border-slate-300"
+                      className="rounded-xl border border-slate-200 p-3 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-slate-900">{task.title}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
                         <span
-                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${priorityMap[task.priority]?.badge ?? "bg-slate-100 text-slate-600"}`}
+                          className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-medium capitalize ${priorityMap[task.priority]?.badge ?? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
                         >
                           {priorityMap[task.priority]?.label ?? task.priority}
                         </span>
                       </div>
                       {task.projects?.name && (
-                        <p className="mt-1 text-xs text-slate-500">{task.projects.name}</p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{task.projects.name}</p>
                       )}
                       {formatDate(task.due_date) && (
-                        <p className={`mt-1 text-xs ${overdue ? "font-medium text-red-600" : "text-slate-400"}`}>
+                        <p className={`mt-1 text-xs ${overdue ? "font-medium text-red-600 dark:text-red-400" : "text-slate-400 dark:text-slate-500"}`}>
                           Due {formatDate(task.due_date)}
                           {overdue && " · overdue"}
                         </p>
@@ -152,7 +152,7 @@ export function TasksPageClient({
                           onChange={(e) =>
                             handleStatusChange(task, e.target.value as TaskStatus)
                           }
-                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-blue-500 disabled:opacity-60"
+                          className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         >
                           {TASK_STATUSES.map((s) => (
                             <option key={s.value} value={s.value}>
@@ -163,13 +163,13 @@ export function TasksPageClient({
                         <div className="flex gap-1">
                           <button
                             onClick={() => openEdit(task)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
                           >
                             Edit
                           </button>
                           <button
                             onClick={() => setDeleting(task)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                           >
                             Delete
                           </button>
@@ -179,7 +179,7 @@ export function TasksPageClient({
                   );
                 })}
                 {col.tasks.length === 0 && (
-                  <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
+                  <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
                     No tasks
                   </p>
                 )}

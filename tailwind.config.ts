@@ -12,6 +12,10 @@ const config: Config = {
       colors: {
         background: "var(--background)",
         foreground: "var(--foreground)",
+        accent: {
+          DEFAULT: "rgb(var(--accent-rgb) / <alpha-value>)",
+          hover: "rgb(var(--accent-dark-rgb) / <alpha-value>)",
+        },
       },
     },
   },

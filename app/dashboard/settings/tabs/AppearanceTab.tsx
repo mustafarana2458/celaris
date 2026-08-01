@@ -2,9 +2,13 @@
 
 import { useEffect, useState } from "react";
 import { useTheme, type ThemeMode } from "@/hooks/useTheme";
-
-const ACCENT_STORAGE_KEY = "accentColor";
-const ACCENT_COLORS = ["#2563EB", "#10B981", "#7C3AED", "#F59E0B"];
+import {
+  ACCENT_PALETTE,
+  ACCENT_STORAGE_KEY,
+  DEFAULT_ACCENT,
+  applyAccent,
+  resolveAccent,
+} from "@/lib/theme";
 
 const THEME_OPTIONS: { value: ThemeMode; label: string }[] = [
   { value: "light", label: "Light" },
@@ -43,26 +47,28 @@ function ThemePreview({ mode }: { mode: ThemeMode }) {
 
 export function AppearanceTab() {
   const { mode, setMode } = useTheme();
-  const [accent, setAccent] = useState<string>(ACCENT_COLORS[0]);
+  const [accent, setAccent] = useState<string>(DEFAULT_ACCENT.value);
 
   useEffect(() => {
     const stored = localStorage.getItem(ACCENT_STORAGE_KEY);
-    const initial = stored && ACCENT_COLORS.includes(stored) ? stored : ACCENT_COLORS[0];
+    const initial = resolveAccent(stored).value;
     setAccent(initial);
-    document.documentElement.style.setProperty("--accent-color", initial);
+    applyAccent(initial);
   }, []);
 
   function selectAccent(color: string) {
     setAccent(color);
     localStorage.setItem(ACCENT_STORAGE_KEY, color);
-    document.documentElement.style.setProperty("--accent-color", color);
+    applyAccent(color);
   }
 
   return (
     <div className="flex flex-col gap-6">
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-slate-900">Theme</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          Theme
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Choose how Celaris looks on this device.
         </p>
 
@@ -76,17 +82,17 @@ export function AppearanceTab() {
                 onClick={() => setMode(option.value)}
                 className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-colors ${
                   isActive
-                    ? "border-blue-500 ring-2 ring-blue-100"
-                    : "border-slate-200 hover:border-slate-300"
+                    ? "border-accent ring-2 ring-accent/20"
+                    : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
                 }`}
               >
                 <ThemePreview mode={option.value} />
                 <div className="flex items-center justify-between">
-                  <span className="text-sm font-medium text-slate-900">
+                  <span className="text-sm font-medium text-slate-900 dark:text-slate-100">
                     {option.label}
                   </span>
                   {isActive && (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-600">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -107,25 +113,29 @@ export function AppearanceTab() {
         </div>
       </div>
 
-      <div className="rounded-2xl border border-slate-200 bg-white p-6">
-        <h2 className="text-base font-semibold text-slate-900">Accent Color</h2>
-        <p className="mt-1 text-sm text-slate-500">
+      <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+        <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">
+          Accent Color
+        </h2>
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Pick a primary accent color. Saved on this device.
         </p>
 
         <div className="mt-6 flex items-center gap-3">
-          {ACCENT_COLORS.map((color) => {
-            const isActive = color === accent;
+          {ACCENT_PALETTE.map((option) => {
+            const isActive = option.value === accent;
             return (
               <button
-                key={color}
+                key={option.value}
                 type="button"
-                onClick={() => selectAccent(color)}
-                aria-label={`Select accent color ${color}`}
+                onClick={() => selectAccent(option.value)}
+                aria-label={`Select accent color ${option.label}`}
                 className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform ${
-                  isActive ? "scale-110 ring-2 ring-offset-2 ring-slate-400" : ""
+                  isActive
+                    ? "scale-110 ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-800"
+                    : ""
                 }`}
-                style={{ backgroundColor: color }}
+                style={{ backgroundColor: option.value }}
               >
                 {isActive && (
                   <svg

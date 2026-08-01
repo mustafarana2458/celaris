@@ -95,8 +95,8 @@ export function InvoicesPageClient({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Invoices</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Invoices</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Create and track payment on your invoices.
           </p>
         </div>
@@ -104,15 +104,15 @@ export function InvoicesPageClient({
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Total unpaid</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total unpaid</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {currency.format(totals.unpaid)}
           </p>
         </div>
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
-          <p className="text-sm text-slate-500">Total paid</p>
-          <p className="mt-2 text-2xl font-semibold text-slate-900">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-sm text-slate-500 dark:text-slate-400">Total paid</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {currency.format(totals.paid)}
           </p>
         </div>
@@ -123,8 +123,8 @@ export function InvoicesPageClient({
           onClick={() => setStatusFilter("all")}
           className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
             statusFilter === "all"
-              ? "bg-blue-600 text-white"
-              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+              ? "bg-accent text-white"
+              : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
           }`}
         >
           All
@@ -135,8 +135,8 @@ export function InvoicesPageClient({
             onClick={() => setStatusFilter(s.value)}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               statusFilter === s.value
-                ? "bg-blue-600 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-accent text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
             {s.label}
@@ -145,14 +145,14 @@ export function InvoicesPageClient({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent">
             <NavIcon name="invoice" className="h-6 w-6" />
           </span>
-          <p className="text-sm font-medium text-slate-700">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
             {initialInvoices.length === 0 ? "No invoices yet" : "No matching invoices"}
           </p>
-          <p className="max-w-sm text-sm text-slate-500">
+          <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             {initialInvoices.length === 0
               ? "Add your first invoice to start tracking payments."
               : "Try a different status filter."}
@@ -164,10 +164,10 @@ export function InvoicesPageClient({
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                 <tr>
                   <th className="px-5 py-3 font-medium">Invoice #</th>
                   <th className="px-5 py-3 font-medium">Contact</th>
@@ -179,32 +179,32 @@ export function InvoicesPageClient({
                   <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {filtered.map((invoice) => (
-                  <tr key={invoice.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-slate-900">
+                  <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
                       {invoice.invoice_number}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {invoice.contacts?.name || "—"}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {currency.format(invoice.amount)}
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {currency.format(invoice.tax)}
                     </td>
-                    <td className="px-5 py-3 font-medium text-slate-900">
+                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
                       {currency.format(invoice.total)}
                     </td>
                     <td className="px-5 py-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusMap[invoice.status]?.badge ?? "bg-slate-100 text-slate-600"}`}
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusMap[invoice.status]?.badge ?? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
                       >
                         {statusMap[invoice.status]?.label ?? invoice.status}
                       </span>
                     </td>
-                    <td className="px-5 py-3 text-slate-600">
+                    <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {formatDate(invoice.due_date)}
                     </td>
                     <td className="px-5 py-3">
@@ -213,26 +213,26 @@ export function InvoicesPageClient({
                           <button
                             onClick={() => markPaid(invoice)}
                             disabled={updatingId === invoice.id}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-60"
+                            className="rounded-lg px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
                           >
                             Mark paid
                           </button>
                         )}
                         <button
                           onClick={() => setPrinting(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100"
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                         >
                           Print
                         </button>
                         <button
                           onClick={() => openEdit(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setDeleting(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                         >
                           Delete
                         </button>

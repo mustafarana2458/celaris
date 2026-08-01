@@ -44,7 +44,7 @@ export function DealModal({
     <Modal open={open} onClose={onClose} title={isEdit ? "Edit deal" : "Add deal"}>
       <form key={deal?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}
@@ -52,14 +52,14 @@ export function DealModal({
         <Input label="Title" name="title" defaultValue={deal?.title} required />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700">
+          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Contact
           </label>
           <select
             id="contact_id"
             name="contact_id"
             defaultValue={deal?.contact_id ?? ""}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             <option value="">No contact linked</option>
             {contacts.map((c) => (
@@ -80,14 +80,14 @@ export function DealModal({
             defaultValue={deal?.value ?? ""}
           />
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="stage" className="text-sm font-medium text-slate-700">
+            <label htmlFor="stage" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Stage
             </label>
             <select
               id="stage"
               name="stage"
               defaultValue={deal?.stage ?? "new"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               {STAGES.map((s) => (
                 <option key={s.value} value={s.value}>

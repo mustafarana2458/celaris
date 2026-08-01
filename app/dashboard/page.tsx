@@ -122,12 +122,12 @@ export default async function DashboardPage() {
   return (
     <div className="flex flex-col gap-6">
       <div>
-        <h1 className="text-2xl font-semibold text-slate-900">
+        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
         </h1>
-        <p className="mt-1 text-sm text-slate-500">
+        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
           Here&apos;s a snapshot of your business.{" "}
-          <span className="inline-flex items-center rounded-full bg-blue-50 px-2 py-0.5 text-xs font-medium text-blue-700">
+          <span className="inline-flex items-center rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-hover dark:bg-accent/15 dark:text-accent">
             {profile?.plan ?? "free"} plan
           </span>
         </p>
@@ -138,11 +138,11 @@ export default async function DashboardPage() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300"
+            className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
           >
-            <p className="text-sm text-slate-500">{stat.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900">{stat.value}</p>
-            {stat.sub && <p className="mt-1 text-xs text-slate-400">{stat.sub}</p>}
+            <p className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</p>
+            <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{stat.value}</p>
+            {stat.sub && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{stat.sub}</p>}
           </Link>
         ))}
       </div>
@@ -150,29 +150,29 @@ export default async function DashboardPage() {
       <AiInsightsCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Recent contacts</h2>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent contacts</h2>
             <Link
               href="/dashboard/contacts"
-              className="text-xs font-medium text-blue-600 hover:underline"
+              className="text-xs font-medium text-accent-hover hover:underline dark:text-accent"
             >
               View all
             </Link>
           </div>
-          <div className="mt-2 flex flex-col divide-y divide-slate-100">
+          <div className="mt-2 flex flex-col divide-y divide-slate-100 dark:divide-slate-700">
             {recentContacts.length === 0 ? (
-              <p className="py-4 text-sm text-slate-500">No contacts yet.</p>
+              <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No contacts yet.</p>
             ) : (
               recentContacts.map((c) => (
                 <div key={c.id} className="flex items-center justify-between py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{c.name}</p>
-                    <p className="text-xs text-slate-500">
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">
                       {c.company || c.email || "—"}
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                     {c.type}
                   </span>
                 </div>
@@ -181,27 +181,27 @@ export default async function DashboardPage() {
           </div>
         </div>
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5">
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
           <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900">Upcoming tasks</h2>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming tasks</h2>
             <Link
               href="/dashboard/tasks"
-              className="text-xs font-medium text-blue-600 hover:underline"
+              className="text-xs font-medium text-accent-hover hover:underline dark:text-accent"
             >
               View all
             </Link>
           </div>
-          <div className="mt-2 flex flex-col divide-y divide-slate-100">
+          <div className="mt-2 flex flex-col divide-y divide-slate-100 dark:divide-slate-700">
             {upcomingTasks.length === 0 ? (
-              <p className="py-4 text-sm text-slate-500">No upcoming tasks.</p>
+              <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No upcoming tasks.</p>
             ) : (
               upcomingTasks.map((t) => (
                 <div key={t.id} className="flex items-center justify-between py-3">
                   <div>
-                    <p className="text-sm font-medium text-slate-900">{t.title}</p>
-                    <p className="text-xs text-slate-500">Due {formatDate(t.due_date)}</p>
+                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{t.title}</p>
+                    <p className="text-xs text-slate-500 dark:text-slate-400">Due {formatDate(t.due_date)}</p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600">
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                     {t.priority}
                   </span>
                 </div>

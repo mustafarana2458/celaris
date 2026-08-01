@@ -39,9 +39,15 @@
     --popover-foreground: oklch(0.145 0 0);
     
     /* Celaris Primary Blue (#2563EB) */
-    --primary: 221 83% 53%; 
+    --primary: 221 83% 53%;
     --primary-foreground: 210 40% 98%;
-    
+
+    /* Accent color (Settings > Appearance). Overwritten on load / on change
+       by lib/theme.ts and the bootstrap script in app/layout.tsx; these are
+       just the pre-JS fallback (Celaris blue). */
+    --accent-rgb: 37 99 235;
+    --accent-dark-rgb: 29 78 216;
+
     --secondary: oklch(0.97 0 0);
     --secondary-foreground: oklch(0.205 0 0);
     --muted: oklch(0.97 0 0);

@@ -43,9 +43,9 @@ export function ChangePasswordCard() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-6">
-      <h2 className="text-base font-semibold text-slate-900">Change Password</h2>
-      <p className="mt-1 text-sm text-slate-500">
+    <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+      <h2 className="text-base font-semibold text-slate-900 dark:text-slate-100">Change Password</h2>
+      <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
         Choose a new password for your account.
       </p>
 
@@ -55,12 +55,12 @@ export function ChangePasswordCard() {
         className="mt-6 flex flex-col gap-4"
       >
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}
         {success && (
-          <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700">
+          <div className="rounded-lg bg-green-50 p-3 text-sm text-green-700 dark:bg-green-950/40 dark:text-green-400">
             Password updated successfully.
           </div>
         )}

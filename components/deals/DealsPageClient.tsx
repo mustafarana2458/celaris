@@ -24,9 +24,9 @@ function formatDate(value: string | null) {
 }
 
 function scoreBadgeClass(score: number) {
-  if (score <= 40) return "bg-red-50 text-red-700";
-  if (score <= 70) return "bg-amber-50 text-amber-700";
-  return "bg-emerald-50 text-emerald-700";
+  if (score <= 40) return "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400";
+  if (score <= 70) return "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
+  return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400";
 }
 
 export function DealsPageClient({
@@ -113,8 +113,8 @@ export function DealsPageClient({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Deals</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Deals</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             {initialDeals.length} deal{initialDeals.length === 1 ? "" : "s"} ·{" "}
             {currency.format(totalValue)} in pipeline
           </p>
@@ -123,9 +123,9 @@ export function DealsPageClient({
       </div>
 
       {initialDeals.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
-          <p className="text-sm font-medium text-slate-700">No deals yet</p>
-          <p className="max-w-sm text-sm text-slate-500">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No deals yet</p>
+          <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first deal to start tracking your sales pipeline.
           </p>
           <Button onClick={openAdd} className="mt-1">
@@ -139,24 +139,24 @@ export function DealsPageClient({
             return (
               <div
                 key={col.value}
-                className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 ${col.column}`}
+                className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${col.column}`}
               >
                 <div className="flex items-center justify-between px-1">
-                  <h2 className="text-sm font-semibold text-slate-900">{col.label}</h2>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500">
+                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{col.label}</h2>
+                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
                     {col.deals.length}
                   </span>
                 </div>
-                <p className="px-1 text-xs text-slate-400">{currency.format(colValue)}</p>
+                <p className="px-1 text-xs text-slate-400 dark:text-slate-500">{currency.format(colValue)}</p>
 
                 <div className="flex flex-col gap-2">
                   {col.deals.map((deal) => (
                     <div
                       key={deal.id}
-                      className="rounded-xl border border-slate-200 p-3 hover:border-slate-300"
+                      className="rounded-xl border border-slate-200 p-3 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
                     >
                       <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-slate-900">{deal.title}</p>
+                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{deal.title}</p>
                         {deal.ai_score != null && (
                           <span
                             title="AI likelihood-to-close score"
@@ -167,22 +167,22 @@ export function DealsPageClient({
                         )}
                       </div>
                       {deal.contacts?.name && (
-                        <p className="mt-1 text-xs text-slate-500">{deal.contacts.name}</p>
+                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{deal.contacts.name}</p>
                       )}
                       {scoreReasons[deal.id] && (
-                        <p className="mt-1 text-xs italic text-slate-400">
+                        <p className="mt-1 text-xs italic text-slate-400 dark:text-slate-500">
                           {scoreReasons[deal.id]}
                         </p>
                       )}
                       {scoreErrors[deal.id] && (
-                        <p className="mt-1 text-xs text-red-600">{scoreErrors[deal.id]}</p>
+                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{scoreErrors[deal.id]}</p>
                       )}
                       <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-700">
+                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
                           {deal.value != null ? currency.format(deal.value) : "—"}
                         </span>
                         {formatDate(deal.expected_close) && (
-                          <span className="text-xs text-slate-400">
+                          <span className="text-xs text-slate-400 dark:text-slate-500">
                             {formatDate(deal.expected_close)}
                           </span>
                         )}
@@ -195,7 +195,7 @@ export function DealsPageClient({
                           onChange={(e) =>
                             handleStageChange(deal, e.target.value as DealStage)
                           }
-                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-blue-500 disabled:opacity-60"
+                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         >
                           {STAGES.map((s) => (
                             <option key={s.value} value={s.value}>
@@ -207,23 +207,23 @@ export function DealsPageClient({
                           <button
                             onClick={() => handleScore(deal)}
                             disabled={scoringId === deal.id}
-                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 disabled:opacity-60"
+                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 disabled:opacity-60 dark:text-purple-400 dark:hover:bg-purple-950/40"
                           >
                             {scoringId === deal.id && (
-                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600" />
+                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600 dark:border-purple-800" />
                             )}
                             {scoringId === deal.id ? "Scoring…" : "AI Score"}
                           </button>
                           <div className="flex gap-1">
                             <button
                               onClick={() => openEdit(deal)}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
                             >
                               Edit
                             </button>
                             <button
                               onClick={() => setDeleting(deal)}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                              className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                             >
                               Delete
                             </button>
@@ -233,7 +233,7 @@ export function DealsPageClient({
                     </div>
                   ))}
                   {col.deals.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400">
+                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
                       No deals
                     </p>
                   )}

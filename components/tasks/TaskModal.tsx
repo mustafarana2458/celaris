@@ -45,7 +45,7 @@ export function TaskModal({
     <Modal open={open} onClose={onClose} title={isEdit ? "Edit task" : "Add task"}>
       <form key={task?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
         {error && (
-          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+          <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
             {error}
           </div>
         )}
@@ -60,14 +60,14 @@ export function TaskModal({
         />
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="project_id" className="text-sm font-medium text-slate-700">
+          <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Project
           </label>
           <select
             id="project_id"
             name="project_id"
             defaultValue={task?.project_id ?? ""}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
             <option value="">No project linked</option>
             {projects.map((p) => (
@@ -80,14 +80,14 @@ export function TaskModal({
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="status" className="text-sm font-medium text-slate-700">
+            <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Status
             </label>
             <select
               id="status"
               name="status"
               defaultValue={task?.status ?? "todo"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               {TASK_STATUSES.map((s) => (
                 <option key={s.value} value={s.value}>
@@ -97,14 +97,14 @@ export function TaskModal({
             </select>
           </div>
           <div className="flex flex-col gap-1.5">
-            <label htmlFor="priority" className="text-sm font-medium text-slate-700">
+            <label htmlFor="priority" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Priority
             </label>
             <select
               id="priority"
               name="priority"
               defaultValue={task?.priority ?? "medium"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               {TASK_PRIORITIES.map((p) => (
                 <option key={p.value} value={p.value}>

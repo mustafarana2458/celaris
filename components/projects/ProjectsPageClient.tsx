@@ -64,8 +64,8 @@ export function ProjectsPageClient({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900">Projects</h1>
-          <p className="mt-1 text-sm text-slate-500">
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Projects</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Organize the work you deliver for your clients.
           </p>
         </div>
@@ -78,15 +78,15 @@ export function ProjectsPageClient({
           placeholder="Search by name or description..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full max-w-sm rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-shadow focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+          className="w-full max-w-sm rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
         />
         <div className="flex flex-wrap gap-2">
           <button
             onClick={() => setStatusFilter("all")}
             className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
               statusFilter === "all"
-                ? "bg-blue-600 text-white"
-                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                ? "bg-accent text-white"
+                : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
             }`}
           >
             All
@@ -97,8 +97,8 @@ export function ProjectsPageClient({
               onClick={() => setStatusFilter(s.value)}
               className={`rounded-lg px-3 py-1.5 text-sm font-medium transition-colors ${
                 statusFilter === s.value
-                  ? "bg-blue-600 text-white"
-                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50"
+                  ? "bg-accent text-white"
+                  : "border border-slate-200 bg-white text-slate-600 hover:bg-slate-50 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
               }`}
             >
               {s.label}
@@ -108,14 +108,14 @@ export function ProjectsPageClient({
       </div>
 
       {filtered.length === 0 ? (
-        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center">
-          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
+        <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+          <span className="flex h-12 w-12 items-center justify-center rounded-xl bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent">
             <NavIcon name="folder" className="h-6 w-6" />
           </span>
-          <p className="text-sm font-medium text-slate-700">
+          <p className="text-sm font-medium text-slate-700 dark:text-slate-300">
             {initialProjects.length === 0 ? "No projects yet" : "No matching projects"}
           </p>
-          <p className="max-w-sm text-sm text-slate-500">
+          <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             {initialProjects.length === 0
               ? "Add your first project to start organizing your work."
               : "Try a different search or filter."}
@@ -127,10 +127,10 @@ export function ProjectsPageClient({
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white">
+        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
           <div className="overflow-x-auto">
             <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                 <tr>
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Description</th>
@@ -138,16 +138,16 @@ export function ProjectsPageClient({
                   <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
-              <tbody className="divide-y divide-slate-100">
+              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
                 {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50">
-                    <td className="px-5 py-3 font-medium text-slate-900">{p.name}</td>
-                    <td className="max-w-xs truncate px-5 py-3 text-slate-600">
+                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
+                    <td className="max-w-xs truncate px-5 py-3 text-slate-600 dark:text-slate-300">
                       {p.description || "—"}
                     </td>
                     <td className="px-5 py-3">
                       <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusMap[p.status]?.badge ?? "bg-slate-100 text-slate-600"}`}
+                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusMap[p.status]?.badge ?? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
                       >
                         {statusMap[p.status]?.label ?? p.status}
                       </span>
@@ -156,13 +156,13 @@ export function ProjectsPageClient({
                       <div className="flex justify-end gap-2">
                         <button
                           onClick={() => openEdit(p)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-blue-600 hover:bg-blue-50"
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
                         >
                           Edit
                         </button>
                         <button
                           onClick={() => setDeleting(p)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50"
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
                         >
                           Delete
                         </button>
