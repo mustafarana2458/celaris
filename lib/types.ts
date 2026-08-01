@@ -55,6 +55,22 @@ export type ContactFilters = {
   missingCompany: boolean;
 };
 
+export type ContactActionResult = { error?: string };
+
+export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export const DEFAULT_PAGE_SIZE = 25;
+
+export type ContactsQuery = {
+  search: string;
+  type: "all" | ContactType;
+  page: number;
+  pageSize: number;
+} & ContactFilters;
+
+export type ContactsQueryResult =
+  | { contacts: Contact[]; total: number }
+  | { error: string };
+
 export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";
 export type CompanySize = "1-10" | "11-50" | "51-200" | "200+";
 

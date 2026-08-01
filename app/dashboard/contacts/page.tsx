@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { ContactsPageClient } from "@/components/contacts/ContactsPageClient";
-import { DEFAULT_PAGE_SIZE } from "@/lib/actions/contacts";
+import { DEFAULT_PAGE_SIZE } from "@/lib/types";
 import type { Company, Contact, Tag } from "@/lib/types";
 
 export default async function ContactsPage() {

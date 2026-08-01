@@ -1,6 +1,6 @@
 "use client";
 
-import { PAGE_SIZE_OPTIONS } from "@/lib/actions/contacts";
+import { PAGE_SIZE_OPTIONS } from "@/lib/types";
 
 export function ContactsPagination({
   page,

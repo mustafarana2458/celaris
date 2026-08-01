@@ -14,11 +14,11 @@ import { tagColor } from "@/lib/tagColors";
 import { resolveContactTagNames } from "@/lib/tags";
 import { downloadCsv } from "@/lib/csv";
 import {
-  DEFAULT_PAGE_SIZE,
   bulkAddTagToContacts,
   bulkDeleteContacts,
   listContacts,
 } from "@/lib/actions/contacts";
+import { DEFAULT_PAGE_SIZE } from "@/lib/types";
 import type { Company, Contact, ContactFilters, Tag } from "@/lib/types";
 
 const typeStyles: Record<Contact["type"], string> = {

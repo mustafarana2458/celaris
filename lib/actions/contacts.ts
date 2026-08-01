@@ -4,23 +4,15 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import type { Contact, ContactFilters, ContactType } from "@/lib/types";
-
-export type ContactActionResult = { error?: string };
-
-export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
-export const DEFAULT_PAGE_SIZE = 25;
-
-export type ContactsQuery = {
-  search: string;
-  type: "all" | ContactType;
-  page: number;
-  pageSize: number;
-} & ContactFilters;
-
-export type ContactsQueryResult =
-  | { contacts: Contact[]; total: number }
-  | { error: string };
+import {
+  DEFAULT_PAGE_SIZE,
+  PAGE_SIZE_OPTIONS,
+  type Contact,
+  type ContactActionResult,
+  type ContactsQuery,
+  type ContactsQueryResult,
+  type ContactType,
+} from "@/lib/types";
 
 async function requireWorkspace() {
   const supabase = await createClient();
