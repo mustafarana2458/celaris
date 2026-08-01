@@ -3,6 +3,7 @@ export type UserProfile = {
   full_name: string;
   business_name: string;
   phone: string | null;
+  avatar_url: string | null;
   plan: string;
   created_at: string;
 };

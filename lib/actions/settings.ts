@@ -1,0 +1,87 @@
+"use server";
+
+import { revalidatePath } from "next/cache";
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/workspace";
+
+export type SettingsActionResult = { error?: string };
+
+const CURRENCIES = ["USD", "EUR", "PKR", "GBP"];
+
+async function requireWorkspace() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated." } as const;
+  }
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+  if (!workspace) {
+    return { error: "No workspace found for this account." } as const;
+  }
+
+  return { supabase, workspace, user } as const;
+}
+
+export async function updateProfile(formData: FormData): Promise<SettingsActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const fullName = String(formData.get("full_name") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+
+  if (!fullName) {
+    return { error: "Full name is required." };
+  }
+
+  const { error } = await ctx.supabase
+    .from("users")
+    .update({ full_name: fullName, phone: phone || null })
+    .eq("id", ctx.user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function updateWorkspaceBranding(formData: FormData): Promise<SettingsActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  if (ctx.workspace.role !== "owner") {
+    return { error: "Only the workspace owner can update these settings." };
+  }
+
+  const name = String(formData.get("name") ?? "").trim();
+  const supportEmail = String(formData.get("support_email") ?? "").trim();
+  const taxNumber = String(formData.get("tax_number") ?? "").trim();
+  const currencyRaw = String(formData.get("currency") ?? "USD").trim();
+  const address = String(formData.get("address") ?? "").trim();
+  const currency = CURRENCIES.includes(currencyRaw) ? currencyRaw : "USD";
+
+  if (!name) {
+    return { error: "Workspace name is required." };
+  }
+
+  const { error } = await ctx.supabase
+    .from("workspaces")
+    .update({
+      name,
+      support_email: supportEmail || null,
+      tax_number: taxNumber || null,
+      currency,
+      address: address || null,
+    })
+    .eq("id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return {};
+}

@@ -1,6 +1,17 @@
-import Link from "next/link";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { SettingsPageClient } from "./SettingsPageClient";
+import type { UserProfile } from "@/lib/types";
+
+export type WorkspaceBranding = {
+  id: string;
+  name: string;
+  support_email: string | null;
+  tax_number: string | null;
+  currency: string | null;
+  address: string | null;
+};
 
 export default async function SettingsPage() {
   const supabase = await createClient();
@@ -8,63 +19,33 @@ export default async function SettingsPage() {
     data: { user },
   } = await supabase.auth.getUser();
 
-  const [{ data: profile }, workspace] = await Promise.all([
+  if (!user) {
+    redirect("/login");
+  }
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+
+  const [{ data: profile }, { data: workspaceRow }] = await Promise.all([
     supabase
       .from("users")
-      .select("full_name, business_name, phone, plan, created_at")
-      .eq("id", user?.id ?? "")
-      .maybeSingle(),
-    getCurrentWorkspace(supabase, user?.id ?? ""),
+      .select("id, full_name, business_name, phone, avatar_url, plan, created_at")
+      .eq("id", user.id)
+      .maybeSingle<UserProfile>(),
+    workspace
+      ? supabase
+          .from("workspaces")
+          .select("id, name, support_email, tax_number, currency, address")
+          .eq("id", workspace.id)
+          .maybeSingle<WorkspaceBranding>()
+      : Promise.resolve({ data: null }),
   ]);
 
-  const rows = [
-    { label: "Full name", value: profile?.full_name || "—" },
-    { label: "Email", value: user?.email || "—" },
-    { label: "Phone", value: profile?.phone || "—" },
-    { label: "Workspace", value: workspace?.name || "—" },
-    { label: "Role", value: workspace?.role || "—" },
-    { label: "Plan", value: profile?.plan || "free" },
-    {
-      label: "Member since",
-      value: profile?.created_at
-        ? new Date(profile.created_at).toLocaleDateString()
-        : "—",
-    },
-  ];
-
   return (
-    <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900">Settings</h1>
-        <p className="mt-1 text-sm text-slate-500">
-          Your account and business details.
-        </p>
-      </div>
-
-      <div className="max-w-2xl overflow-hidden rounded-2xl border border-slate-200 bg-white">
-        <dl className="divide-y divide-slate-100">
-          {rows.map((row) => (
-            <div
-              key={row.label}
-              className="grid grid-cols-3 gap-4 px-6 py-4 text-sm"
-            >
-              <dt className="text-slate-500">{row.label}</dt>
-              <dd className="col-span-2 font-medium text-slate-900">
-                {row.value}
-              </dd>
-            </div>
-          ))}
-        </dl>
-      </div>
-
-      <div className="flex items-center gap-4 text-xs text-slate-400">
-        <Link href="/terms" className="hover:text-slate-600 hover:underline">
-          Terms and Conditions
-        </Link>
-        <Link href="/privacy" className="hover:text-slate-600 hover:underline">
-          Privacy Policy
-        </Link>
-      </div>
-    </div>
+    <SettingsPageClient
+      email={user.email ?? ""}
+      profile={profile ?? null}
+      workspace={workspace}
+      workspaceBranding={workspaceRow ?? null}
+    />
   );
 }
