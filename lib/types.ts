@@ -30,8 +30,25 @@ export type Contact = {
   email: string | null;
   phone: string | null;
   company: string | null;
+  company_id: string | null;
   type: ContactType;
   tags: string[] | null;
+  notes: string | null;
+  created_at: string;
+  companies?: { id: string; name: string } | null;
+};
+
+export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";
+export type CompanySize = "1-10" | "11-50" | "51-200" | "200+";
+
+export type Company = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  website: string | null;
+  industry: CompanyIndustry | null;
+  size: CompanySize | null;
+  location: string | null;
   notes: string | null;
   created_at: string;
 };

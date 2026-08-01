@@ -7,7 +7,7 @@ import { NavIcon } from "@/components/dashboard/NavIcon";
 import { ContactModal } from "./ContactModal";
 import { DeleteContactDialog } from "./DeleteContactDialog";
 import { AiFollowUpModal } from "./AiFollowUpModal";
-import type { Contact } from "@/lib/types";
+import type { Company, Contact } from "@/lib/types";
 
 const typeStyles: Record<Contact["type"], string> = {
   lead: "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400",
@@ -16,8 +16,10 @@ const typeStyles: Record<Contact["type"], string> = {
 
 export function ContactsPageClient({
   initialContacts,
+  companies,
 }: {
   initialContacts: Contact[];
+  companies: Pick<Company, "id" | "name">[];
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
@@ -32,10 +34,11 @@ export function ContactsPageClient({
     return initialContacts.filter((c) => {
       if (typeFilter !== "all" && c.type !== typeFilter) return false;
       if (!q) return true;
+      const companyName = c.companies?.name ?? c.company ?? "";
       return (
         c.name.toLowerCase().includes(q) ||
         (c.email ?? "").toLowerCase().includes(q) ||
-        (c.company ?? "").toLowerCase().includes(q)
+        companyName.toLowerCase().includes(q)
       );
     });
   }, [initialContacts, search, typeFilter]);
@@ -69,9 +72,9 @@ export function ContactsPageClient({
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
-          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Contacts</h1>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">People</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            Manage the people and companies you do business with.
+            Manage the people you do business with.
           </p>
         </div>
         <Button onClick={openAdd}>+ Add contact</Button>
@@ -151,7 +154,7 @@ export function ContactsPageClient({
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                      {c.company || "—"}
+                      {c.companies?.name || c.company || "—"}
                     </td>
                     <td className="px-5 py-3">
                       <span
@@ -206,6 +209,7 @@ export function ContactsPageClient({
         open={modalOpen}
         onClose={closeModal}
         contact={editing}
+        companies={companies}
         onSaved={handleSaved}
       />
 

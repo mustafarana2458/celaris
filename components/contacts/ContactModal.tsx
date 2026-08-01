@@ -6,17 +6,20 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
 import { createContact, updateContact } from "@/lib/actions/contacts";
-import type { Contact } from "@/lib/types";
+import { CompanyCombobox } from "./CompanyCombobox";
+import type { Company, Contact } from "@/lib/types";
 
 export function ContactModal({
   open,
   onClose,
   contact,
+  companies,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   contact: Contact | null;
+  companies: Pick<Company, "id" | "name">[];
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -69,10 +72,10 @@ export function ContactModal({
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            label="Company"
-            name="company"
-            defaultValue={contact?.company ?? ""}
+          <CompanyCombobox
+            companies={companies}
+            defaultCompanyId={contact?.company_id ?? null}
+            defaultCompanyName={contact?.companies?.name ?? contact?.company ?? null}
           />
           <div className="flex flex-col gap-1.5">
             <label htmlFor="type" className="text-sm font-medium text-slate-700 dark:text-slate-300">

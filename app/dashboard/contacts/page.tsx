@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { ContactsPageClient } from "@/components/contacts/ContactsPageClient";
-import type { Contact } from "@/lib/types";
+import type { Company, Contact } from "@/lib/types";
 
 export default async function ContactsPage() {
   const supabase = await createClient();
@@ -16,13 +16,25 @@ export default async function ContactsPage() {
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
 
-  const { data: contacts } = workspace
-    ? await supabase
-        .from("contacts")
-        .select("*")
-        .eq("workspace_id", workspace.id)
-        .order("created_at", { ascending: false })
-    : { data: [] as Contact[] };
+  const [{ data: contacts }, { data: companies }] = workspace
+    ? await Promise.all([
+        supabase
+          .from("contacts")
+          .select("*, companies(id, name)")
+          .eq("workspace_id", workspace.id)
+          .order("created_at", { ascending: false }),
+        supabase
+          .from("companies")
+          .select("id, name")
+          .eq("workspace_id", workspace.id)
+          .order("name", { ascending: true }),
+      ])
+    : [{ data: [] as Contact[] }, { data: [] as Company[] }];
 
-  return <ContactsPageClient initialContacts={(contacts as Contact[]) ?? []} />;
+  return (
+    <ContactsPageClient
+      initialContacts={(contacts as Contact[]) ?? []}
+      companies={(companies as Pick<Company, "id" | "name">[]) ?? []}
+    />
+  );
 }

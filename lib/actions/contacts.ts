@@ -38,7 +38,8 @@ function contactFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
-  const company = String(formData.get("company") ?? "").trim();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const companyName = String(formData.get("company_name") ?? "").trim();
   const typeRaw = String(formData.get("type") ?? "lead").trim();
   const notes = String(formData.get("notes") ?? "").trim();
   const type: ContactType = typeRaw === "customer" ? "customer" : "lead";
@@ -47,7 +48,10 @@ function contactFields(formData: FormData) {
     name,
     email: email || null,
     phone: phone || null,
-    company: company || null,
+    company_id: companyId || null,
+    // Denormalized copy of the linked company's name, kept for backward
+    // compatibility with the older free-text "company" column.
+    company: companyName || null,
     type,
     notes: notes || null,
     tags: parseTags(formData.get("tags")),
