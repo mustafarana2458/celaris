@@ -4,9 +4,23 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import type { ContactType } from "@/lib/types";
+import type { Contact, ContactFilters, ContactType } from "@/lib/types";
 
 export type ContactActionResult = { error?: string };
+
+export const PAGE_SIZE_OPTIONS = [10, 25, 50] as const;
+export const DEFAULT_PAGE_SIZE = 25;
+
+export type ContactsQuery = {
+  search: string;
+  type: "all" | ContactType;
+  page: number;
+  pageSize: number;
+} & ContactFilters;
+
+export type ContactsQueryResult =
+  | { contacts: Contact[]; total: number }
+  | { error: string };
 
 async function requireWorkspace() {
   const supabase = await createClient();
@@ -186,6 +200,152 @@ export async function deleteContact(id: string): Promise<ContactActionResult> {
     .eq("workspace_id", ctx.workspace.id);
 
   if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/contacts");
+  return {};
+}
+
+export async function listContacts(
+  query: Partial<ContactsQuery>
+): Promise<ContactsQueryResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return { error: ctx.error ?? "Something went wrong." };
+
+  const {
+    search = "",
+    type = "all",
+    tagIds = [],
+    companyId = "",
+    dateFrom = "",
+    dateTo = "",
+    missingPhone = false,
+    missingCompany = false,
+    page = 1,
+    pageSize = DEFAULT_PAGE_SIZE,
+  } = query;
+
+  // Tag filtering is resolved separately (rather than an embedded !inner
+  // join) to avoid row fan-out when a contact matches more than one of the
+  // selected tags, which would otherwise duplicate rows and break the count.
+  let tagContactIds: string[] | null = null;
+  if (tagIds.length > 0) {
+    const { data: tagLinks, error: tagLinkError } = await ctx.supabase
+      .from("contact_tags")
+      .select("contact_id")
+      .eq("workspace_id", ctx.workspace.id)
+      .in("tag_id", tagIds);
+
+    if (tagLinkError) return { error: tagLinkError.message };
+
+    tagContactIds = Array.from(new Set((tagLinks ?? []).map((t) => t.contact_id)));
+    if (tagContactIds.length === 0) {
+      return { contacts: [], total: 0 };
+    }
+  }
+
+  let q = ctx.supabase
+    .from("contacts")
+    .select("*, companies(id, name), contact_tags(tags(id, name))", { count: "exact" })
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (type !== "all") q = q.eq("type", type);
+  if (companyId) q = q.eq("company_id", companyId);
+  if (missingPhone) q = q.is("phone", null);
+  if (missingCompany) q = q.is("company_id", null);
+  if (dateFrom) q = q.gte("created_at", dateFrom);
+  if (dateTo) q = q.lte("created_at", `${dateTo}T23:59:59.999`);
+  if (tagContactIds) q = q.in("id", tagContactIds);
+
+  const trimmedSearch = search.trim().replace(/,/g, "");
+  if (trimmedSearch) {
+    q = q.or(
+      `name.ilike.%${trimmedSearch}%,email.ilike.%${trimmedSearch}%,company.ilike.%${trimmedSearch}%`
+    );
+  }
+
+  const safePageSize = (PAGE_SIZE_OPTIONS as readonly number[]).includes(pageSize)
+    ? pageSize
+    : DEFAULT_PAGE_SIZE;
+  const safePage = Math.max(1, page);
+  const from = (safePage - 1) * safePageSize;
+  const to = from + safePageSize - 1;
+
+  const { data, count, error } = await q
+    .order("created_at", { ascending: false })
+    .range(from, to);
+
+  if (error) return { error: error.message };
+
+  return { contacts: (data as Contact[]) ?? [], total: count ?? 0 };
+}
+
+export async function bulkDeleteContacts(ids: string[]): Promise<ContactActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+  if (ids.length === 0) return {};
+
+  const { error } = await ctx.supabase
+    .from("contacts")
+    .delete()
+    .eq("workspace_id", ctx.workspace.id)
+    .in("id", ids);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/contacts");
+  return {};
+}
+
+export async function bulkAddTagToContacts(
+  ids: string[],
+  tagName: string
+): Promise<ContactActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const name = tagName.trim();
+  if (!name || ids.length === 0) return {};
+
+  const { error: upsertError } = await ctx.supabase
+    .from("tags")
+    .upsert(
+      { workspace_id: ctx.workspace.id, name },
+      { onConflict: "workspace_id,name", ignoreDuplicates: true }
+    );
+  if (upsertError) return { error: upsertError.message };
+
+  const { data: tagRow, error: tagFetchError } = await ctx.supabase
+    .from("tags")
+    .select("id")
+    .eq("workspace_id", ctx.workspace.id)
+    .eq("name", name)
+    .single();
+  if (tagFetchError || !tagRow) {
+    return { error: tagFetchError?.message ?? "Tag not found." };
+  }
+
+  // Re-verify the ids actually belong to this workspace — RLS on contact_tags
+  // only checks contact_tags.workspace_id, not that contact_id itself belongs
+  // to that workspace, so this guards against cross-workspace linking.
+  const { data: validContacts, error: contactsError } = await ctx.supabase
+    .from("contacts")
+    .select("id")
+    .eq("workspace_id", ctx.workspace.id)
+    .in("id", ids);
+  if (contactsError) return { error: contactsError.message };
+
+  const validIds = (validContacts ?? []).map((c) => c.id);
+  if (validIds.length === 0) return {};
+
+  const { error: linkError } = await ctx.supabase.from("contact_tags").upsert(
+    validIds.map((contactId) => ({
+      workspace_id: ctx.workspace.id,
+      contact_id: contactId,
+      tag_id: tagRow.id,
+    })),
+    { onConflict: "contact_id,tag_id", ignoreDuplicates: true }
+  );
+  if (linkError) return { error: linkError.message };
 
   revalidatePath("/dashboard/contacts");
   return {};

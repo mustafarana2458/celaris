@@ -46,6 +46,15 @@ export type Tag = {
   created_at: string;
 };
 
+export type ContactFilters = {
+  tagIds: string[];
+  companyId: string;
+  dateFrom: string;
+  dateTo: string;
+  missingPhone: boolean;
+  missingCompany: boolean;
+};
+
 export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";
 export type CompanySize = "1-10" | "11-50" | "51-200" | "200+";
 
