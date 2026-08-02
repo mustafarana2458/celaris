@@ -1,3 +1,6 @@
+import type { SupabaseClient } from "@supabase/supabase-js";
+import { createClient } from "@/lib/supabase/server";
+
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MISTRAL_MODEL = "mistral-small-2603";
@@ -5,10 +8,12 @@ const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
+const MODE_CACHE_MS = 5000;
 
 export type GroqMessage = { role: "system" | "user" | "assistant"; content: string };
 export type GroqResult = { text?: string; error?: string };
 export type GroqOptions = { temperature?: number };
+export type AiProviderMode = "auto" | "groq" | "mistral";
 
 type Attempt =
   | { kind: "response"; response: Response }
@@ -158,13 +163,65 @@ async function tryMistral(messages: GroqMessage[], options?: GroqOptions, format
   return { text };
 }
 
+// Reads the developer-panel provider override directly from app_settings,
+// bypassing the cache below. Used by the dev panel itself so it always
+// shows/confirms the true persisted value, never a stale cached one.
+export async function fetchModeFromDb(supabase: SupabaseClient): Promise<AiProviderMode> {
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "ai_provider_mode")
+    .maybeSingle();
+
+  const value = (data as { value?: string } | null)?.value;
+  return value === "groq" || value === "mistral" ? value : "auto";
+}
+
+let cachedMode: AiProviderMode = "auto";
+let cachedAt = 0;
+
+// Called by the dev panel right after a successful write, so this process's
+// very next AI call reflects the change immediately instead of waiting out
+// the cache window. Other server instances/processes still pick it up
+// within MODE_CACHE_MS.
+export function invalidateProviderModeCache() {
+  cachedAt = 0;
+}
+
+async function getProviderMode(): Promise<AiProviderMode> {
+  if (Date.now() - cachedAt < MODE_CACHE_MS) return cachedMode;
+
+  try {
+    const supabase = await createClient();
+    cachedMode = await fetchModeFromDb(supabase);
+  } catch {
+    // Any DB hiccup falls back to the safe default rather than breaking AI.
+    cachedMode = "auto";
+  }
+  cachedAt = Date.now();
+  return cachedMode;
+}
+
 export async function callGroq(
   prompt: string | GroqMessage[],
   options?: GroqOptions,
   format?: "json"
 ): Promise<GroqResult> {
   const messages: GroqMessage[] = typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
+  const mode = await getProviderMode();
 
+  if (mode === "groq") {
+    const result = await tryGroq(messages, options, format);
+    return result ?? { error: "AI is currently unavailable. Please try again in a bit." };
+  }
+
+  if (mode === "mistral") {
+    const result = await tryMistral(messages, options, format);
+    return result ?? { error: "AI is currently unavailable. Please try again in a bit." };
+  }
+
+  // "auto" (default) -- unchanged from the original Groq-first, Mistral-
+  // fallback behavior.
   const groqResult = await tryGroq(messages, options, format);
   if (groqResult) return groqResult;
 

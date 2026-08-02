@@ -1,10 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { navLinks, type NavGroup } from "./nav-links";
 import { NavIcon } from "./NavIcon";
+import { DevPanelModal } from "./DevPanelModal";
+
+const SECRET_CLICKS = 5;
+const SECRET_WINDOW_MS = 2000;
 
 function ChevronIcon({ open }: { open: boolean }) {
   return (
@@ -27,6 +31,21 @@ function ChevronIcon({ open }: { open: boolean }) {
 export function Sidebar({ className = "" }: { className?: string }) {
   const pathname = usePathname();
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [devPanelOpen, setDevPanelOpen] = useState(false);
+  const logoClicks = useRef<number[]>([]);
+
+  // Five rapid clicks on the logo opens the hidden developer panel; no
+  // visible hint anywhere. Clicks 1-4 still navigate normally (a no-op if
+  // already on /dashboard) -- only the qualifying 5th click is intercepted.
+  function handleLogoClick(e: React.MouseEvent) {
+    const now = Date.now();
+    logoClicks.current = [...logoClicks.current, now].filter((t) => now - t < SECRET_WINDOW_MS);
+    if (logoClicks.current.length >= SECRET_CLICKS) {
+      e.preventDefault();
+      logoClicks.current = [];
+      setDevPanelOpen(true);
+    }
+  }
 
   function isLinkActive(href: string) {
     return href === "/dashboard" ? pathname === "/dashboard" : pathname.startsWith(href);
@@ -53,6 +72,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
     <nav className={`flex h-full flex-col gap-1 overflow-y-auto p-4 ${className}`}>
       <Link
         href="/dashboard"
+        onClick={handleLogoClick}
         className="mb-6 flex items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
       >
         <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
@@ -137,6 +157,8 @@ export function Sidebar({ className = "" }: { className?: string }) {
           </Link>
         );
       })}
+
+      <DevPanelModal open={devPanelOpen} onClose={() => setDevPanelOpen(false)} />
     </nav>
   );
 }
