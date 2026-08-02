@@ -1,23 +1,49 @@
 "use client";
 
-import { FormEvent, useRef, useState } from "react";
+import { FormEvent, useRef, useState, type ReactNode } from "react";
 import { Button } from "@/components/ui/Button";
-import { askAssistant } from "@/lib/actions/assistant";
+import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
+import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
+import type { CreateContactParams, CreateDealParams, CreateTaskParams } from "@/lib/assistantTools";
 
-type ChatMessage = {
+type AnswerMessage = {
   id: string;
   role: "user" | "assistant";
+  kind: "answer";
   content: string;
+  tool?: ReadTool | WriteTool;
 };
+
+type ConfirmMessage = {
+  id: string;
+  role: "assistant";
+  kind: "confirm";
+  tool: WriteTool;
+  params: CreateContactParams | CreateTaskParams | CreateDealParams;
+  preview: string;
+  status: "pending" | "confirming" | "confirmed" | "cancelled" | "error";
+  error?: string;
+};
+
+type ChatMessage = AnswerMessage | ConfirmMessage;
 
 const EXAMPLE_QUESTIONS = [
   "How many leads do I have?",
-  "What's my total unpaid amount?",
-  "Which deals are in proposal stage?",
+  "List my overdue invoices",
+  "Create a task to call Ahmed tomorrow",
 ];
 
 function makeId() {
   return `${Date.now()}-${Math.random().toString(36).slice(2)}`;
+}
+
+// Renders **bold** segments as React elements without ever interpreting the
+// (partly AI/user-derived) text as HTML, unlike dangerouslySetInnerHTML would.
+function renderWithBold(text: string): ReactNode[] {
+  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) => {
+    const match = part.match(/^\*\*(.+)\*\*$/);
+    return match ? <strong key={i}>{match[1]}</strong> : <span key={i}>{part}</span>;
+  });
 }
 
 export function AssistantPageClient() {
@@ -27,31 +53,87 @@ export function AssistantPageClient() {
   const [error, setError] = useState<string | null>(null);
   const listEndRef = useRef<HTMLDivElement>(null);
 
+  function scrollToEnd() {
+    requestAnimationFrame(() => {
+      listEndRef.current?.scrollIntoView({ behavior: "smooth" });
+    });
+  }
+
   async function sendQuestion(question: string) {
     const trimmed = question.trim();
     if (!trimmed || loading) return;
 
     setError(null);
     setInput("");
-    setMessages((prev) => [...prev, { id: makeId(), role: "user", content: trimmed }]);
+    setMessages((prev) => [...prev, { id: makeId(), role: "user", kind: "answer", content: trimmed }]);
     setLoading(true);
 
     const result = await askAssistant(trimmed);
     setLoading(false);
 
-    if (result.error) {
+    if ("error" in result) {
       setError(result.error);
       return;
     }
 
-    setMessages((prev) => [
-      ...prev,
-      { id: makeId(), role: "assistant", content: result.answer ?? "" },
-    ]);
+    if (result.kind === "answer") {
+      setMessages((prev) => [
+        ...prev,
+        { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
+      ]);
+    } else {
+      setMessages((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          role: "assistant",
+          kind: "confirm",
+          tool: result.tool,
+          params: result.params,
+          preview: result.preview,
+          status: "pending",
+        },
+      ]);
+    }
 
-    requestAnimationFrame(() => {
-      listEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
+    scrollToEnd();
+  }
+
+  async function handleConfirm(message: ConfirmMessage) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id && m.kind === "confirm" ? { ...m, status: "confirming" as const } : m
+      )
+    );
+
+    const result = await confirmAssistantAction(message.tool, message.params);
+
+    if ("error" in result) {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === message.id && m.kind === "confirm"
+            ? { ...m, status: "error" as const, error: result.error }
+            : m
+        )
+      );
+      return;
+    }
+
+    setMessages((prev) => [
+      ...prev.map((m) =>
+        m.id === message.id && m.kind === "confirm" ? { ...m, status: "confirmed" as const } : m
+      ),
+      { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
+    ]);
+    scrollToEnd();
+  }
+
+  function handleCancel(message: ConfirmMessage) {
+    setMessages((prev) =>
+      prev.map((m) =>
+        m.id === message.id && m.kind === "confirm" ? { ...m, status: "cancelled" as const } : m
+      )
+    );
   }
 
   function handleSubmit(e: FormEvent) {
@@ -64,7 +146,7 @@ export function AssistantPageClient() {
       <div>
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">AI Business Assistant</h1>
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Ask questions about your contacts, deals, projects, tasks, and invoices.
+          Ask questions or ask it to create a contact, task, or deal for you.
         </p>
       </div>
 
@@ -73,7 +155,7 @@ export function AssistantPageClient() {
           {messages.length === 0 ? (
             <div className="flex h-full flex-col items-center justify-center gap-4 text-center">
               <p className="text-sm text-slate-500 dark:text-slate-400">
-                Ask a question about your business data to get started.
+                Ask a question or give it something to do to get started.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
                 {EXAMPLE_QUESTIONS.map((q) => (
@@ -91,19 +173,58 @@ export function AssistantPageClient() {
             </div>
           ) : (
             <div className="flex flex-col gap-4">
-              {messages.map((m) => (
-                <div key={m.id} className={`flex ${m.role === "user" ? "justify-end" : "justify-start"}`}>
-                  <div
-                    className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
-                      m.role === "user"
-                        ? "bg-accent text-white"
-                        : "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
-                    }`}
-                  >
-                    {m.content}
+              {messages.map((m) => {
+                if (m.kind === "confirm") {
+                  return (
+                    <div key={m.id} className="flex justify-start">
+                      <div className="max-w-[85%] rounded-2xl border border-accent/30 bg-accent/5 px-4 py-3 text-sm dark:bg-accent/10">
+                        <p className="text-slate-800 dark:text-slate-100">{renderWithBold(m.preview)}</p>
+                        {m.status === "pending" && (
+                          <div className="mt-3 flex gap-2">
+                            <Button type="button" onClick={() => handleConfirm(m)}>
+                              Confirm
+                            </Button>
+                            <Button type="button" variant="secondary" onClick={() => handleCancel(m)}>
+                              Cancel
+                            </Button>
+                          </div>
+                        )}
+                        {m.status === "confirming" && (
+                          <p className="mt-2 flex items-center gap-2 text-xs text-slate-500 dark:text-slate-400">
+                            <span className="h-3 w-3 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
+                            Creating...
+                          </p>
+                        )}
+                        {m.status === "cancelled" && (
+                          <p className="mt-2 text-xs text-slate-400 dark:text-slate-500">Cancelled.</p>
+                        )}
+                        {m.status === "error" && (
+                          <p className="mt-2 text-xs text-red-600 dark:text-red-400">{m.error}</p>
+                        )}
+                      </div>
+                    </div>
+                  );
+                }
+
+                return (
+                  <div key={m.id} className={`flex flex-col ${m.role === "user" ? "items-end" : "items-start"}`}>
+                    {m.tool && (
+                      <span className="mb-1 px-1 text-xs text-slate-400 dark:text-slate-500">
+                        {TOOL_LABELS[m.tool]}
+                      </span>
+                    )}
+                    <div
+                      className={`max-w-[80%] whitespace-pre-wrap rounded-2xl px-4 py-2.5 text-sm ${
+                        m.role === "user"
+                          ? "bg-accent text-white"
+                          : "bg-slate-100 text-slate-800 dark:bg-slate-700 dark:text-slate-100"
+                      }`}
+                    >
+                      {m.content}
+                    </div>
                   </div>
-                </div>
-              ))}
+                );
+              })}
               {loading && (
                 <div className="flex justify-start">
                   <div className="flex items-center gap-2 rounded-2xl bg-slate-100 px-4 py-2.5 text-sm text-slate-500 dark:bg-slate-700 dark:text-slate-400">
@@ -128,7 +249,7 @@ export function AssistantPageClient() {
             type="text"
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your contacts, deals, tasks, invoices..."
+            placeholder="Ask about your data, or ask it to create a contact, task, or deal..."
             disabled={loading}
             maxLength={500}
             className="flex-1 rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
