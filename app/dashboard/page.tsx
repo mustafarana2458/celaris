@@ -2,7 +2,27 @@ import Link from "next/link";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { AiInsightsCard } from "@/components/dashboard/AiInsightsCard";
-import type { Contact, Task } from "@/lib/types";
+import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { DealsPipelineChart } from "@/components/dashboard/charts/DealsPipelineChart";
+import { RevenueChart } from "@/components/dashboard/charts/RevenueChart";
+import { LeadsVsCustomersChart } from "@/components/dashboard/charts/LeadsVsCustomersChart";
+import type { DealsByStage } from "@/components/dashboard/charts/DealsPipelineChart";
+import type { RevenueByMonth } from "@/components/dashboard/charts/RevenueChart";
+import type { Contact, DealStage, Task } from "@/lib/types";
+
+function monthKey(date: Date) {
+  return `${date.getUTCFullYear()}-${String(date.getUTCMonth() + 1).padStart(2, "0")}`;
+}
+
+function last6Months() {
+  const now = new Date();
+  const months: { key: string; label: string }[] = [];
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(Date.UTC(now.getUTCFullYear(), now.getUTCMonth() - i, 1));
+    months.push({ key: monthKey(d), label: d.toLocaleDateString("en-US", { month: "short", timeZone: "UTC" }) });
+  }
+  return months;
+}
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -40,6 +60,10 @@ export default async function DashboardPage() {
   let unpaidAmount = 0;
   let recentContacts: Contact[] = [];
   let upcomingTasks: Task[] = [];
+  let dealsByStage: DealsByStage[] = [];
+  let revenueByMonth: RevenueByMonth[] = last6Months().map((m) => ({ month: m.label, total: 0 }));
+  let leadsCount = 0;
+  let customersCount = 0;
 
   if (workspace) {
     const [
@@ -49,6 +73,10 @@ export default async function DashboardPage() {
       unpaidInvoicesRes,
       recentContactsRes,
       upcomingTasksRes,
+      allDealsRes,
+      paidInvoicesRes,
+      leadsCountRes,
+      customersCountRes,
     ] = await Promise.all([
       supabase
         .from("contacts")
@@ -83,6 +111,22 @@ export default async function DashboardPage() {
         .not("due_date", "is", null)
         .order("due_date", { ascending: true })
         .limit(5),
+      supabase.from("deals").select("stage, value").eq("workspace_id", workspace.id),
+      supabase
+        .from("invoices")
+        .select("issued_at, total")
+        .eq("workspace_id", workspace.id)
+        .eq("status", "paid"),
+      supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspace.id)
+        .eq("type", "lead"),
+      supabase
+        .from("contacts")
+        .select("id", { count: "exact", head: true })
+        .eq("workspace_id", workspace.id)
+        .eq("type", "customer"),
     ]);
 
     const openDeals = openDealsRes.data ?? [];
@@ -96,6 +140,23 @@ export default async function DashboardPage() {
     unpaidAmount = unpaidInvoices.reduce((sum, i) => sum + (i.total ?? 0), 0);
     recentContacts = (recentContactsRes.data as Contact[]) ?? [];
     upcomingTasks = (upcomingTasksRes.data as Task[]) ?? [];
+
+    const stageValues = new Map<DealStage, number>();
+    for (const d of (allDealsRes.data as { stage: DealStage; value: number | null }[]) ?? []) {
+      stageValues.set(d.stage, (stageValues.get(d.stage) ?? 0) + (d.value ?? 0));
+    }
+    dealsByStage = Array.from(stageValues, ([stage, value]) => ({ stage, value }));
+
+    const months = last6Months();
+    const revenueByKey = new Map<string, number>();
+    for (const inv of (paidInvoicesRes.data as { issued_at: string; total: number }[]) ?? []) {
+      const key = monthKey(new Date(inv.issued_at));
+      revenueByKey.set(key, (revenueByKey.get(key) ?? 0) + (inv.total ?? 0));
+    }
+    revenueByMonth = months.map((m) => ({ month: m.label, total: revenueByKey.get(m.key) ?? 0 }));
+
+    leadsCount = leadsCountRes.count ?? 0;
+    customersCount = customersCountRes.count ?? 0;
   }
 
   const statCards = [
@@ -121,6 +182,8 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
+      <Breadcrumb items={[{ label: "Home", href: "/dashboard" }, { label: "Dashboard" }]} />
+
       <div>
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}
@@ -145,6 +208,16 @@ export default async function DashboardPage() {
             {stat.sub && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{stat.sub}</p>}
           </Link>
         ))}
+      </div>
+
+      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+        <div className="lg:col-span-2">
+          <DealsPipelineChart data={dealsByStage} />
+        </div>
+        <LeadsVsCustomersChart data={{ leads: leadsCount, customers: customersCount }} />
+        <div className="lg:col-span-3">
+          <RevenueChart data={revenueByMonth} />
+        </div>
       </div>
 
       <AiInsightsCard />
