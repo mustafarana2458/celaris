@@ -5,7 +5,7 @@ import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { ContactModal } from "./ContactModal";
 import { DeleteContactDialog } from "./DeleteContactDialog";
-import { AiFollowUpModal } from "./AiFollowUpModal";
+import { AiFollowUpDrawer } from "./AiFollowUpDrawer";
 import { BulkActionBar } from "./BulkActionBar";
 import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import { AdvancedFilterPopover, activeFilterCount } from "./AdvancedFilterPopover";
@@ -488,7 +488,7 @@ export function ContactsPageClient({
         error={bulkError}
       />
 
-      <AiFollowUpModal contact={aiContact} onClose={() => setAiContact(null)} />
+      <AiFollowUpDrawer contact={aiContact} onClose={() => setAiContact(null)} />
     </div>
   );
 }

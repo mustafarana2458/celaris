@@ -6,7 +6,8 @@ export type OllamaOptions = { temperature?: number };
 
 export async function callOllama(
   prompt: string,
-  options?: OllamaOptions
+  options?: OllamaOptions,
+  format?: "json"
 ): Promise<OllamaResult> {
   const ollamaUrl = process.env.OLLAMA_URL;
   if (!ollamaUrl) {
@@ -24,6 +25,7 @@ export async function callOllama(
         model: OLLAMA_MODEL,
         prompt,
         stream: false,
+        ...(format ? { format } : {}),
         ...(options ? { options } : {}),
       }),
       signal: controller.signal,

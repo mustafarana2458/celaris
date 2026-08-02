@@ -71,6 +71,13 @@ export type ContactsQueryResult =
   | { contacts: Contact[]; total: number }
   | { error: string };
 
+export type FollowUpOutputType = "email" | "message";
+export type FollowUpTone = "friendly" | "professional" | "direct" | "warm";
+
+export type FollowUpDraftResult =
+  | { subject?: string; body: string }
+  | { error: string };
+
 export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";
 export type CompanySize = "1-10" | "11-50" | "51-200" | "200+";
 
