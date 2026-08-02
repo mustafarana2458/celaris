@@ -88,6 +88,6 @@ export const navLinks: NavItem[] = [
       { href: "/dashboard/team/departments", label: "Departments" },
     ],
   },
-  { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant", badge: "Beta" },
+  { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant" },
   { type: "link", href: "/dashboard/settings", label: "Settings", icon: "settings" },
 ];
