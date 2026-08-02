@@ -36,7 +36,7 @@ export const navLinks: NavItem[] = [
     children: [
       { href: "/dashboard/contacts", label: "People" },
       { href: "/dashboard/companies", label: "Companies/Accounts" },
-      { href: "/dashboard/contacts/segments", label: "Segments/Lists" },
+      { href: "/dashboard/contacts/lists", label: "Lists" },
     ],
   },
   {
@@ -65,7 +65,7 @@ export const navLinks: NavItem[] = [
     children: [
       { href: "/dashboard/tasks", label: "My Tasks" },
       { href: "/dashboard/tasks/team-board", label: "Team Board" },
-      { href: "/dashboard/tasks/workload", label: "Workload/Calendar" },
+      { href: "/dashboard/tasks/workload", label: "Workload" },
     ],
   },
   {
@@ -85,7 +85,7 @@ export const navLinks: NavItem[] = [
     children: [
       { href: "/dashboard/team", label: "Active Members" },
       { href: "/dashboard/team", label: "Pending Invites" },
-      { href: "/dashboard/team/departments", label: "Departments/Groups" },
+      { href: "/dashboard/team/departments", label: "Departments" },
     ],
   },
   { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant", badge: "Beta" },
