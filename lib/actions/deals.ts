@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import { callOllama } from "@/lib/ollama";
+import { callGroq } from "@/lib/groq";
 import type { DealStage } from "@/lib/types";
 
 export type DealActionResult = { error?: string };
@@ -189,7 +189,7 @@ export async function scoreDeal(id: string): Promise<ScoreDealResult> {
     return { error: "Deal not found." };
   }
 
-  const result = await callOllama(buildScoringPrompt(deal), { temperature: 0 });
+  const result = await callGroq(buildScoringPrompt(deal), { temperature: 0 });
   if (result.error) {
     return { error: result.error };
   }

@@ -3,7 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, type CurrentWorkspace } from "@/lib/workspace";
-import { callOllama } from "@/lib/ollama";
+import { callGroq } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
 import {
   executeCreateContact,
@@ -128,7 +128,7 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
   const todayISO = new Date().toISOString().slice(0, 10);
   const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed);
 
-  const result = await callOllama(prompt, { temperature: 0 }, "json");
+  const result = await callGroq(prompt, { temperature: 0 }, "json");
   if (result.error || !result.text) {
     return { error: result.error ?? "The AI didn't return a response. Please try again." };
   }

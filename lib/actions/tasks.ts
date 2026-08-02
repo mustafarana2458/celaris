@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import { callOllama } from "@/lib/ollama";
+import { callGroq } from "@/lib/groq";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
 
 export type TaskActionResult = { error?: string };
@@ -197,7 +197,7 @@ export async function breakdownTask(id: string): Promise<BreakdownTaskResult> {
     return { error: "Task not found." };
   }
 
-  const result = await callOllama(
+  const result = await callGroq(
     buildBreakdownPrompt(task.title, task.description),
     { temperature: 0.4 },
     "json"

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import { callOllama } from "@/lib/ollama";
+import { callGroq } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
 
 export type InsightsResult = { insights?: string; error?: string };
@@ -39,7 +39,7 @@ export async function generateInsights(): Promise<InsightsResult> {
   const summary = await buildWorkspaceSummary(supabase, workspace.id);
   const prompt = buildInsightsPrompt(formatWorkspaceSummary(summary));
 
-  const result = await callOllama(prompt);
+  const result = await callGroq(prompt);
   if (result.error) {
     return { error: result.error };
   }

@@ -2,7 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import { callOllama } from "@/lib/ollama";
+import { callGroq } from "@/lib/groq";
 import type { FollowUpDraftResult, FollowUpOutputType, FollowUpTone } from "@/lib/types";
 
 type PromptContact = {
@@ -130,7 +130,7 @@ export async function generateFollowUpDraft(
     return { error: "Contact not found." };
   }
 
-  const result = await callOllama(buildPrompt(contact, outputType, tone), undefined, "json");
+  const result = await callGroq(buildPrompt(contact, outputType, tone), undefined, "json");
   if (result.error || !result.text) {
     return { error: result.error ?? "The AI didn't return a response. Please try again." };
   }
