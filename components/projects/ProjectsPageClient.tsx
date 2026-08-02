@@ -4,12 +4,12 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { ProjectCard } from "./ProjectCard";
+import { NewProjectModal } from "./NewProjectModal";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { PROJECT_STATUSES } from "./statuses";
 import type { Project } from "@/lib/types";
-
-const statusMap = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.value, s]));
 
 export function ProjectsPageClient({
   initialProjects,
@@ -19,7 +19,7 @@ export function ProjectsPageClient({
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Project["status"]>("all");
-  const [modalOpen, setModalOpen] = useState(false);
+  const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
 
@@ -35,23 +35,13 @@ export function ProjectsPageClient({
     });
   }, [initialProjects, search, statusFilter]);
 
-  function openAdd() {
+  function handleAddSaved() {
+    setAddOpen(false);
+    router.refresh();
+  }
+
+  function handleEditSaved() {
     setEditing(null);
-    setModalOpen(true);
-  }
-
-  function openEdit(project: Project) {
-    setEditing(project);
-    setModalOpen(true);
-  }
-
-  function closeModal() {
-    setModalOpen(false);
-    setEditing(null);
-  }
-
-  function handleSaved() {
-    closeModal();
     router.refresh();
   }
 
@@ -69,7 +59,7 @@ export function ProjectsPageClient({
             Organize the work you deliver for your clients.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add project</Button>
+        <Button onClick={() => setAddOpen(true)}>+ Add project</Button>
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -121,66 +111,31 @@ export function ProjectsPageClient({
               : "Try a different search or filter."}
           </p>
           {initialProjects.length === 0 && (
-            <Button onClick={openAdd} className="mt-1">
+            <Button onClick={() => setAddOpen(true)} className="mt-1">
               + Add project
             </Button>
           )}
         </div>
       ) : (
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Description</th>
-                  <th className="px-5 py-3 font-medium">Status</th>
-                  <th className="px-5 py-3 font-medium text-right">Actions</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {filtered.map((p) => (
-                  <tr key={p.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">{p.name}</td>
-                    <td className="max-w-xs truncate px-5 py-3 text-slate-600 dark:text-slate-300">
-                      {p.description || "—"}
-                    </td>
-                    <td className="px-5 py-3">
-                      <span
-                        className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium ${statusMap[p.status]?.badge ?? "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300"}`}
-                      >
-                        {statusMap[p.status]?.label ?? p.status}
-                      </span>
-                    </td>
-                    <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(p)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeleting(p)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
-                      </div>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
+          {filtered.map((p) => (
+            <ProjectCard
+              key={p.id}
+              project={p}
+              onEdit={() => setEditing(p)}
+              onDelete={() => setDeleting(p)}
+            />
+          ))}
         </div>
       )}
 
+      <NewProjectModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={handleAddSaved} />
+
       <ProjectModal
-        open={modalOpen}
-        onClose={closeModal}
+        open={!!editing}
+        onClose={() => setEditing(null)}
         project={editing}
-        onSaved={handleSaved}
+        onSaved={handleEditSaved}
       />
 
       <DeleteProjectDialog

@@ -115,6 +115,17 @@ export type Deal = {
 
 export type ProjectStatus = "active" | "on_hold" | "completed";
 
+export type Milestone = {
+  id: string;
+  project_id: string;
+  workspace_id: string;
+  title: string;
+  due_date: string | null;
+  is_done: boolean;
+  position: number;
+  created_at: string;
+};
+
 export type Project = {
   id: string;
   workspace_id: string;
@@ -122,6 +133,16 @@ export type Project = {
   description: string | null;
   status: ProjectStatus;
   created_at: string;
+  milestones?: Milestone[] | null;
+  tasks?:
+    | {
+        id: string;
+        title: string;
+        status: TaskStatus;
+        priority: TaskPriority;
+        due_date: string | null;
+      }[]
+    | null;
 };
 
 export type TaskStatus = "todo" | "in_progress" | "done";

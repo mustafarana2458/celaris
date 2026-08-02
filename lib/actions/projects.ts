@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { getProjectTemplate } from "@/lib/projectTemplates";
 import type { ProjectStatus } from "@/lib/types";
 
 export type ProjectActionResult = { error?: string };
@@ -42,6 +43,12 @@ function projectFields(formData: FormData) {
   };
 }
 
+function todayPlusDays(days: number) {
+  const d = new Date();
+  d.setDate(d.getDate() + days);
+  return d.toISOString().slice(0, 10);
+}
+
 export async function createProject(formData: FormData): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
@@ -51,12 +58,49 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
     return { error: "Name is required." };
   }
 
-  const { error } = await ctx.supabase.from("projects").insert({
-    ...fields,
-    workspace_id: ctx.workspace.id,
-  });
+  const { data: project, error } = await ctx.supabase
+    .from("projects")
+    .insert({
+      ...fields,
+      workspace_id: ctx.workspace.id,
+    })
+    .select("id")
+    .single();
 
   if (error) return { error: error.message };
+
+  const templateId = String(formData.get("template_id") ?? "").trim();
+  const template = templateId ? getProjectTemplate(templateId) : null;
+
+  if (template) {
+    if (template.milestones.length > 0) {
+      const { error: milestonesError } = await ctx.supabase.from("milestones").insert(
+        template.milestones.map((m, index) => ({
+          project_id: project.id,
+          workspace_id: ctx.workspace.id,
+          title: m.title,
+          due_date: todayPlusDays(m.dueInDays),
+          position: index,
+        }))
+      );
+      if (milestonesError) return { error: milestonesError.message };
+    }
+
+    if (template.tasks.length > 0) {
+      const { error: tasksError } = await ctx.supabase.from("tasks").insert(
+        template.tasks.map((t) => ({
+          workspace_id: ctx.workspace.id,
+          project_id: project.id,
+          title: t.title,
+          priority: t.priority,
+          status: "todo",
+        }))
+      );
+      if (tasksError) return { error: tasksError.message };
+    }
+
+    revalidatePath("/dashboard/tasks");
+  }
 
   revalidatePath("/dashboard/projects");
   return {};

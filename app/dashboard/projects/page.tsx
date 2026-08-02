@@ -19,7 +19,7 @@ export default async function ProjectsPage() {
   const { data: projects } = workspace
     ? await supabase
         .from("projects")
-        .select("*")
+        .select("*, milestones(id, is_done), tasks(id, status)")
         .eq("workspace_id", workspace.id)
         .order("created_at", { ascending: false })
     : { data: [] as Project[] };
