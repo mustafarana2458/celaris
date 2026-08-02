@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { callOllama } from "@/lib/ollama";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
 
 export type TaskActionResult = { error?: string };
@@ -134,4 +135,83 @@ export async function deleteTask(id: string): Promise<TaskActionResult> {
 
   revalidatePath("/dashboard/tasks");
   return {};
+}
+
+export type BreakdownTaskResult = { titles?: string[]; error?: string };
+
+function buildBreakdownPrompt(title: string, description: string | null) {
+  const descLine = description?.trim()
+    ? `Description: ${description.trim()}`
+    : "No description was given — use your best judgement based on the title alone.";
+
+  return (
+    `You are a project assistant. Break the following task down into 3 to 6 small, ` +
+    `actionable sub-tasks. Each sub-task title should be short (under 8 words) and start ` +
+    `with a verb.\n\n` +
+    `Task title: ${title}\n` +
+    `${descLine}\n\n` +
+    `Respond with ONLY valid JSON in exactly this shape, no markdown, no extra text: ` +
+    `{"subtasks": ["first sub-task", "second sub-task"]}`
+  );
+}
+
+function parseBreakdownResponse(text: string): string[] | null {
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    const match = text.match(/\{[\s\S]*\}/);
+    if (!match) return null;
+    try {
+      parsed = JSON.parse(match[0]);
+    } catch {
+      return null;
+    }
+  }
+
+  if (typeof parsed !== "object" || parsed === null || !("subtasks" in parsed)) {
+    return null;
+  }
+
+  const raw = (parsed as { subtasks: unknown }).subtasks;
+  if (!Array.isArray(raw)) return null;
+
+  return raw
+    .map((item) => (typeof item === "string" ? item.trim() : ""))
+    .filter(Boolean)
+    .slice(0, 8);
+}
+
+export async function breakdownTask(id: string): Promise<BreakdownTaskResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { data: task, error: taskError } = await ctx.supabase
+    .from("tasks")
+    .select("title, description")
+    .eq("id", id)
+    .eq("workspace_id", ctx.workspace.id)
+    .maybeSingle<{ title: string; description: string | null }>();
+
+  if (taskError || !task) {
+    return { error: "Task not found." };
+  }
+
+  const result = await callOllama(
+    buildBreakdownPrompt(task.title, task.description),
+    { temperature: 0.4 },
+    "json"
+  );
+  if (result.error || !result.text) {
+    return { error: result.error ?? "The AI didn't return a response. Please try again." };
+  }
+
+  const titles = parseBreakdownResponse(result.text);
+  if (!titles || titles.length === 0) {
+    return {
+      error: "Couldn't break this task down. Try adding more detail to the title or description.",
+    };
+  }
+
+  return { titles };
 }

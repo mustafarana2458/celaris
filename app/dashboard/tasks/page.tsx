@@ -20,9 +20,10 @@ export default async function TasksPage() {
     ? await Promise.all([
         supabase
           .from("tasks")
-          .select("*, projects(id, name)")
+          .select("*, projects(id, name), subtasks(*)")
           .eq("workspace_id", workspace.id)
-          .order("created_at", { ascending: false }),
+          .order("created_at", { ascending: false })
+          .order("position", { referencedTable: "subtasks", ascending: true }),
         supabase
           .from("projects")
           .select("id, name")

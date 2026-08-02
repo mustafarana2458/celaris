@@ -127,6 +127,16 @@ export type Project = {
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
 
+export type Subtask = {
+  id: string;
+  task_id: string;
+  workspace_id: string;
+  title: string;
+  is_done: boolean;
+  position: number;
+  created_at: string;
+};
+
 export type Task = {
   id: string;
   workspace_id: string;
@@ -138,6 +148,7 @@ export type Task = {
   project_id: string | null;
   created_at: string;
   projects?: { id: string; name: string } | null;
+  subtasks?: Subtask[] | null;
 };
 
 export type InvoiceStatus = "unpaid" | "paid" | "overdue";
