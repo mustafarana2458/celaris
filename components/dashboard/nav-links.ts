@@ -35,7 +35,7 @@ export const navLinks: NavItem[] = [
     icon: "users",
     children: [
       { href: "/dashboard/contacts", label: "People" },
-      { href: "/dashboard/companies", label: "Companies/Accounts" },
+      { href: "/dashboard/companies", label: "Companies" },
       { href: "/dashboard/contacts/lists", label: "Lists" },
     ],
   },
