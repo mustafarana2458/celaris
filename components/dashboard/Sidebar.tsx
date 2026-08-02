@@ -55,9 +55,12 @@ export function Sidebar({ className = "" }: { className?: string }) {
         href="/dashboard"
         className="mb-6 flex items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
       >
-        <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-accent text-white">
-          C
-        </span>
+        <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
+        <img
+          src="/celaris-logo-white.png"
+          alt="Celaris"
+          className="hidden h-8 w-8 rounded-lg dark:block"
+        />
         Celaris
       </Link>
 

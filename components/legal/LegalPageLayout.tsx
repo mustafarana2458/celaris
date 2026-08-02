@@ -17,9 +17,7 @@ export function LegalPageLayout({
           href="/"
           className="flex items-center gap-2 text-lg font-semibold text-slate-900"
         >
-          <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-white">
-            C
-          </span>
+          <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg" />
           Celaris
         </Link>
         <Link

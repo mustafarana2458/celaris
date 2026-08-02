@@ -31,6 +31,9 @@ yarn-error.log*
 # vercel
 .vercel
 
+# raw brand asset dump -- extracted copies live in public/ and app/icon.svg
+/Icons in all Sizes/
+
 # typescript
 *.tsbuildinfo
 next-env.d.ts

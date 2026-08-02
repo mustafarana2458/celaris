@@ -80,9 +80,12 @@ export default async function Home() {
       <header className="sticky top-0 z-50 border-b border-slate-200/50 bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#030014]/80">
         <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
           <div className="flex items-center gap-2">
-            <span className="flex h-8 w-8 items-center justify-center rounded-lg bg-blue-600 text-sm font-bold text-white shadow-md shadow-blue-600/25">
-              C
-            </span>
+            <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
+            <img
+              src="/celaris-logo-white.png"
+              alt="Celaris"
+              className="hidden h-8 w-8 rounded-lg dark:block"
+            />
             <span className="text-lg font-semibold tracking-tight dark:text-white">
               Celaris
             </span>
