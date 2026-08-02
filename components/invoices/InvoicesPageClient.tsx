@@ -4,11 +4,13 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { useWorkspace } from "@/components/workspace/WorkspaceContext";
 import { InvoiceModal } from "./InvoiceModal";
 import { DeleteInvoiceDialog } from "./DeleteInvoiceDialog";
 import { PrintInvoiceModal } from "./PrintInvoiceModal";
 import { INVOICE_STATUSES } from "./statuses";
 import { updateInvoiceStatus } from "@/lib/actions/invoices";
+import { downloadInvoicePdf } from "@/lib/invoicePdf";
 import type { Contact, Invoice, InvoiceStatus } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -35,6 +37,7 @@ export function InvoicesPageClient({
   contacts: Pick<Contact, "id" | "name">[];
 }) {
   const router = useRouter();
+  const workspace = useWorkspace();
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
@@ -89,6 +92,10 @@ export function InvoicesPageClient({
     if (!result.error) {
       router.refresh();
     }
+  }
+
+  function handleDownloadPdf(invoice: Invoice) {
+    downloadInvoicePdf(invoice, workspace?.name ?? "");
   }
 
   return (
@@ -183,7 +190,17 @@ export function InvoicesPageClient({
                 {filtered.map((invoice) => (
                   <tr key={invoice.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
-                      {invoice.invoice_number}
+                      <div className="flex items-center gap-1.5">
+                        {invoice.invoice_number}
+                        {invoice.is_recurring && (
+                          <span
+                            title={`Recurring · ${invoice.recurring_frequency ?? ""}`}
+                            className="rounded-full bg-accent/10 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-hover dark:bg-accent/15 dark:text-accent"
+                          >
+                            Recurring
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {invoice.contacts?.name || "—"}
@@ -223,6 +240,12 @@ export function InvoicesPageClient({
                           className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
                         >
                           Print
+                        </button>
+                        <button
+                          onClick={() => handleDownloadPdf(invoice)}
+                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
+                        >
+                          PDF
                         </button>
                         <button
                           onClick={() => openEdit(invoice)}

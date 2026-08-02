@@ -141,6 +141,19 @@ export type Task = {
 };
 
 export type InvoiceStatus = "unpaid" | "paid" | "overdue";
+export type RecurringFrequency = "monthly" | "quarterly" | "yearly";
+
+export type InvoiceLineItem = {
+  id: string;
+  invoice_id: string;
+  workspace_id: string;
+  description: string;
+  quantity: number;
+  unit_price: number;
+  amount: number;
+  position: number;
+  created_at: string;
+};
 
 export type Invoice = {
   id: string;
@@ -149,17 +162,23 @@ export type Invoice = {
   contact_id: string | null;
   amount: number;
   tax: number;
+  tax_percent: number;
+  discount: number;
   total: number;
   status: InvoiceStatus;
   due_date: string | null;
   issued_at: string;
   public_token: string;
+  is_recurring: boolean;
+  recurring_frequency: RecurringFrequency | null;
+  next_issue_date: string | null;
   contacts?: {
     id: string;
     name: string;
     company?: string | null;
     email?: string | null;
   } | null;
+  invoice_items?: InvoiceLineItem[] | null;
 };
 
 export type TeamRole = "owner" | "admin" | "member";

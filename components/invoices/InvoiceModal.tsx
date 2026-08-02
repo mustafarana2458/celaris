@@ -1,17 +1,44 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { createInvoice, updateInvoice } from "@/lib/actions/invoices";
 import { INVOICE_STATUSES } from "./statuses";
-import type { Contact, Invoice } from "@/lib/types";
+import { InvoiceLineItemsEditor, type LineItemDraft } from "./InvoiceLineItemsEditor";
+import type { Contact, Invoice, RecurringFrequency } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
 });
+
+const FREQUENCIES: { value: RecurringFrequency; label: string; months: number }[] = [
+  { value: "monthly", label: "Monthly", months: 1 },
+  { value: "quarterly", label: "Quarterly", months: 3 },
+  { value: "yearly", label: "Yearly", months: 12 },
+];
+
+function suggestNextIssueDate(months: number) {
+  const d = new Date();
+  d.setMonth(d.getMonth() + months);
+  return d.toISOString().slice(0, 10);
+}
+
+function defaultLineItems(invoice: Invoice | null): LineItemDraft[] {
+  if (invoice?.invoice_items && invoice.invoice_items.length > 0) {
+    return invoice.invoice_items.map((item) => ({
+      description: item.description,
+      quantity: String(item.quantity),
+      unit_price: String(item.unit_price),
+    }));
+  }
+  if (invoice && invoice.amount > 0) {
+    return [{ description: "Invoice amount", quantity: "1", unit_price: String(invoice.amount) }];
+  }
+  return [{ description: "", quantity: "1", unit_price: "" }];
+}
 
 export function InvoiceModal({
   open,
@@ -28,14 +55,57 @@ export function InvoiceModal({
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
-  const [amount, setAmount] = useState(invoice ? String(invoice.amount) : "");
-  const [tax, setTax] = useState(invoice ? String(invoice.tax) : "0");
   const isEdit = !!invoice;
 
-  const total = (parseFloat(amount) || 0) + (parseFloat(tax) || 0);
+  const [lineItems, setLineItems] = useState<LineItemDraft[]>(() => defaultLineItems(invoice));
+  const [taxPercent, setTaxPercent] = useState(invoice ? String(invoice.tax_percent) : "0");
+  const [discount, setDiscount] = useState(invoice ? String(invoice.discount) : "0");
+  const [isRecurring, setIsRecurring] = useState(invoice?.is_recurring ?? false);
+  const [frequency, setFrequency] = useState<RecurringFrequency>(
+    invoice?.recurring_frequency ?? "monthly"
+  );
+  const [nextIssueDate, setNextIssueDate] = useState(invoice?.next_issue_date ?? "");
+
+  const subtotal = useMemo(
+    () =>
+      lineItems.reduce(
+        (sum, item) => sum + (parseFloat(item.quantity) || 0) * (parseFloat(item.unit_price) || 0),
+        0
+      ),
+    [lineItems]
+  );
+  const discountValue = parseFloat(discount) || 0;
+  const taxPercentValue = parseFloat(taxPercent) || 0;
+  const taxableAmount = Math.max(0, subtotal - discountValue);
+  const taxAmount = taxableAmount * (taxPercentValue / 100);
+  const total = taxableAmount + taxAmount;
+
+  function handleFrequencyChange(value: RecurringFrequency) {
+    setFrequency(value);
+    if (!nextIssueDate) {
+      const months = FREQUENCIES.find((f) => f.value === value)?.months ?? 1;
+      setNextIssueDate(suggestNextIssueDate(months));
+    }
+  }
+
+  function handleRecurringToggle(checked: boolean) {
+    setIsRecurring(checked);
+    if (checked && !nextIssueDate) {
+      const months = FREQUENCIES.find((f) => f.value === frequency)?.months ?? 1;
+      setNextIssueDate(suggestNextIssueDate(months));
+    }
+  }
 
   function handleSubmit(formData: FormData) {
     setError(null);
+
+    const cleanItems = lineItems.filter((item) => item.description.trim());
+    if (cleanItems.length === 0) {
+      setError("Add at least one line item with a description.");
+      return;
+    }
+    formData.set("line_items_json", JSON.stringify(cleanItems));
+
     startTransition(async () => {
       const result = isEdit
         ? await updateInvoice(invoice!.id, formData)
@@ -85,30 +155,50 @@ export function InvoiceModal({
           </select>
         </div>
 
+        <InvoiceLineItemsEditor items={lineItems} onChange={setLineItems} />
+
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input
-            label="Amount ($)"
-            name="amount"
+            label="Tax (%)"
+            name="tax_percent"
             type="number"
             step="0.01"
             min="0"
-            value={amount}
-            onChange={(e) => setAmount(e.target.value)}
+            value={taxPercent}
+            onChange={(e) => setTaxPercent(e.target.value)}
           />
           <Input
-            label="Tax ($)"
-            name="tax"
+            label="Discount ($)"
+            name="discount"
             type="number"
             step="0.01"
             min="0"
-            value={tax}
-            onChange={(e) => setTax(e.target.value)}
+            value={discount}
+            onChange={(e) => setDiscount(e.target.value)}
           />
         </div>
 
-        <div className="flex items-center justify-between rounded-lg bg-slate-50 px-3.5 py-2.5 dark:bg-slate-700/40">
-          <span className="text-sm font-medium text-slate-600 dark:text-slate-300">Total</span>
-          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">{currency.format(total)}</span>
+        <div className="flex flex-col gap-1.5 rounded-lg bg-slate-50 px-3.5 py-2.5 dark:bg-slate-700/40">
+          <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+            <span>Subtotal</span>
+            <span>{currency.format(subtotal)}</span>
+          </div>
+          {discountValue > 0 && (
+            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+              <span>Discount</span>
+              <span>-{currency.format(discountValue)}</span>
+            </div>
+          )}
+          {taxPercentValue > 0 && (
+            <div className="flex items-center justify-between text-sm text-slate-500 dark:text-slate-400">
+              <span>Tax ({taxPercentValue}%)</span>
+              <span>{currency.format(taxAmount)}</span>
+            </div>
+          )}
+          <div className="flex items-center justify-between border-t border-slate-200 pt-1.5 text-sm font-semibold text-slate-900 dark:border-slate-600 dark:text-slate-100">
+            <span>Total</span>
+            <span>{currency.format(total)}</span>
+          </div>
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -135,6 +225,53 @@ export function InvoiceModal({
             type="date"
             defaultValue={invoice?.due_date ?? ""}
           />
+        </div>
+
+        <div className="flex flex-col gap-3 rounded-lg border border-slate-200 p-3.5 dark:border-slate-600">
+          <label className="flex items-center gap-2 text-sm font-medium text-slate-700 dark:text-slate-300">
+            <input
+              type="checkbox"
+              name="is_recurring"
+              checked={isRecurring}
+              onChange={(e) => handleRecurringToggle(e.target.checked)}
+              className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/30 dark:border-slate-600"
+            />
+            Recurring invoice
+          </label>
+
+          {isRecurring && (
+            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+              <div className="flex flex-col gap-1.5">
+                <label htmlFor="recurring_frequency" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                  Frequency
+                </label>
+                <select
+                  id="recurring_frequency"
+                  name="recurring_frequency"
+                  value={frequency}
+                  onChange={(e) => handleFrequencyChange(e.target.value as RecurringFrequency)}
+                  className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+                >
+                  {FREQUENCIES.map((f) => (
+                    <option key={f.value} value={f.value}>
+                      {f.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <Input
+                label="Next issue date"
+                name="next_issue_date"
+                type="date"
+                value={nextIssueDate}
+                onChange={(e) => setNextIssueDate(e.target.value)}
+              />
+            </div>
+          )}
+          <p className="text-xs text-slate-400 dark:text-slate-500">
+            Recurring invoices track a next issue date only — you&apos;ll need to generate the next
+            invoice yourself for now.
+          </p>
         </div>
 
         <div className="mt-2 flex justify-end gap-3">
