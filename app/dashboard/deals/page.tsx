@@ -20,7 +20,7 @@ export default async function DealsPage() {
     ? await Promise.all([
         supabase
           .from("deals")
-          .select("*, contacts(id, name)")
+          .select("*, contacts(id, name, company, companies(name))")
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
         supabase

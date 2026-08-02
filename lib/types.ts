@@ -105,7 +105,12 @@ export type Deal = {
   expected_close: string | null;
   ai_score: number | null;
   created_at: string;
-  contacts?: { id: string; name: string } | null;
+  contacts?: {
+    id: string;
+    name: string;
+    company: string | null;
+    companies?: { name: string } | null;
+  } | null;
 };
 
 export type ProjectStatus = "active" | "on_hold" | "completed";

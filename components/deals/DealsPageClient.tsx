@@ -1,11 +1,13 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { DealModal } from "./DealModal";
 import { DeleteDealDialog } from "./DeleteDealDialog";
-import { STAGES } from "./stages";
+import { DealForecast } from "./DealForecast";
+import { DealsKanban } from "./DealsKanban";
+import { DealsTable } from "./DealsTable";
 import { scoreDeal, updateDealStage } from "@/lib/actions/deals";
 import type { Contact, Deal, DealStage } from "@/lib/types";
 
@@ -15,19 +17,7 @@ const currency = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
-function formatDate(value: string | null) {
-  if (!value) return null;
-  return new Date(`${value}T00:00:00`).toLocaleDateString("en-US", {
-    month: "short",
-    day: "numeric",
-  });
-}
-
-function scoreBadgeClass(score: number) {
-  if (score <= 40) return "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400";
-  if (score <= 70) return "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
-  return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400";
-}
+type ViewMode = "kanban" | "list";
 
 export function DealsPageClient({
   initialDeals,
@@ -37,27 +27,21 @@ export function DealsPageClient({
   contacts: Pick<Contact, "id" | "name">[];
 }) {
   const router = useRouter();
+  const [deals, setDeals] = useState(initialDeals);
+  const [view, setView] = useState<ViewMode>("kanban");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Deal | null>(null);
   const [deleting, setDeleting] = useState<Deal | null>(null);
-  const [movingId, setMovingId] = useState<string | null>(null);
   const [scoringId, setScoringId] = useState<string | null>(null);
   const [scoreReasons, setScoreReasons] = useState<Record<string, string>>({});
   const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
+  const [stageError, setStageError] = useState<string | null>(null);
 
-  const columns = useMemo(
-    () =>
-      STAGES.map((s) => ({
-        ...s,
-        deals: initialDeals.filter((d) => d.stage === s.value),
-      })),
-    [initialDeals]
-  );
+  useEffect(() => {
+    setDeals(initialDeals);
+  }, [initialDeals]);
 
-  const totalValue = useMemo(
-    () => initialDeals.reduce((sum, d) => sum + (d.value ?? 0), 0),
-    [initialDeals]
-  );
+  const totalValue = useMemo(() => deals.reduce((sum, d) => sum + (d.value ?? 0), 0), [deals]);
 
   function openAdd() {
     setEditing(null);
@@ -85,13 +69,17 @@ export function DealsPageClient({
   }
 
   async function handleStageChange(deal: Deal, stage: DealStage) {
-    if (stage === deal.stage) return;
-    setMovingId(deal.id);
+    setStageError(null);
+    const previousStage = deal.stage;
+    setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, stage } : d)));
+
     const result = await updateDealStage(deal.id, stage);
-    setMovingId(null);
-    if (!result.error) {
-      router.refresh();
+    if (result.error) {
+      setDeals((prev) => prev.map((d) => (d.id === deal.id ? { ...d, stage: previousStage } : d)));
+      setStageError(result.error);
+      return;
     }
+    router.refresh();
   }
 
   async function handleScore(deal: Deal) {
@@ -115,14 +103,40 @@ export function DealsPageClient({
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Deals</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {initialDeals.length} deal{initialDeals.length === 1 ? "" : "s"} ·{" "}
+            {deals.length} deal{deals.length === 1 ? "" : "s"} ·{" "}
             {currency.format(totalValue)} in pipeline
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add deal</Button>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
+            {(["kanban", "list"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                  view === mode
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <Button onClick={openAdd}>+ Add deal</Button>
+        </div>
       </div>
 
-      {initialDeals.length === 0 ? (
+      <DealForecast deals={deals} />
+
+      {stageError && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+          Couldn&apos;t move that deal: {stageError}
+        </div>
+      )}
+
+      {deals.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No deals yet</p>
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
@@ -132,116 +146,19 @@ export function DealsPageClient({
             + Add deal
           </Button>
         </div>
+      ) : view === "kanban" ? (
+        <DealsKanban
+          deals={deals}
+          onStageChange={handleStageChange}
+          onEdit={openEdit}
+          onDelete={setDeleting}
+          onScore={handleScore}
+          scoringId={scoringId}
+          scoreReasons={scoreReasons}
+          scoreErrors={scoreErrors}
+        />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {columns.map((col) => {
-            const colValue = col.deals.reduce((sum, d) => sum + (d.value ?? 0), 0);
-            return (
-              <div
-                key={col.value}
-                className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${col.column}`}
-              >
-                <div className="flex items-center justify-between px-1">
-                  <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{col.label}</h2>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                    {col.deals.length}
-                  </span>
-                </div>
-                <p className="px-1 text-xs text-slate-400 dark:text-slate-500">{currency.format(colValue)}</p>
-
-                <div className="flex flex-col gap-2">
-                  {col.deals.map((deal) => (
-                    <div
-                      key={deal.id}
-                      className="rounded-xl border border-slate-200 p-3 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
-                    >
-                      <div className="flex items-start justify-between gap-2">
-                        <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{deal.title}</p>
-                        {deal.ai_score != null && (
-                          <span
-                            title="AI likelihood-to-close score"
-                            className={`shrink-0 rounded-full px-2 py-0.5 text-xs font-semibold ${scoreBadgeClass(deal.ai_score)}`}
-                          >
-                            {deal.ai_score}
-                          </span>
-                        )}
-                      </div>
-                      {deal.contacts?.name && (
-                        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">{deal.contacts.name}</p>
-                      )}
-                      {scoreReasons[deal.id] && (
-                        <p className="mt-1 text-xs italic text-slate-400 dark:text-slate-500">
-                          {scoreReasons[deal.id]}
-                        </p>
-                      )}
-                      {scoreErrors[deal.id] && (
-                        <p className="mt-1 text-xs text-red-600 dark:text-red-400">{scoreErrors[deal.id]}</p>
-                      )}
-                      <div className="mt-2 flex items-center justify-between">
-                        <span className="text-sm font-semibold text-slate-700 dark:text-slate-300">
-                          {deal.value != null ? currency.format(deal.value) : "—"}
-                        </span>
-                        {formatDate(deal.expected_close) && (
-                          <span className="text-xs text-slate-400 dark:text-slate-500">
-                            {formatDate(deal.expected_close)}
-                          </span>
-                        )}
-                      </div>
-
-                      <div className="mt-3 flex flex-col gap-2">
-                        <select
-                          value={deal.stage}
-                          disabled={movingId === deal.id}
-                          onChange={(e) =>
-                            handleStageChange(deal, e.target.value as DealStage)
-                          }
-                          className="w-full rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
-                        >
-                          {STAGES.map((s) => (
-                            <option key={s.value} value={s.value}>
-                              {s.label}
-                            </option>
-                          ))}
-                        </select>
-                        <div className="flex items-center justify-between gap-1">
-                          <button
-                            onClick={() => handleScore(deal)}
-                            disabled={scoringId === deal.id}
-                            className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 disabled:opacity-60 dark:text-purple-400 dark:hover:bg-purple-950/40"
-                          >
-                            {scoringId === deal.id && (
-                              <span className="h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600 dark:border-purple-800" />
-                            )}
-                            {scoringId === deal.id ? "Scoring…" : "AI Score"}
-                          </button>
-                          <div className="flex gap-1">
-                            <button
-                              onClick={() => openEdit(deal)}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                            >
-                              Edit
-                            </button>
-                            <button
-                              onClick={() => setDeleting(deal)}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                            >
-                              Delete
-                            </button>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  ))}
-                  {col.deals.length === 0 && (
-                    <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
-                      No deals
-                    </p>
-                  )}
-                </div>
-              </div>
-            );
-          })}
-        </div>
+        <DealsTable deals={deals} onEdit={openEdit} onDelete={setDeleting} />
       )}
 
       <DealModal
