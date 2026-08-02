@@ -1,5 +1,7 @@
 const GROQ_MODEL = "llama-3.3-70b-versatile";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
+const MISTRAL_MODEL = "mistral-small-2603";
+const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
@@ -28,12 +30,21 @@ function backoffDelayMs(response: Response, attempt: number): number {
   return BASE_DELAY_MS * 2 ** attempt;
 }
 
-async function requestOnce(body: string, apiKey: string): Promise<Attempt> {
+function buildBody(model: string, messages: GroqMessage[], options?: GroqOptions, format?: "json") {
+  return JSON.stringify({
+    model,
+    messages,
+    ...(options?.temperature != null ? { temperature: options.temperature } : {}),
+    ...(format === "json" ? { response_format: { type: "json_object" } } : {}),
+  });
+}
+
+async function requestOnce(endpoint: string, body: string, apiKey: string): Promise<Attempt> {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), TIMEOUT_MS);
 
   try {
-    const response = await fetch(GROQ_ENDPOINT, {
+    const response = await fetch(endpoint, {
       method: "POST",
       headers: {
         "Content-Type": "application/json",
@@ -53,34 +64,35 @@ async function requestOnce(body: string, apiKey: string): Promise<Attempt> {
   }
 }
 
-export async function callGroq(
-  prompt: string | GroqMessage[],
-  options?: GroqOptions,
-  format?: "json"
-): Promise<GroqResult> {
+function extractText(data: unknown): string {
+  const choices = (data as { choices?: { message?: { content?: string } }[] } | null)?.choices;
+  return choices?.[0]?.message?.content?.trim() ?? "";
+}
+
+// Tries Groq with its full retry/backoff behavior on 429. Returns a result on
+// success, or null if Groq is unusable for any reason (missing key, timeout,
+// network error, exhausted retries, non-2xx, empty response) -- null means
+// "the caller should fall back to Mistral."
+async function tryGroq(messages: GroqMessage[], options?: GroqOptions, format?: "json"): Promise<GroqResult | null> {
   const apiKey = process.env.GROQ_API_KEY;
   if (!apiKey) {
-    return { error: "AI service is not configured (missing GROQ_API_KEY)." };
+    console.error("[AI] GROQ_API_KEY is not set; falling back to Mistral.");
+    return null;
   }
 
-  const messages: GroqMessage[] = typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
-  const body = JSON.stringify({
-    model: GROQ_MODEL,
-    messages,
-    ...(options?.temperature != null ? { temperature: options.temperature } : {}),
-    ...(format === "json" ? { response_format: { type: "json_object" } } : {}),
-  });
-
+  const body = buildBody(GROQ_MODEL, messages, options, format);
   let response: Response | null = null;
 
   for (let attempt = 0; attempt <= MAX_RETRIES; attempt++) {
-    const result = await requestOnce(body, apiKey);
+    const result = await requestOnce(GROQ_ENDPOINT, body, apiKey);
 
     if (result.kind === "timeout") {
-      return { error: "The AI took too long to respond. Please try again." };
+      console.error("[AI] Groq request timed out; falling back to Mistral.");
+      return null;
     }
     if (result.kind === "network-error") {
-      return { error: "Could not reach the AI service. Please try again later." };
+      console.error("[AI] Groq network error; falling back to Mistral.");
+      return null;
     }
 
     response = result.response;
@@ -91,25 +103,74 @@ export async function callGroq(
   }
 
   if (!response) {
-    return { error: "Could not reach the AI service. Please try again later." };
-  }
-
-  if (response.status === 429) {
-    return { error: "The AI is a bit busy right now — please try again in a moment." };
+    console.error("[AI] Groq gave no response; falling back to Mistral.");
+    return null;
   }
 
   if (!response.ok) {
-    return { error: `AI service returned an error (${response.status}).` };
+    console.error(`[AI] Groq returned ${response.status} after retries; falling back to Mistral.`);
+    return null;
   }
 
-  const data = (await response.json()) as {
-    choices?: { message?: { content?: string } }[];
-  };
-  const text = data.choices?.[0]?.message?.content?.trim() ?? "";
-
+  const text = extractText(await response.json());
   if (!text) {
-    return { error: "The AI didn't return a response. Please try again." };
+    console.error("[AI] Groq returned an empty response; falling back to Mistral.");
+    return null;
   }
 
   return { text };
+}
+
+// Single-shot fallback -- no retry loop of its own. If Groq already
+// exhausted its retries, we want one clean attempt at the backup provider,
+// not a second multi-attempt cycle.
+async function tryMistral(messages: GroqMessage[], options?: GroqOptions, format?: "json"): Promise<GroqResult | null> {
+  const apiKey = process.env.MISTRAL_API_KEY;
+  if (!apiKey) {
+    console.error("[AI] MISTRAL_API_KEY is not set; no fallback available.");
+    return null;
+  }
+
+  const body = buildBody(MISTRAL_MODEL, messages, options, format);
+  const result = await requestOnce(MISTRAL_ENDPOINT, body, apiKey);
+
+  if (result.kind === "timeout") {
+    console.error("[AI] Mistral fallback request timed out.");
+    return null;
+  }
+  if (result.kind === "network-error") {
+    console.error("[AI] Mistral fallback network error.");
+    return null;
+  }
+
+  const { response } = result;
+  if (!response.ok) {
+    console.error(`[AI] Mistral fallback returned ${response.status}.`);
+    return null;
+  }
+
+  const text = extractText(await response.json());
+  if (!text) {
+    console.error("[AI] Mistral fallback returned an empty response.");
+    return null;
+  }
+
+  return { text };
+}
+
+export async function callGroq(
+  prompt: string | GroqMessage[],
+  options?: GroqOptions,
+  format?: "json"
+): Promise<GroqResult> {
+  const messages: GroqMessage[] = typeof prompt === "string" ? [{ role: "user", content: prompt }] : prompt;
+
+  const groqResult = await tryGroq(messages, options, format);
+  if (groqResult) return groqResult;
+
+  console.error("[AI] Falling back to Mistral (mistral-small-2603) after Groq failure.");
+  const mistralResult = await tryMistral(messages, options, format);
+  if (mistralResult) return mistralResult;
+
+  return { error: "AI is currently unavailable. Please try again in a bit." };
 }
