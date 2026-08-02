@@ -229,3 +229,28 @@ export type WorkspaceMemberRow = {
   role: string;
   users: { id: string; full_name: string } | null;
 };
+
+export type WorkspaceRole = "owner" | "admin" | "member";
+
+export type WorkspaceTeamMember = {
+  user_id: string;
+  email: string | null;
+  full_name: string | null;
+  role: WorkspaceRole;
+  joined_at: string | null;
+};
+
+export type InvitationStatus = "pending" | "accepted" | "cancelled";
+export type InvitationRole = "admin" | "member";
+
+export type Invitation = {
+  id: string;
+  workspace_id: string;
+  email: string;
+  role: InvitationRole;
+  token: string;
+  status: InvitationStatus;
+  invited_by: string | null;
+  expires_at: string;
+  created_at: string;
+};

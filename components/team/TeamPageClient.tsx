@@ -6,8 +6,11 @@ import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { TeamMemberModal } from "./TeamMemberModal";
 import { DeleteTeamMemberDialog } from "./DeleteTeamMemberDialog";
+import { InviteMemberModal } from "./InviteMemberModal";
+import { WorkspaceMembersList } from "./WorkspaceMembersList";
+import { PendingInvitationsList } from "./PendingInvitationsList";
 import { TEAM_ROLES } from "./roles";
-import type { TeamMember, WorkspaceMemberRow } from "@/lib/types";
+import type { Invitation, TeamMember, WorkspaceRole, WorkspaceTeamMember } from "@/lib/types";
 
 const roleMap = Object.fromEntries(TEAM_ROLES.map((r) => [r.value, r]));
 
@@ -26,14 +29,21 @@ function roleBadge(role: string) {
 
 export function TeamPageClient({
   workspaceMembers,
+  invitations,
   currentUserId,
+  currentUserRole,
   initialTeamMembers,
 }: {
-  workspaceMembers: WorkspaceMemberRow[];
+  workspaceMembers: WorkspaceTeamMember[];
+  invitations: Invitation[];
   currentUserId: string;
+  currentUserRole: WorkspaceRole;
   initialTeamMembers: TeamMember[];
 }) {
   const router = useRouter();
+  const canManage = currentUserRole === "owner" || currentUserRole === "admin";
+
+  const [inviteOpen, setInviteOpen] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [deleting, setDeleting] = useState<TeamMember | null>(null);
@@ -63,56 +73,30 @@ export function TeamPageClient({
     router.refresh();
   }
 
+  function handleInviteSaved() {
+    setInviteOpen(false);
+    router.refresh();
+  }
+
   return (
     <div className="flex flex-col gap-6">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Team</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Manage who has access to this workspace and keep a directory of your team.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Team</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Manage who has access to this workspace and keep a directory of your team.
+          </p>
+        </div>
+        {canManage && <Button onClick={() => setInviteOpen(true)}>+ Invite member</Button>}
       </div>
 
-      <div className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Workspace members</h2>
-        <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
-          <div className="overflow-x-auto">
-            <table className="w-full text-left text-sm">
-              <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
-                <tr>
-                  <th className="px-5 py-3 font-medium">Name</th>
-                  <th className="px-5 py-3 font-medium">Role</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {workspaceMembers.map((m) => (
-                  <tr key={m.user_id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                    <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
-                      {m.users?.full_name || "Unnamed user"}
-                      {m.user_id === currentUserId && (
-                        <span className="ml-2 rounded-full bg-accent/10 px-2 py-0.5 text-xs font-medium text-accent-hover dark:bg-accent/15 dark:text-accent">
-                          You
-                        </span>
-                      )}
-                    </td>
-                    <td className="px-5 py-3">{roleBadge(m.role)}</td>
-                  </tr>
-                ))}
-                {workspaceMembers.length === 0 && (
-                  <tr>
-                    <td colSpan={2} className="px-5 py-6 text-center text-sm text-slate-500 dark:text-slate-400">
-                      No workspace members found.
-                    </td>
-                  </tr>
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
-        <p className="text-xs text-slate-400 dark:text-slate-500">
-          Workspace members are the accounts that can sign in to this workspace. There&apos;s no
-          invite flow yet, so this list reflects signups only.
-        </p>
-      </div>
+      <WorkspaceMembersList
+        members={workspaceMembers}
+        currentUserId={currentUserId}
+        canManage={canManage}
+      />
+
+      {canManage && <PendingInvitationsList invitations={invitations} />}
 
       <div className="flex flex-col gap-3">
         <div className="flex items-center justify-between">
@@ -180,6 +164,12 @@ export function TeamPageClient({
           </div>
         )}
       </div>
+
+      <InviteMemberModal
+        open={inviteOpen}
+        onClose={() => setInviteOpen(false)}
+        onSaved={handleInviteSaved}
+      />
 
       <TeamMemberModal
         open={modalOpen}
