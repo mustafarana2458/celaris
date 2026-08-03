@@ -65,12 +65,14 @@ export function DealsPipelineChart({ data }: { data: DealsByStage[] }) {
           />
           <Tooltip
             cursor={{ fill: "rgb(var(--accent-rgb) / 0.06)" }}
+            wrapperStyle={{ zIndex: 50 }}
             contentStyle={{
-              backgroundColor: "rgb(30 41 59)",
-              border: "none",
+              backgroundColor: "rgb(15 23 42)",
+              border: "1px solid rgb(51 65 85)",
               borderRadius: 8,
               fontSize: 12,
               color: "rgb(241 245 249)",
+              boxShadow: "0 4px 16px rgb(0 0 0 / 0.25)",
             }}
             labelStyle={{ color: "rgb(203 213 225)" }}
             formatter={(value: number) => [currency.format(value), "Pipeline value"]}
