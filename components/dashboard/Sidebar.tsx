@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { navLinks, type NavGroup } from "./nav-links";
+import { navLinks, getActiveHref, type NavGroup } from "./nav-links";
 import { NavIcon } from "./NavIcon";
 import { DevPanelModal } from "./DevPanelModal";
 
@@ -47,20 +47,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
     }
   }
 
-  // A submodule "matches" the current route if it's an exact match, or a
-  // proper path-segment ancestor of it (so a dynamic detail route like
-  // /dashboard/projects/123 still highlights "All Projects"). Among all
-  // matches, only the single longest (most specific) one wins -- this is
-  // what guarantees exactly one submodule is ever active, even when two
-  // entries share an href like /dashboard/projects.
-  function hrefMatchesPathname(href: string) {
-    return pathname === href || pathname.startsWith(`${href}/`);
-  }
-
-  const activeHref = navLinks
-    .flatMap((item) => (item.type === "group" ? item.children.map((c) => c.href) : [item.href]))
-    .filter(hrefMatchesPathname)
-    .reduce<string | null>((best, href) => (best && best.length >= href.length ? best : href), null);
+  const activeHref = getActiveHref(pathname);
 
   function isLinkActive(href: string) {
     return href === activeHref;

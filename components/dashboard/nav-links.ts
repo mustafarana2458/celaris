@@ -91,3 +91,38 @@ export const navLinks: NavItem[] = [
   { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant" },
   { type: "link", href: "/dashboard/settings", label: "Settings", icon: "settings" },
 ];
+
+// A route "matches" a nav href if it's an exact match, or a proper
+// path-segment descendant of it (so a dynamic detail route like
+// /dashboard/projects/123 still resolves to "All Projects"). Among all
+// matches, the longest (most specific) one wins, so exactly one nav leaf is
+// ever considered active even when two entries share an href.
+function hrefMatchesPathname(pathname: string, href: string) {
+  return pathname === href || pathname.startsWith(`${href}/`);
+}
+
+export function getActiveHref(pathname: string): string | null {
+  return navLinks
+    .flatMap((item) => (item.type === "group" ? item.children.map((c) => c.href) : [item.href]))
+    .filter((href) => hrefMatchesPathname(pathname, href))
+    .reduce<string | null>((best, href) => (best && best.length >= href.length ? best : href), null);
+}
+
+// Derives breadcrumb trail from the nav hierarchy: a single top-level link
+// (Dashboard, AI Assistant, Settings) is just its own title; a group child
+// (Contacts, Deals, Projects, ...) is a 2-level "Group > Child" trail.
+export function getBreadcrumbItems(pathname: string): { label: string }[] {
+  const activeHref = getActiveHref(pathname);
+  if (!activeHref) return [];
+
+  for (const item of navLinks) {
+    if (item.type === "link" && item.href === activeHref) {
+      return [{ label: item.label }];
+    }
+    if (item.type === "group") {
+      const child = item.children.find((c) => c.href === activeHref);
+      if (child) return [{ label: item.label }, { label: child.label }];
+    }
+  }
+  return [];
+}

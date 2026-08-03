@@ -4,7 +4,6 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { AiInsightsCard } from "@/components/dashboard/AiInsightsCard";
 import { ContactRowMenu } from "@/components/dashboard/ContactRowMenu";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { DealsPipelineChart } from "@/components/dashboard/charts/DealsPipelineChart";
 import { RevenueChart } from "@/components/dashboard/charts/RevenueChart";
 import { LeadsVsCustomersChart } from "@/components/dashboard/charts/LeadsVsCustomersChart";
@@ -244,8 +243,6 @@ export default async function DashboardPage() {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb items={[{ label: "Home", href: "/dashboard" }, { label: "Dashboard" }]} />
-
       <div>
         <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">
           Welcome back{profile?.full_name ? `, ${profile.full_name.split(" ")[0]}` : ""}

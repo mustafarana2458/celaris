@@ -6,11 +6,13 @@ import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
+import { completeSignupProvisioning } from "@/lib/actions/auth";
 
 export function SignupForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const router = useRouter();
 
   const supabase = createBrowserClient(
@@ -47,15 +49,39 @@ export function SignupForm() {
       },
     });
 
+    if (error) {
+      setLoading(false);
+      setErrorMessage(error.message);
+      return;
+    }
+
+    if (!data.session) {
+      // Email confirmation required -- there's no session yet, so
+      // provisioning (which reads the session) has to wait until the user
+      // actually logs in; the login action backfills it then.
+      setLoading(false);
+      setNeedsConfirmation(true);
+      return;
+    }
+
+    const result = await completeSignupProvisioning(fullName, businessName);
     setLoading(false);
 
-    if (error) {
-      setErrorMessage(error.message);
-    } else {
-      console.log("Signup successful:", data);
-      router.push("/dashboard");
+    if (result.error) {
+      setErrorMessage(result.error);
+      return;
     }
+
+    router.push("/dashboard");
   };
+
+  if (needsConfirmation) {
+    return (
+      <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
+        Account created. Please check your email to confirm your address before logging in.
+      </div>
+    );
+  }
 
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
@@ -78,9 +104,8 @@ export function SignupForm() {
         id="businessName"
         name="businessName"
         type="text"
-        label="Business name"
+        label="Business name (optional)"
         placeholder="Celaris Inc"
-        required
       />
 
       <Input

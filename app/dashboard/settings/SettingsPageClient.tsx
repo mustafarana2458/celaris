@@ -1,6 +1,7 @@
 "use client";
 
 import { SVGProps, useState } from "react";
+import { useSearchParams } from "next/navigation";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { UserProfile } from "@/lib/types";
 import type { WorkspaceBranding } from "./page";
@@ -71,7 +72,10 @@ export function SettingsPageClient({
   workspace: CurrentWorkspace | null;
   workspaceBranding: WorkspaceBranding | null;
 }) {
-  const [activeTab, setActiveTab] = useState<TabId>("profile");
+  const searchParams = useSearchParams();
+  const requestedTab = searchParams.get("tab");
+  const initialTab = TABS.some((tab) => tab.id === requestedTab) ? (requestedTab as TabId) : "profile";
+  const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
     <div className="flex flex-col gap-6">

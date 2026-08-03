@@ -3,14 +3,20 @@
 import { ReactNode, useState } from "react";
 import { Sidebar } from "./Sidebar";
 import { Topbar } from "./Topbar";
+import { AutoBreadcrumb } from "./AutoBreadcrumb";
+import type { WorkspaceSummary } from "@/lib/workspace";
 
 export function DashboardShell({
   fullName,
-  businessName,
+  avatarUrl,
+  activeWorkspace,
+  workspaces,
   children,
 }: {
   fullName: string;
-  businessName: string;
+  avatarUrl: string | null;
+  activeWorkspace: { id: string; name: string } | null;
+  workspaces: WorkspaceSummary[];
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -36,10 +42,15 @@ export function DashboardShell({
       <div className="flex min-w-0 flex-1 flex-col">
         <Topbar
           fullName={fullName}
-          businessName={businessName}
+          avatarUrl={avatarUrl}
+          activeWorkspace={activeWorkspace}
+          workspaces={workspaces}
           onMenuClick={() => setMobileOpen(true)}
         />
-        <main className="flex-1 p-4 md:p-8">{children}</main>
+        <main className="flex-1 p-4 md:p-8">
+          <AutoBreadcrumb />
+          {children}
+        </main>
       </div>
     </div>
   );

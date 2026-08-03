@@ -36,7 +36,11 @@ export function Breadcrumb({ items }: { items: BreadcrumbItem[] }) {
             ) : (
               <span
                 aria-current={isLast ? "page" : undefined}
-                className="font-medium text-slate-700 dark:text-slate-200"
+                className={
+                  isLast
+                    ? "font-medium text-slate-700 dark:text-slate-200"
+                    : "text-slate-500 dark:text-slate-400"
+                }
               >
                 {item.label}
               </span>
