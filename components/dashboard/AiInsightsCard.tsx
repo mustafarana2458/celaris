@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import { Sparkles } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { generateInsights } from "@/lib/actions/insights";
 
@@ -34,15 +35,22 @@ export function AiInsightsCard() {
   }
 
   return (
-    <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-      <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-        <div>
-          <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Insights</h2>
-          <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-            AI-generated recommendations based on your current business data.
-          </p>
+    <div className="relative overflow-hidden rounded-2xl border border-accent/20 bg-[linear-gradient(120deg,rgb(var(--accent-rgb)/0.12),rgb(var(--accent-rgb)/0.02))] p-5 shadow-sm dark:bg-[linear-gradient(120deg,rgb(var(--accent-rgb)/0.2),rgb(var(--accent-rgb)/0.05))]">
+      <Sparkles className="pointer-events-none absolute -right-6 -top-6 h-32 w-32 text-accent/10 dark:text-accent/15" />
+
+      <div className="relative flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-start gap-3">
+          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-accent/15 dark:bg-accent/25">
+            <Sparkles className="h-5 w-5 text-accent-hover dark:text-accent" />
+          </span>
+          <div>
+            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">AI Insights</h2>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              AI-generated recommendations based on your current business data.
+            </p>
+          </div>
         </div>
-        <Button onClick={handleGenerate} loading={loading} disabled={loading} className="shrink-0">
+        <Button onClick={handleGenerate} loading={loading} disabled={loading} className="relative shrink-0">
           {insights ? "Regenerate" : "Generate Insights"}
         </Button>
       </div>

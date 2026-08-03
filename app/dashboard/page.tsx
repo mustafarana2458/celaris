@@ -1,11 +1,14 @@
 import Link from "next/link";
+import { Users, Briefcase, FolderKanban, Receipt, ArrowUp, ArrowDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { AiInsightsCard } from "@/components/dashboard/AiInsightsCard";
+import { ContactRowMenu } from "@/components/dashboard/ContactRowMenu";
 import { Breadcrumb } from "@/components/ui/Breadcrumb";
 import { DealsPipelineChart } from "@/components/dashboard/charts/DealsPipelineChart";
 import { RevenueChart } from "@/components/dashboard/charts/RevenueChart";
 import { LeadsVsCustomersChart } from "@/components/dashboard/charts/LeadsVsCustomersChart";
+import { tagColor } from "@/lib/tagColors";
 import type { DealsByStage } from "@/components/dashboard/charts/DealsPipelineChart";
 import type { RevenueByMonth } from "@/components/dashboard/charts/RevenueChart";
 import type { Contact, DealStage, Task } from "@/lib/types";
@@ -38,6 +41,34 @@ function formatDate(value: string | null) {
   });
 }
 
+// Approximates a "vs last month" trend from record creation dates, since we
+// don't keep historical snapshots: records created in the last 30 days vs
+// the 30 days before that. Falls back to a flat 0% when there's no data to
+// compare rather than showing a misleading number.
+function trendFromDates(dates: string[]) {
+  const day = 24 * 60 * 60 * 1000;
+  const now = Date.now();
+  const periodStart = now - 30 * day;
+  const prevStart = now - 60 * day;
+  let current = 0;
+  let previous = 0;
+  for (const value of dates) {
+    const t = new Date(value).getTime();
+    if (t >= periodStart) current++;
+    else if (t >= prevStart) previous++;
+  }
+  if (previous === 0) return { pct: current > 0 ? 100 : 0, up: true };
+  const pct = Math.round(((current - previous) / previous) * 100);
+  return { pct: Math.abs(pct), up: pct >= 0 };
+}
+
+function getInitials(name: string) {
+  const parts = name.trim().split(/\s+/).filter(Boolean);
+  if (parts.length === 0) return "?";
+  if (parts.length === 1) return parts[0][0]!.toUpperCase();
+  return (parts[0][0]! + parts[parts.length - 1][0]!).toUpperCase();
+}
+
 export default async function DashboardPage() {
   const supabase = await createClient();
   const {
@@ -64,6 +95,10 @@ export default async function DashboardPage() {
   let revenueByMonth: RevenueByMonth[] = last6Months().map((m) => ({ month: m.label, total: 0 }));
   let leadsCount = 0;
   let customersCount = 0;
+  let contactsTrend = { pct: 0, up: true };
+  let dealsTrend = { pct: 0, up: true };
+  let projectsTrend = { pct: 0, up: true };
+  let invoicesTrend = { pct: 0, up: true };
 
   if (workspace) {
     const [
@@ -80,21 +115,21 @@ export default async function DashboardPage() {
     ] = await Promise.all([
       supabase
         .from("contacts")
-        .select("id", { count: "exact", head: true })
+        .select("id, created_at")
         .eq("workspace_id", workspace.id),
       supabase
         .from("deals")
-        .select("id, value")
+        .select("id, value, created_at")
         .eq("workspace_id", workspace.id)
         .not("stage", "in", "(won,lost)"),
       supabase
         .from("projects")
-        .select("id", { count: "exact", head: true })
+        .select("id, created_at")
         .eq("workspace_id", workspace.id)
         .eq("status", "active"),
       supabase
         .from("invoices")
-        .select("id, total")
+        .select("id, total, issued_at")
         .eq("workspace_id", workspace.id)
         .in("status", ["unpaid", "overdue"]),
       supabase
@@ -129,17 +164,24 @@ export default async function DashboardPage() {
         .eq("type", "customer"),
     ]);
 
+    const contactsRows = contactsCountRes.data ?? [];
     const openDeals = openDealsRes.data ?? [];
+    const activeProjectsRows = activeProjectsCountRes.data ?? [];
     const unpaidInvoices = unpaidInvoicesRes.data ?? [];
 
-    contactsCount = contactsCountRes.count ?? 0;
+    contactsCount = contactsRows.length;
     openDealsCount = openDeals.length;
     pipelineValue = openDeals.reduce((sum, d) => sum + (d.value ?? 0), 0);
-    activeProjectsCount = activeProjectsCountRes.count ?? 0;
+    activeProjectsCount = activeProjectsRows.length;
     unpaidInvoicesCount = unpaidInvoices.length;
     unpaidAmount = unpaidInvoices.reduce((sum, i) => sum + (i.total ?? 0), 0);
     recentContacts = (recentContactsRes.data as Contact[]) ?? [];
     upcomingTasks = (upcomingTasksRes.data as Task[]) ?? [];
+
+    contactsTrend = trendFromDates(contactsRows.map((r) => r.created_at));
+    dealsTrend = trendFromDates(openDeals.map((d) => d.created_at));
+    projectsTrend = trendFromDates(activeProjectsRows.map((r) => r.created_at));
+    invoicesTrend = trendFromDates(unpaidInvoices.map((i) => i.issued_at));
 
     const stageValues = new Map<DealStage, number>();
     for (const d of (allDealsRes.data as { stage: DealStage; value: number | null }[]) ?? []) {
@@ -160,23 +202,43 @@ export default async function DashboardPage() {
   }
 
   const statCards = [
-    { label: "Contacts", value: String(contactsCount), href: "/dashboard/contacts" },
+    {
+      label: "Contacts",
+      value: String(contactsCount),
+      href: "/dashboard/contacts",
+      icon: Users,
+      iconBg: "bg-blue-50 dark:bg-blue-950/40",
+      iconColor: "text-blue-600 dark:text-blue-400",
+      trend: contactsTrend,
+    },
     {
       label: "Open deals",
       value: String(openDealsCount),
       sub: `${currency.format(pipelineValue)} pipeline`,
       href: "/dashboard/deals",
+      icon: Briefcase,
+      iconBg: "bg-purple-50 dark:bg-purple-950/40",
+      iconColor: "text-purple-600 dark:text-purple-400",
+      trend: dealsTrend,
     },
     {
       label: "Active projects",
       value: String(activeProjectsCount),
       href: "/dashboard/projects",
+      icon: FolderKanban,
+      iconBg: "bg-green-50 dark:bg-green-950/40",
+      iconColor: "text-green-600 dark:text-green-400",
+      trend: projectsTrend,
     },
     {
       label: "Unpaid invoices",
       value: String(unpaidInvoicesCount),
       sub: currency.format(unpaidAmount),
       href: "/dashboard/invoices",
+      icon: Receipt,
+      iconBg: "bg-orange-50 dark:bg-orange-950/40",
+      iconColor: "text-orange-600 dark:text-orange-400",
+      trend: invoicesTrend,
     },
   ];
 
@@ -201,11 +263,25 @@ export default async function DashboardPage() {
           <Link
             key={stat.label}
             href={stat.href}
-            className="rounded-2xl border border-slate-200 bg-white p-5 transition-colors hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
+            className="rounded-2xl border border-slate-200 bg-white p-5 shadow-sm transition-all hover:-translate-y-0.5 hover:border-slate-300 hover:shadow-md dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
           >
-            <p className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</p>
-            <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{stat.value}</p>
+            <div className="flex items-center gap-3">
+              <span className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-full ${stat.iconBg}`}>
+                <stat.icon className={`h-5 w-5 ${stat.iconColor}`} />
+              </span>
+              <p className="text-sm text-slate-500 dark:text-slate-400">{stat.label}</p>
+            </div>
+            <p className="mt-3 text-3xl font-bold text-slate-900 dark:text-slate-100">{stat.value}</p>
             {stat.sub && <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">{stat.sub}</p>}
+            <p
+              className={`mt-2 flex items-center gap-1 text-xs font-medium ${
+                stat.trend.up ? "text-green-600 dark:text-green-400" : "text-red-600 dark:text-red-400"
+              }`}
+            >
+              {stat.trend.up ? <ArrowUp className="h-3 w-3" /> : <ArrowDown className="h-3 w-3" />}
+              {stat.trend.up ? "+" : "-"}
+              {stat.trend.pct}% from last month
+            </p>
           </Link>
         ))}
       </div>
@@ -238,16 +314,22 @@ export default async function DashboardPage() {
               <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No contacts yet.</p>
             ) : (
               recentContacts.map((c) => (
-                <div key={c.id} className="flex items-center justify-between py-3">
-                  <div>
-                    <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</p>
-                    <p className="text-xs text-slate-500 dark:text-slate-400">
+                <div key={c.id} className="flex items-center gap-3 py-3">
+                  <span
+                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${tagColor(c.name).dot}`}
+                  >
+                    {getInitials(c.name)}
+                  </span>
+                  <div className="min-w-0 flex-1">
+                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</p>
+                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
                       {c.company || c.email || "—"}
                     </p>
                   </div>
-                  <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
                     {c.type}
                   </span>
+                  <ContactRowMenu name={c.name} />
                 </div>
               ))
             )}
