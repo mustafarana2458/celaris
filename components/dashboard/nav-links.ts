@@ -110,8 +110,10 @@ export function getActiveHref(pathname: string): string | null {
 
 // Derives breadcrumb trail from the nav hierarchy: a single top-level link
 // (Dashboard, AI Assistant, Settings) is just its own title; a group child
-// (Contacts, Deals, Projects, ...) is a 2-level "Group > Child" trail.
-export function getBreadcrumbItems(pathname: string): { label: string }[] {
+// (Contacts, Deals, Projects, ...) is a 2-level "Group > Child" trail. The
+// child item carries its href so AutoBreadcrumb can link it once a detail
+// page appends a third level (Breadcrumb only ever links non-last items).
+export function getBreadcrumbItems(pathname: string): { label: string; href?: string }[] {
   const activeHref = getActiveHref(pathname);
   if (!activeHref) return [];
 
@@ -121,7 +123,7 @@ export function getBreadcrumbItems(pathname: string): { label: string }[] {
     }
     if (item.type === "group") {
       const child = item.children.find((c) => c.href === activeHref);
-      if (child) return [{ label: item.label }, { label: child.label }];
+      if (child) return [{ label: item.label }, { label: child.label, href: child.href }];
     }
   }
   return [];

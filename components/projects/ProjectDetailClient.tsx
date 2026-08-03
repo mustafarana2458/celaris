@@ -4,7 +4,7 @@ import { useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { Breadcrumb } from "@/components/ui/Breadcrumb";
+import { SetBreadcrumbLabel } from "@/components/dashboard/BreadcrumbContext";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { MilestoneChecklist } from "./MilestoneChecklist";
@@ -57,13 +57,7 @@ export function ProjectDetailClient({ project }: { project: Project }) {
 
   return (
     <div className="flex flex-col gap-6">
-      <Breadcrumb
-        items={[
-          { label: "Home", href: "/dashboard" },
-          { label: "Projects", href: "/dashboard/projects" },
-          { label: project.name },
-        ]}
-      />
+      <SetBreadcrumbLabel label={project.name} />
 
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
