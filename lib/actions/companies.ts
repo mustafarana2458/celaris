@@ -117,3 +117,21 @@ export async function deleteCompany(id: string): Promise<CompanyActionResult> {
   revalidatePath("/dashboard/contacts");
   return {};
 }
+
+export async function bulkDeleteCompanies(ids: string[]): Promise<CompanyActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+  if (ids.length === 0) return {};
+
+  const { error } = await ctx.supabase
+    .from("companies")
+    .delete()
+    .eq("workspace_id", ctx.workspace.id)
+    .in("id", ids);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/companies");
+  revalidatePath("/dashboard/contacts");
+  return {};
+}

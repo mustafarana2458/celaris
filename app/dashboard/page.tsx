@@ -8,6 +8,7 @@ import { DealsPipelineChart } from "@/components/dashboard/charts/DealsPipelineC
 import { RevenueChart } from "@/components/dashboard/charts/RevenueChart";
 import { LeadsVsCustomersChart } from "@/components/dashboard/charts/LeadsVsCustomersChart";
 import { tagColor } from "@/lib/tagColors";
+import { getInitials } from "@/lib/avatar";
 import type { DealsByStage } from "@/components/dashboard/charts/DealsPipelineChart";
 import type { RevenueByMonth } from "@/components/dashboard/charts/RevenueChart";
 import type { Contact, DealStage, Task } from "@/lib/types";
@@ -59,13 +60,6 @@ function trendFromDates(dates: string[]) {
   if (previous === 0) return { pct: current > 0 ? 100 : 0, up: true };
   const pct = Math.round(((current - previous) / previous) * 100);
   return { pct: Math.abs(pct), up: pct >= 0 };
-}
-
-function getInitials(name: string) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  if (parts.length === 0) return "?";
-  if (parts.length === 1) return parts[0][0]!.toUpperCase();
-  return (parts[0][0]! + parts[parts.length - 1][0]!).toUpperCase();
 }
 
 export default async function DashboardPage() {

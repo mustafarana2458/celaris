@@ -10,6 +10,8 @@ export function BulkDeleteDialog({
   onConfirm,
   pending,
   error,
+  title = "Delete contacts",
+  itemLabel,
 }: {
   open: boolean;
   count: number;
@@ -17,14 +19,19 @@ export function BulkDeleteDialog({
   onConfirm: () => void;
   pending: boolean;
   error: string | null;
+  /** Modal title, e.g. "Delete companies". Defaults to "Delete contacts". */
+  title?: string;
+  /** Already-pluralized noun for the confirmation copy, e.g. "contact"/"contacts" or "company"/"companies". Defaults to "contact"/"contacts". */
+  itemLabel?: string;
 }) {
+  const noun = itemLabel ?? (count === 1 ? "contact" : "contacts");
   return (
-    <Modal open={open} onClose={onClose} title="Delete contacts">
+    <Modal open={open} onClose={onClose} title={title}>
       <div className="flex flex-col gap-4">
         <p className="text-sm text-slate-600 dark:text-slate-300">
           Are you sure you want to delete{" "}
           <span className="font-medium text-slate-900 dark:text-slate-100">
-            {count} contact{count === 1 ? "" : "s"}
+            {count} {noun}
           </span>
           ? This action cannot be undone.
         </p>

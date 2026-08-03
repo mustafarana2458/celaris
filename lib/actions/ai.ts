@@ -7,6 +7,7 @@ import type { FollowUpDraftResult, FollowUpOutputType, FollowUpTone } from "@/li
 
 type PromptContact = {
   name: string;
+  first_name: string | null;
   company: string | null;
   type: string;
   notes: string | null;
@@ -41,8 +42,10 @@ function buildPrompt(
     ? `\nNotes: ${contact.notes.trim()}`
     : "\nNotes: none on file — keep this a generic, friendly check-in.";
 
+  const firstName = contact.first_name || contact.name.split(/\s+/)[0] || contact.name;
   const contextBlock =
     `Contact: ${contact.name}${companyPart}\nRelationship: ${relationship}${tagsPart}${notesPart}`;
+  const greetingInstruction = `If you include a greeting, address them by first name only ("Hi ${firstName},"), never their full name.`;
 
   const toneInstruction = TONE_GUIDANCE[tone];
 
@@ -50,7 +53,7 @@ function buildPrompt(
     return (
       `You are a business assistant drafting a follow-up email. Use a ${toneInstruction} tone.\n\n` +
       `${contextBlock}\n\n` +
-      `Write a short follow-up email (2-4 sentences in the body) to this contact based on the context above. ` +
+      `Write a short follow-up email (2-4 sentences in the body) to this contact based on the context above. ${greetingInstruction} ` +
       `Respond with ONLY valid JSON in exactly this shape, no markdown, no extra text: ` +
       `{"subject": "short subject line", "body": "the email body"}`
     );
@@ -121,7 +124,7 @@ export async function generateFollowUpDraft(
 
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
-    .select("name, company, type, notes, companies(name), contact_tags(tags(name))")
+    .select("name, first_name, company, type, notes, companies(name), contact_tags(tags(name))")
     .eq("id", contactId)
     .eq("workspace_id", workspace.id)
     .maybeSingle<PromptContact>();

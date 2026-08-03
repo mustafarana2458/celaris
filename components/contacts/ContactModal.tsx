@@ -58,7 +58,20 @@ export function ContactModal({
           </div>
         )}
 
-        <Input label="Name" name="name" defaultValue={contact?.name} required />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            label="First Name"
+            name="first_name"
+            defaultValue={contact?.first_name ?? contact?.name?.split(/\s+/)[0] ?? ""}
+            required
+          />
+          <Input
+            label="Last Name"
+            name="last_name"
+            defaultValue={contact?.last_name ?? contact?.name?.split(/\s+/).slice(1).join(" ") ?? ""}
+            required
+          />
+        </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input

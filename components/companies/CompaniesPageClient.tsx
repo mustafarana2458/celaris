@@ -1,11 +1,20 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useMemo, useRef, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
+import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { CompanyModal } from "./CompanyModal";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
+import { BulkActionBar } from "@/components/contacts/BulkActionBar";
+import { BulkDeleteDialog } from "@/components/contacts/BulkDeleteDialog";
+import { ContactsPagination } from "@/components/contacts/ContactsPagination";
+import { tagColor } from "@/lib/tagColors";
+import { getInitials } from "@/lib/avatar";
+import { bulkDeleteCompanies } from "@/lib/actions/companies";
+import { DEFAULT_PAGE_SIZE } from "@/lib/types";
 import type { Company } from "@/lib/types";
 
 export function CompaniesPageClient({
@@ -17,6 +26,53 @@ export function CompaniesPageClient({
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [deleting, setDeleting] = useState<Company | null>(null);
+
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(DEFAULT_PAGE_SIZE);
+  const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
+  const [bulkDeleteOpen, setBulkDeleteOpen] = useState(false);
+  const [bulkPending, startBulkDelete] = useTransition();
+  const [bulkError, setBulkError] = useState<string | null>(null);
+
+  const headerCheckboxRef = useRef<HTMLInputElement>(null);
+
+  const total = initialCompanies.length;
+  const totalPages = Math.max(1, Math.ceil(total / pageSize));
+  const pageCompanies = useMemo(
+    () => initialCompanies.slice((page - 1) * pageSize, page * pageSize),
+    [initialCompanies, page, pageSize]
+  );
+
+  function goToPage(next: number) {
+    setPage(Math.min(Math.max(1, next), totalPages));
+    setSelectedIds(new Set());
+  }
+
+  function changePageSize(next: number) {
+    setPageSize(next);
+    setPage(1);
+    setSelectedIds(new Set());
+  }
+
+  useEffect(() => {
+    if (headerCheckboxRef.current) {
+      headerCheckboxRef.current.indeterminate =
+        selectedIds.size > 0 && selectedIds.size < pageCompanies.length;
+    }
+  }, [selectedIds, pageCompanies.length]);
+
+  function toggleSelectAll(checked: boolean) {
+    setSelectedIds(checked ? new Set(pageCompanies.map((c) => c.id)) : new Set());
+  }
+
+  function toggleSelectOne(id: string, checked: boolean) {
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (checked) next.add(id);
+      else next.delete(id);
+      return next;
+    });
+  }
 
   function openAdd() {
     setEditing(null);
@@ -43,6 +99,22 @@ export function CompaniesPageClient({
     router.refresh();
   }
 
+  function handleBulkDelete() {
+    setBulkError(null);
+    startBulkDelete(async () => {
+      const result = await bulkDeleteCompanies(Array.from(selectedIds));
+      if (result.error) {
+        setBulkError(result.error);
+        return;
+      }
+      setBulkDeleteOpen(false);
+      setSelectedIds(new Set());
+      router.refresh();
+    });
+  }
+
+  const allSelected = pageCompanies.length > 0 && selectedIds.size === pageCompanies.length;
+
   return (
     <div className="flex flex-col gap-6">
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
@@ -53,6 +125,19 @@ export function CompaniesPageClient({
           </p>
         </div>
         <Button onClick={openAdd}>+ Add company</Button>
+      </div>
+
+      <div
+        className={`overflow-hidden transition-all duration-200 ${
+          selectedIds.size > 0 ? "max-h-40 opacity-100" : "max-h-0 opacity-0"
+        }`}
+      >
+        <BulkActionBar
+          count={selectedIds.size}
+          onDelete={() => setBulkDeleteOpen(true)}
+          pending={bulkPending}
+          error={bulkError}
+        />
       </div>
 
       {initialCompanies.length === 0 ? (
@@ -74,6 +159,16 @@ export function CompaniesPageClient({
             <table className="w-full text-left text-sm">
               <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                 <tr>
+                  <th className="w-10 px-5 py-3">
+                    <input
+                      ref={headerCheckboxRef}
+                      type="checkbox"
+                      checked={allSelected}
+                      onChange={(e) => toggleSelectAll(e.target.checked)}
+                      className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/40 dark:border-slate-600"
+                      aria-label="Select all"
+                    />
+                  </th>
                   <th className="px-5 py-3 font-medium">Name</th>
                   <th className="px-5 py-3 font-medium">Industry</th>
                   <th className="px-5 py-3 font-medium">Size</th>
@@ -83,10 +178,31 @@ export function CompaniesPageClient({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                {initialCompanies.map((company) => (
-                  <tr key={company.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                {pageCompanies.map((company) => (
+                  <tr
+                    key={company.id}
+                    className={`hover:bg-slate-50 dark:hover:bg-slate-700/50 ${
+                      selectedIds.has(company.id) ? "bg-accent/5 dark:bg-accent/10" : ""
+                    }`}
+                  >
+                    <td className="px-5 py-3">
+                      <input
+                        type="checkbox"
+                        checked={selectedIds.has(company.id)}
+                        onChange={(e) => toggleSelectOne(company.id, e.target.checked)}
+                        className="h-4 w-4 rounded border-slate-300 text-accent focus:ring-accent/40 dark:border-slate-600"
+                        aria-label={`Select ${company.name}`}
+                      />
+                    </td>
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
-                      {company.name}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${tagColor(company.name).dot}`}
+                        >
+                          {getInitials(company.name)}
+                        </span>
+                        {company.name}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {company.industry || "—"}
@@ -112,19 +228,19 @@ export function CompaniesPageClient({
                       )}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => openEdit(company)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeleting(company)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
+                      <div className="flex justify-end">
+                        <RowActionsMenu
+                          ariaLabel={`Actions for ${company.name}`}
+                          actions={[
+                            { label: "Edit", icon: Pencil, onClick: () => openEdit(company) },
+                            {
+                              label: "Delete",
+                              icon: Trash2,
+                              destructive: true,
+                              onClick: () => setDeleting(company),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -133,6 +249,16 @@ export function CompaniesPageClient({
             </table>
           </div>
         </div>
+      )}
+
+      {total > 0 && (
+        <ContactsPagination
+          page={page}
+          pageSize={pageSize}
+          total={total}
+          onPageChange={goToPage}
+          onPageSizeChange={changePageSize}
+        />
       )}
 
       <CompanyModal
@@ -146,6 +272,17 @@ export function CompaniesPageClient({
         company={deleting}
         onClose={() => setDeleting(null)}
         onDeleted={handleDeleted}
+      />
+
+      <BulkDeleteDialog
+        open={bulkDeleteOpen}
+        count={selectedIds.size}
+        onClose={() => setBulkDeleteOpen(false)}
+        onConfirm={handleBulkDelete}
+        pending={bulkPending}
+        error={bulkError}
+        title="Delete companies"
+        itemLabel={selectedIds.size === 1 ? "company" : "companies"}
       />
     </div>
   );

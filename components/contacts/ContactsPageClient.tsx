@@ -1,8 +1,10 @@
 "use client";
 
 import { useEffect, useRef, useState, useTransition } from "react";
+import { Sparkles, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { ContactModal } from "./ContactModal";
 import { DeleteContactDialog } from "./DeleteContactDialog";
 import { AiFollowUpDrawer } from "./AiFollowUpDrawer";
@@ -11,6 +13,7 @@ import { BulkDeleteDialog } from "./BulkDeleteDialog";
 import { AdvancedFilterPopover, activeFilterCount } from "./AdvancedFilterPopover";
 import { ContactsPagination } from "./ContactsPagination";
 import { tagColor } from "@/lib/tagColors";
+import { getInitials } from "@/lib/avatar";
 import { resolveContactTagNames } from "@/lib/tags";
 import { downloadCsv } from "@/lib/csv";
 import {
@@ -391,15 +394,33 @@ export function ContactsPageClient({
                       />
                     </td>
                     <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
-                      {c.name}
+                      <div className="flex items-center gap-3">
+                        <span
+                          className={`flex h-8 w-8 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${tagColor(c.name).dot}`}
+                        >
+                          {getInitials(c.name)}
+                        </span>
+                        {c.name}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                      <div className="flex flex-col">
-                        {c.email && <span>{c.email}</span>}
-                        {c.phone && (
-                          <span className="text-slate-400 dark:text-slate-500">{c.phone}</span>
-                        )}
-                        {!c.email && !c.phone && "—"}
+                      <div className="flex items-center gap-2">
+                        <div className="flex flex-col">
+                          {c.email && <span>{c.email}</span>}
+                          {c.phone && (
+                            <span className="text-slate-400 dark:text-slate-500">{c.phone}</span>
+                          )}
+                          {!c.email && !c.phone && "—"}
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => setAiContact(c)}
+                          title="AI Follow-Up"
+                          aria-label={`AI follow-up for ${c.name}`}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-500 transition-all hover:bg-purple-100 hover:text-purple-600 hover:shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:bg-purple-950/40 dark:text-purple-400 dark:hover:bg-purple-950/70"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
@@ -425,25 +446,19 @@ export function ContactsPageClient({
                       </div>
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        <button
-                          onClick={() => setAiContact(c)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
-                        >
-                          AI Follow-Up
-                        </button>
-                        <button
-                          onClick={() => openEdit(c)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeleting(c)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
+                      <div className="flex justify-end">
+                        <RowActionsMenu
+                          ariaLabel={`Actions for ${c.name}`}
+                          actions={[
+                            { label: "Edit", icon: Pencil, onClick: () => openEdit(c) },
+                            {
+                              label: "Delete",
+                              icon: Trash2,
+                              destructive: true,
+                              onClick: () => setDeleting(c),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>

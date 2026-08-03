@@ -96,8 +96,21 @@ async function syncContactTags(
   }
 }
 
+// Splits a full name on the first space: "Bilal Rana" -> ("Bilal", "Rana"),
+// "Cher" -> ("Cher", null). Used as a fallback wherever a caller only sends
+// a single "name" field -- notably the AI assistant's create-contact tool,
+// which predates first_name/last_name and still only sets "name".
+function splitName(fullName: string): { firstName: string; lastName: string | null } {
+  const trimmed = fullName.trim();
+  const firstSpace = trimmed.indexOf(" ");
+  if (firstSpace === -1) return { firstName: trimmed, lastName: null };
+  return { firstName: trimmed.slice(0, firstSpace), lastName: trimmed.slice(firstSpace + 1).trim() || null };
+}
+
 function contactFields(formData: FormData) {
-  const name = String(formData.get("name") ?? "").trim();
+  const nameInput = String(formData.get("name") ?? "").trim();
+  const firstNameInput = String(formData.get("first_name") ?? "").trim();
+  const lastNameInput = String(formData.get("last_name") ?? "").trim();
   const email = String(formData.get("email") ?? "").trim();
   const phone = String(formData.get("phone") ?? "").trim();
   const companyId = String(formData.get("company_id") ?? "").trim();
@@ -107,8 +120,23 @@ function contactFields(formData: FormData) {
   const type: ContactType = typeRaw === "customer" ? "customer" : "lead";
   const tagNames = parseTagNames(formData);
 
+  let firstName = firstNameInput;
+  let lastName: string | null = lastNameInput || null;
+  if (!firstName && nameInput) {
+    const split = splitName(nameInput);
+    firstName = split.firstName;
+    lastName = split.lastName;
+  }
+
+  // "name" stays the source of truth for every existing read (search,
+  // CSV export, dashboard avatars, the AI follow-up context block) --
+  // computed from first/last so nothing else has to change.
+  const name = nameInput || [firstName, lastName].filter(Boolean).join(" ").trim();
+
   return {
     name,
+    first_name: firstName || null,
+    last_name: lastName,
     email: email || null,
     phone: phone || null,
     company_id: companyId || null,
@@ -130,7 +158,7 @@ export async function createContact(formData: FormData): Promise<ContactActionRe
 
   const fields = contactFields(formData);
   if (!fields.name) {
-    return { error: "Name is required." };
+    return { error: "First name is required." };
   }
 
   const { data, error } = await ctx.supabase
@@ -160,7 +188,7 @@ export async function updateContact(
 
   const fields = contactFields(formData);
   if (!fields.name) {
-    return { error: "Name is required." };
+    return { error: "First name is required." };
   }
 
   const { error } = await ctx.supabase
