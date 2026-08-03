@@ -74,7 +74,8 @@ export function DealsPipelineChart({ data }: { data: DealsByStage[] }) {
               color: "rgb(241 245 249)",
               boxShadow: "0 4px 16px rgb(0 0 0 / 0.25)",
             }}
-            labelStyle={{ color: "rgb(203 213 225)" }}
+            labelStyle={{ color: "rgb(203 213 225)", fontWeight: 600, marginBottom: 2 }}
+            itemStyle={{ color: "rgb(241 245 249)" }}
             formatter={(value: number) => [currency.format(value), "Pipeline value"]}
           />
           <Bar dataKey="value" radius={[6, 6, 0, 0]} maxBarSize={48}>
