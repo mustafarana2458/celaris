@@ -97,12 +97,24 @@ export type Company = {
 
 export type DealStage = "new" | "qualified" | "proposal" | "won" | "lost";
 
+export type Pipeline = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  is_default: boolean;
+  created_at: string;
+};
+
 export type Deal = {
   id: string;
   workspace_id: string;
   title: string;
   contact_id: string | null;
+  company_id: string | null;
+  pipeline_id: string | null;
+  owner_id: string | null;
   value: number | null;
+  win_probability: number | null;
   stage: DealStage;
   expected_close: string | null;
   ai_score: number | null;
@@ -113,6 +125,9 @@ export type Deal = {
     company: string | null;
     companies?: { name: string } | null;
   } | null;
+  companies?: { id: string; name: string } | null;
+  pipelines?: { id: string; name: string } | null;
+  owner?: { id: string; full_name: string } | null;
 };
 
 export type ProjectStatus = "active" | "on_hold" | "completed";

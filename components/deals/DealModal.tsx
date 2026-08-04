@@ -4,21 +4,33 @@ import { useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { CompanyCombobox } from "@/components/contacts/CompanyCombobox";
+import { ContactCombobox } from "./ContactCombobox";
 import { createDeal, updateDeal } from "@/lib/actions/deals";
 import { STAGES } from "./stages";
-import type { Contact, Deal } from "@/lib/types";
+import type { Company, Contact, Deal, Pipeline, WorkspaceTeamMember } from "@/lib/types";
 
 export function DealModal({
   open,
   onClose,
   deal,
   contacts,
+  companies,
+  pipelines,
+  members,
+  currentUserId,
+  defaultPipelineId,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   deal: Deal | null;
   contacts: Pick<Contact, "id" | "name">[];
+  companies: Pick<Company, "id" | "name">[];
+  pipelines: Pipeline[];
+  members: WorkspaceTeamMember[];
+  currentUserId: string;
+  defaultPipelineId: string | null;
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -49,36 +61,26 @@ export function DealModal({
           </div>
         )}
 
-        <Input label="Title" name="title" defaultValue={deal?.title} required />
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Contact
-          </label>
-          <select
-            id="contact_id"
-            name="contact_id"
-            defaultValue={deal?.contact_id ?? ""}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          >
-            <option value="">No contact linked</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Input label="Deal Name" name="title" defaultValue={deal?.title} required />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input
-            label="Value ($)"
-            name="value"
-            type="number"
-            step="0.01"
-            min="0"
-            defaultValue={deal?.value ?? ""}
-          />
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="pipeline_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Pipeline
+            </label>
+            <select
+              id="pipeline_id"
+              name="pipeline_id"
+              defaultValue={deal?.pipeline_id ?? defaultPipelineId ?? ""}
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            >
+              {pipelines.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
           <div className="flex flex-col gap-1.5">
             <label htmlFor="stage" className="text-sm font-medium text-slate-700 dark:text-slate-300">
               Stage
@@ -96,6 +98,58 @@ export function DealModal({
               ))}
             </select>
           </div>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <CompanyCombobox
+            companies={companies}
+            defaultCompanyId={deal?.company_id ?? null}
+            defaultCompanyName={deal?.companies?.name ?? null}
+          />
+          <ContactCombobox
+            contacts={contacts}
+            defaultContactId={deal?.contact_id ?? null}
+            defaultContactName={deal?.contacts?.name ?? null}
+          />
+        </div>
+
+        <div className="flex flex-col gap-1.5">
+          <label htmlFor="owner_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Deal Owner
+          </label>
+          <select
+            id="owner_id"
+            name="owner_id"
+            defaultValue={deal ? deal.owner_id ?? "" : currentUserId}
+            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          >
+            <option value="">Unassigned</option>
+            {members.map((m) => (
+              <option key={m.user_id} value={m.user_id}>
+                {m.full_name ?? m.email ?? "Unnamed"}
+              </option>
+            ))}
+          </select>
+        </div>
+
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            label="Value ($)"
+            name="value"
+            type="number"
+            step="0.01"
+            min="0"
+            defaultValue={deal?.value ?? ""}
+          />
+          <Input
+            label="Win Probability (%)"
+            name="win_probability"
+            type="number"
+            step="1"
+            min="0"
+            max="100"
+            defaultValue={deal?.win_probability ?? ""}
+          />
         </div>
 
         <Input

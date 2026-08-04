@@ -8,8 +8,9 @@ import { DeleteDealDialog } from "./DeleteDealDialog";
 import { DealForecast } from "./DealForecast";
 import { DealsKanban } from "./DealsKanban";
 import { DealsTable } from "./DealsTable";
+import { PipelineSwitcher } from "./PipelineSwitcher";
 import { scoreDeal, updateDealStage } from "@/lib/actions/deals";
-import type { Contact, Deal, DealStage } from "@/lib/types";
+import type { Company, Contact, Deal, DealStage, Pipeline, WorkspaceTeamMember } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -19,15 +20,31 @@ const currency = new Intl.NumberFormat("en-US", {
 
 type ViewMode = "kanban" | "list";
 
+function defaultPipelineId(pipelines: Pipeline[]): string | null {
+  return pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id ?? null;
+}
+
 export function DealsPageClient({
   initialDeals,
   contacts,
+  companies,
+  initialPipelines,
+  members,
+  currentUserId,
 }: {
   initialDeals: Deal[];
   contacts: Pick<Contact, "id" | "name">[];
+  companies: Pick<Company, "id" | "name">[];
+  initialPipelines: Pipeline[];
+  members: WorkspaceTeamMember[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [deals, setDeals] = useState(initialDeals);
+  const [pipelines, setPipelines] = useState(initialPipelines);
+  const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(() =>
+    defaultPipelineId(initialPipelines)
+  );
   const [view, setView] = useState<ViewMode>("kanban");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Deal | null>(null);
@@ -41,7 +58,24 @@ export function DealsPageClient({
     setDeals(initialDeals);
   }, [initialDeals]);
 
-  const totalValue = useMemo(() => deals.reduce((sum, d) => sum + (d.value ?? 0), 0), [deals]);
+  useEffect(() => {
+    setPipelines(initialPipelines);
+    setSelectedPipelineId((current) =>
+      current && initialPipelines.some((p) => p.id === current)
+        ? current
+        : defaultPipelineId(initialPipelines)
+    );
+  }, [initialPipelines]);
+
+  const pipelineDeals = useMemo(
+    () => deals.filter((d) => d.pipeline_id === selectedPipelineId),
+    [deals, selectedPipelineId]
+  );
+
+  const totalValue = useMemo(
+    () => pipelineDeals.reduce((sum, d) => sum + (d.value ?? 0), 0),
+    [pipelineDeals]
+  );
 
   function openAdd() {
     setEditing(null);
@@ -65,6 +99,12 @@ export function DealsPageClient({
 
   function handleDeleted() {
     setDeleting(null);
+    router.refresh();
+  }
+
+  function handlePipelineCreated(pipeline: { id: string; name: string; is_default: boolean }) {
+    setPipelines((prev) => [...prev, { ...pipeline, workspace_id: "", created_at: new Date().toISOString() }]);
+    setSelectedPipelineId(pipeline.id);
     router.refresh();
   }
 
@@ -103,11 +143,17 @@ export function DealsPageClient({
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Deals</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-            {deals.length} deal{deals.length === 1 ? "" : "s"} ·{" "}
+            {pipelineDeals.length} deal{pipelineDeals.length === 1 ? "" : "s"} ·{" "}
             {currency.format(totalValue)} in pipeline
           </p>
         </div>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center gap-3">
+          <PipelineSwitcher
+            pipelines={pipelines}
+            activePipelineId={selectedPipelineId}
+            onSwitch={setSelectedPipelineId}
+            onCreated={handlePipelineCreated}
+          />
           <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
             {(["kanban", "list"] as ViewMode[]).map((mode) => (
               <button
@@ -128,7 +174,7 @@ export function DealsPageClient({
         </div>
       </div>
 
-      <DealForecast deals={deals} />
+      <DealForecast deals={pipelineDeals} />
 
       {stageError && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
@@ -136,7 +182,7 @@ export function DealsPageClient({
         </div>
       )}
 
-      {deals.length === 0 ? (
+      {pipelineDeals.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
           <p className="text-sm font-medium text-slate-700 dark:text-slate-300">No deals yet</p>
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
@@ -148,7 +194,7 @@ export function DealsPageClient({
         </div>
       ) : view === "kanban" ? (
         <DealsKanban
-          deals={deals}
+          deals={pipelineDeals}
           onStageChange={handleStageChange}
           onEdit={openEdit}
           onDelete={setDeleting}
@@ -158,7 +204,7 @@ export function DealsPageClient({
           scoreErrors={scoreErrors}
         />
       ) : (
-        <DealsTable deals={deals} onEdit={openEdit} onDelete={setDeleting} />
+        <DealsTable deals={pipelineDeals} onEdit={openEdit} onDelete={setDeleting} />
       )}
 
       <DealModal
@@ -166,6 +212,11 @@ export function DealsPageClient({
         onClose={closeModal}
         deal={editing}
         contacts={contacts}
+        companies={companies}
+        pipelines={pipelines}
+        members={members}
+        currentUserId={currentUserId}
+        defaultPipelineId={selectedPipelineId}
         onSaved={handleSaved}
       />
 

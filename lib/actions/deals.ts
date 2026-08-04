@@ -31,17 +31,30 @@ async function requireWorkspace() {
 function dealFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const contactId = String(formData.get("contact_id") ?? "").trim();
+  const companyId = String(formData.get("company_id") ?? "").trim();
+  const pipelineId = String(formData.get("pipeline_id") ?? "").trim();
+  const ownerId = String(formData.get("owner_id") ?? "").trim();
   const valueRaw = String(formData.get("value") ?? "").trim();
+  const winProbabilityRaw = String(formData.get("win_probability") ?? "").trim();
   const stageRaw = String(formData.get("stage") ?? "new").trim();
   const expectedClose = String(formData.get("expected_close") ?? "").trim();
 
   const value = valueRaw === "" ? null : Number(valueRaw);
+  const winProbabilityNum = winProbabilityRaw === "" ? null : Number(winProbabilityRaw);
+  const winProbability =
+    winProbabilityNum !== null && !Number.isNaN(winProbabilityNum)
+      ? Math.max(0, Math.min(100, Math.round(winProbabilityNum)))
+      : null;
   const stage = (VALID_STAGES.includes(stageRaw as DealStage) ? stageRaw : "new") as DealStage;
 
   return {
     title,
     contact_id: contactId || null,
+    company_id: companyId || null,
+    pipeline_id: pipelineId || null,
+    owner_id: ownerId || null,
     value: value !== null && !Number.isNaN(value) ? value : null,
+    win_probability: winProbability,
     stage,
     expected_close: expectedClose || null,
   };
