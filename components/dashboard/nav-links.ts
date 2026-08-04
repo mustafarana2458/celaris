@@ -36,7 +36,7 @@ export const navLinks: NavItem[] = [
     children: [
       { href: "/dashboard/contacts", label: "People" },
       { href: "/dashboard/companies", label: "Companies" },
-      { href: "/dashboard/contacts/lists", label: "Lists" },
+      { href: "/dashboard/contacts/segments", label: "Segments" },
     ],
   },
   {
