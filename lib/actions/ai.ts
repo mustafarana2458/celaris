@@ -7,7 +7,6 @@ import type { FollowUpDraftResult, FollowUpOutputType, FollowUpTone } from "@/li
 
 type PromptContact = {
   name: string;
-  first_name: string | null;
   company: string | null;
   type: string;
   notes: string | null;
@@ -42,7 +41,11 @@ function buildPrompt(
     ? `\nNotes: ${contact.notes.trim()}`
     : "\nNotes: none on file — keep this a generic, friendly check-in.";
 
-  const firstName = contact.first_name || contact.name.split(/\s+/)[0] || contact.name;
+  // contacts.first_name is an additive column not guaranteed to exist on
+  // every deployment yet -- derive from the always-present "name" instead
+  // of selecting first_name directly, so this doesn't hard-fail if that
+  // migration hasn't been applied.
+  const firstName = contact.name.split(/\s+/)[0] || contact.name;
   const contextBlock =
     `Contact: ${contact.name}${companyPart}\nRelationship: ${relationship}${tagsPart}${notesPart}`;
   const greetingInstruction = `If you include a greeting, address them by first name only ("Hi ${firstName},"), never their full name.`;
@@ -124,12 +127,16 @@ export async function generateFollowUpDraft(
 
   const { data: contact, error: contactError } = await supabase
     .from("contacts")
-    .select("name, first_name, company, type, notes, companies(name), contact_tags(tags(name))")
+    .select("name, company, type, notes, companies(name), contact_tags(tags(name))")
     .eq("id", contactId)
     .eq("workspace_id", workspace.id)
     .maybeSingle<PromptContact>();
 
-  if (contactError || !contact) {
+  if (contactError) {
+    console.error("generateFollowUpDraft: contact fetch failed", contactError);
+    return { error: "Something went wrong loading this contact. Please try again." };
+  }
+  if (!contact) {
     return { error: "Contact not found." };
   }
 

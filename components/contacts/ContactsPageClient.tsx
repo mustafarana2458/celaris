@@ -373,6 +373,7 @@ export function ContactsPageClient({
                   <th className="px-5 py-3 font-medium">Company</th>
                   <th className="px-5 py-3 font-medium">Type</th>
                   <th className="px-5 py-3 font-medium">Tags</th>
+                  <th className="px-5 py-3 font-medium text-center">AI Follow-Up</th>
                   <th className="px-5 py-3 font-medium text-right">Actions</th>
                 </tr>
               </thead>
@@ -404,23 +405,12 @@ export function ContactsPageClient({
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                      <div className="flex items-center gap-2">
-                        <div className="flex flex-col">
-                          {c.email && <span>{c.email}</span>}
-                          {c.phone && (
-                            <span className="text-slate-400 dark:text-slate-500">{c.phone}</span>
-                          )}
-                          {!c.email && !c.phone && "—"}
-                        </div>
-                        <button
-                          type="button"
-                          onClick={() => setAiContact(c)}
-                          title="AI Follow-Up"
-                          aria-label={`AI follow-up for ${c.name}`}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-hover transition-all hover:bg-accent/20 hover:shadow-[0_0_10px_rgb(var(--accent-rgb)/0.45)] dark:bg-accent/15 dark:text-accent"
-                        >
-                          <Sparkles className="h-3.5 w-3.5" />
-                        </button>
+                      <div className="flex flex-col">
+                        {c.email && <span>{c.email}</span>}
+                        {c.phone && (
+                          <span className="text-slate-400 dark:text-slate-500">{c.phone}</span>
+                        )}
+                        {!c.email && !c.phone && "—"}
                       </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
@@ -443,6 +433,19 @@ export function ContactsPageClient({
                             {tag}
                           </span>
                         ))}
+                      </div>
+                    </td>
+                    <td className="px-5 py-3">
+                      <div className="flex justify-center">
+                        <button
+                          type="button"
+                          onClick={() => setAiContact(c)}
+                          title="AI Follow-Up"
+                          aria-label={`AI follow-up for ${c.name}`}
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-hover transition-all hover:bg-accent/20 hover:shadow-[0_0_10px_rgb(var(--accent-rgb)/0.45)] dark:bg-accent/15 dark:text-accent"
+                        >
+                          <Sparkles className="h-3.5 w-3.5" />
+                        </button>
                       </div>
                     </td>
                     <td className="px-5 py-3">
