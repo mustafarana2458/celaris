@@ -417,7 +417,7 @@ export function ContactsPageClient({
                           onClick={() => setAiContact(c)}
                           title="AI Follow-Up"
                           aria-label={`AI follow-up for ${c.name}`}
-                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-purple-50 text-purple-500 transition-all hover:bg-purple-100 hover:text-purple-600 hover:shadow-[0_0_10px_rgba(168,85,247,0.45)] dark:bg-purple-950/40 dark:text-purple-400 dark:hover:bg-purple-950/70"
+                          className="flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-hover transition-all hover:bg-accent/20 hover:shadow-[0_0_10px_rgb(var(--accent-rgb)/0.45)] dark:bg-accent/15 dark:text-accent"
                         >
                           <Sparkles className="h-3.5 w-3.5" />
                         </button>
