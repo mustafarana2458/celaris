@@ -31,9 +31,15 @@ async function requireWorkspace() {
   return { supabase, workspace } as const;
 }
 
+// Website is optional and users often type it without a scheme
+// ("www.meto.com", "meto.com") -- prepend https:// rather than rejecting it.
+function normalizeWebsiteUrl(value: string): string {
+  return /^https?:\/\//i.test(value) ? value : `https://${value}`;
+}
+
 function companyFields(formData: FormData) {
   const name = String(formData.get("name") ?? "").trim();
-  const website = String(formData.get("website") ?? "").trim();
+  const websiteRaw = String(formData.get("website") ?? "").trim();
   const industryRaw = String(formData.get("industry") ?? "").trim();
   const sizeRaw = String(formData.get("size") ?? "").trim();
   const location = String(formData.get("location") ?? "").trim();
@@ -46,7 +52,7 @@ function companyFields(formData: FormData) {
 
   return {
     name,
-    website: website || null,
+    website: websiteRaw ? normalizeWebsiteUrl(websiteRaw) : null,
     industry,
     size,
     location: location || null,

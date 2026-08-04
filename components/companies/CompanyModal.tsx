@@ -59,7 +59,7 @@ export function CompanyModal({
         <Input
           label="Website URL"
           name="website"
-          type="url"
+          type="text"
           placeholder="https://example.com"
           defaultValue={company?.website ?? ""}
         />
