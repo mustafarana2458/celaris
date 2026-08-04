@@ -40,15 +40,19 @@ export function DealModal({
   function handleSubmit(formData: FormData) {
     setError(null);
     startTransition(async () => {
-      const result = isEdit
-        ? await updateDeal(deal!.id, formData)
-        : await createDeal(formData);
+      try {
+        const result = isEdit
+          ? await updateDeal(deal!.id, formData)
+          : await createDeal(formData);
 
-      if (result.error) {
-        setError(result.error);
-        return;
+        if (result.error) {
+          setError(result.error);
+          return;
+        }
+        onSaved();
+      } catch (err) {
+        setError(err instanceof Error ? err.message : "Something went wrong. Please try again.");
       }
-      onSaved();
     });
   }
 

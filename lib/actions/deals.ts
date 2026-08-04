@@ -74,7 +74,10 @@ export async function createDeal(formData: FormData): Promise<DealActionResult> 
     workspace_id: ctx.workspace.id,
   });
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[createDeal] insert failed:", error);
+    return { error: error.message };
+  }
 
   revalidatePath("/dashboard/deals");
   return {};
@@ -98,7 +101,10 @@ export async function updateDeal(
     .eq("id", id)
     .eq("workspace_id", ctx.workspace.id);
 
-  if (error) return { error: error.message };
+  if (error) {
+    console.error("[updateDeal] update failed:", error);
+    return { error: error.message };
+  }
 
   revalidatePath("/dashboard/deals");
   return {};

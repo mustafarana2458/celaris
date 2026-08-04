@@ -31,6 +31,7 @@ export function DealsPageClient({
   initialPipelines,
   members,
   currentUserId,
+  loadError,
 }: {
   initialDeals: Deal[];
   contacts: Pick<Contact, "id" | "name">[];
@@ -38,6 +39,7 @@ export function DealsPageClient({
   initialPipelines: Pipeline[];
   members: WorkspaceTeamMember[];
   currentUserId: string;
+  loadError?: string | null;
 }) {
   const router = useRouter();
   const [deals, setDeals] = useState(initialDeals);
@@ -175,6 +177,12 @@ export function DealsPageClient({
       </div>
 
       <DealForecast deals={pipelineDeals} />
+
+      {loadError && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+          Couldn&apos;t load deals: {loadError}
+        </div>
+      )}
 
       {stageError && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
