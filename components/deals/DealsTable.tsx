@@ -1,3 +1,5 @@
+import { Pencil, Sparkles, Trash2 } from "lucide-react";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { STAGES } from "./stages";
 import type { Deal } from "@/lib/types";
 
@@ -20,10 +22,12 @@ export function DealsTable({
   deals,
   onEdit,
   onDelete,
+  onOpenSummary,
 }: {
   deals: Deal[];
   onEdit: (deal: Deal) => void;
   onDelete: (deal: Deal) => void;
+  onOpenSummary: (deal: Deal) => void;
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -35,7 +39,7 @@ export function DealsTable({
             <th className="px-4 py-3">Stage</th>
             <th className="px-4 py-3">Value</th>
             <th className="px-4 py-3">Expected close</th>
-            <th className="px-4 py-3">AI score</th>
+            <th className="px-4 py-3">AI Summary</th>
             <th className="px-4 py-3" />
           </tr>
         </thead>
@@ -66,21 +70,25 @@ export function DealsTable({
                 </td>
                 <td className="px-4 py-3">{deal.value != null ? currency.format(deal.value) : "—"}</td>
                 <td className="px-4 py-3">{formatDate(deal.expected_close)}</td>
-                <td className="px-4 py-3">{deal.ai_score ?? "—"}</td>
                 <td className="px-4 py-3">
-                  <div className="flex justify-end gap-1">
-                    <button
-                      onClick={() => onEdit(deal)}
-                      className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={() => onDelete(deal)}
-                      className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                    >
-                      Delete
-                    </button>
+                  <button
+                    type="button"
+                    onClick={() => onOpenSummary(deal)}
+                    className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
+                  >
+                    <Sparkles className="h-3.5 w-3.5" />
+                    {deal.ai_summary ? "AI Summary" : "Generate"}
+                  </button>
+                </td>
+                <td className="px-4 py-3">
+                  <div className="flex justify-end">
+                    <RowActionsMenu
+                      ariaLabel="Deal actions"
+                      actions={[
+                        { label: "Edit", onClick: () => onEdit(deal), icon: Pencil },
+                        { label: "Delete", onClick: () => onDelete(deal), icon: Trash2, destructive: true },
+                      ]}
+                    />
                   </div>
                 </td>
               </tr>

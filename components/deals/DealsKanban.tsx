@@ -71,19 +71,13 @@ export function DealsKanban({
   onStageChange,
   onEdit,
   onDelete,
-  onScore,
-  scoringId,
-  scoreReasons,
-  scoreErrors,
+  onDealUpdated,
 }: {
   deals: Deal[];
   onStageChange: (deal: Deal, stage: DealStage) => void;
   onEdit: (deal: Deal) => void;
   onDelete: (deal: Deal) => void;
-  onScore: (deal: Deal) => void;
-  scoringId: string | null;
-  scoreReasons: Record<string, string>;
-  scoreErrors: Record<string, string>;
+  onDealUpdated: (patch: Partial<Deal> & { id: string }) => void;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -136,10 +130,7 @@ export function DealsKanban({
                 deal={deal}
                 onEdit={() => onEdit(deal)}
                 onDelete={() => onDelete(deal)}
-                onScore={() => onScore(deal)}
-                scoring={scoringId === deal.id}
-                scoreReason={scoreReasons[deal.id]}
-                scoreError={scoreErrors[deal.id]}
+                onDealUpdated={onDealUpdated}
               />
             ))}
           </KanbanColumn>

@@ -10,16 +10,16 @@ import { DealsKanban } from "./DealsKanban";
 import { DealsTable } from "./DealsTable";
 import { PipelineSwitcher } from "./PipelineSwitcher";
 import { DealsTabs } from "./DealsTabs";
-import { scoreDeal, updateDealStage } from "@/lib/actions/deals";
-import type { Company, Contact, Deal, DealStage, Pipeline, WorkspaceTeamMember } from "@/lib/types";
+import { AiSummarySheet } from "./AiSummarySheet";
+import { updateDealStage } from "@/lib/actions/deals";
+import { setPipelineView } from "@/lib/actions/userPreferences";
+import type { Company, Contact, Deal, DealStage, Pipeline, PipelineView, WorkspaceTeamMember } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
   currency: "USD",
   maximumFractionDigits: 0,
 });
-
-type ViewMode = "kanban" | "list";
 
 function defaultPipelineId(pipelines: Pipeline[]): string | null {
   return pipelines.find((p) => p.is_default)?.id ?? pipelines[0]?.id ?? null;
@@ -32,6 +32,7 @@ export function DealsPageClient({
   initialPipelines,
   members,
   currentUserId,
+  initialView,
   loadError,
 }: {
   initialDeals: Deal[];
@@ -40,6 +41,7 @@ export function DealsPageClient({
   initialPipelines: Pipeline[];
   members: WorkspaceTeamMember[];
   currentUserId: string;
+  initialView: PipelineView;
   loadError?: string | null;
 }) {
   const router = useRouter();
@@ -48,13 +50,11 @@ export function DealsPageClient({
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(() =>
     defaultPipelineId(initialPipelines)
   );
-  const [view, setView] = useState<ViewMode>("kanban");
+  const [view, setView] = useState<PipelineView>(initialView);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Deal | null>(null);
   const [deleting, setDeleting] = useState<Deal | null>(null);
-  const [scoringId, setScoringId] = useState<string | null>(null);
-  const [scoreReasons, setScoreReasons] = useState<Record<string, string>>({});
-  const [scoreErrors, setScoreErrors] = useState<Record<string, string>>({});
+  const [summaryDeal, setSummaryDeal] = useState<Deal | null>(null);
   const [stageError, setStageError] = useState<string | null>(null);
 
   useEffect(() => {
@@ -125,19 +125,19 @@ export function DealsPageClient({
     router.refresh();
   }
 
-  async function handleScore(deal: Deal) {
-    setScoringId(deal.id);
-    setScoreErrors((prev) => ({ ...prev, [deal.id]: "" }));
-    const result = await scoreDeal(deal.id);
-    setScoringId(null);
+  function handleDealUpdated(patch: Partial<Deal> & { id: string }) {
+    setDeals((prev) => prev.map((d) => (d.id === patch.id ? { ...d, ...patch } : d)));
+    setSummaryDeal((prev) => (prev && prev.id === patch.id ? { ...prev, ...patch } : prev));
+  }
 
-    if (result.error) {
-      setScoreErrors((prev) => ({ ...prev, [deal.id]: result.error! }));
-      return;
-    }
-
-    setScoreReasons((prev) => ({ ...prev, [deal.id]: result.reason ?? "" }));
-    router.refresh();
+  function handleViewChange(mode: PipelineView) {
+    setView(mode);
+    // Optimistic: the toggle switches instantly, the preference save happens
+    // in the background and is allowed to fail quietly -- it only affects
+    // which view loads next time, never the current session.
+    void setPipelineView(mode).then((result) => {
+      if (result.error) console.error("[DealsPageClient] failed to save view preference:", result.error);
+    });
   }
 
   return (
@@ -160,11 +160,11 @@ export function DealsPageClient({
             onCreated={handlePipelineCreated}
           />
           <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
-            {(["kanban", "list"] as ViewMode[]).map((mode) => (
+            {(["kanban", "list"] as PipelineView[]).map((mode) => (
               <button
                 key={mode}
                 type="button"
-                onClick={() => setView(mode)}
+                onClick={() => handleViewChange(mode)}
                 className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
                   view === mode
                     ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
@@ -209,13 +209,15 @@ export function DealsPageClient({
           onStageChange={handleStageChange}
           onEdit={openEdit}
           onDelete={setDeleting}
-          onScore={handleScore}
-          scoringId={scoringId}
-          scoreReasons={scoreReasons}
-          scoreErrors={scoreErrors}
+          onDealUpdated={handleDealUpdated}
         />
       ) : (
-        <DealsTable deals={pipelineDeals} onEdit={openEdit} onDelete={setDeleting} />
+        <DealsTable
+          deals={pipelineDeals}
+          onEdit={openEdit}
+          onDelete={setDeleting}
+          onOpenSummary={setSummaryDeal}
+        />
       )}
 
       <DealModal
@@ -236,6 +238,8 @@ export function DealsPageClient({
         onClose={() => setDeleting(null)}
         onDeleted={handleDeleted}
       />
+
+      <AiSummarySheet deal={summaryDeal} onClose={() => setSummaryDeal(null)} onUpdated={handleDealUpdated} />
     </div>
   );
 }

@@ -1,9 +1,11 @@
 "use client";
 
+import { useState } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import { CSS } from "@dnd-kit/utilities";
-import { Pencil, Trash2 } from "lucide-react";
+import { Pencil, Sparkles, Trash2 } from "lucide-react";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { DealAiSummaryPanel } from "./DealAiSummaryPanel";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
 import type { Deal } from "@/lib/types";
@@ -22,29 +24,18 @@ function formatDate(value: string | null) {
   });
 }
 
-function scoreBadgeClass(score: number) {
-  if (score <= 40) return "bg-red-50 text-red-700 dark:bg-red-950/40 dark:text-red-400";
-  if (score <= 70) return "bg-amber-50 text-amber-700 dark:bg-amber-950/40 dark:text-amber-400";
-  return "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400";
-}
-
 export function DealCard({
   deal,
   onEdit,
   onDelete,
-  onScore,
-  scoring,
-  scoreReason,
-  scoreError,
+  onDealUpdated,
 }: {
   deal: Deal;
   onEdit: () => void;
   onDelete: () => void;
-  onScore: () => void;
-  scoring: boolean;
-  scoreReason?: string;
-  scoreError?: string;
+  onDealUpdated: (patch: Partial<Deal> & { id: string }) => void;
 }) {
+  const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
   });
@@ -76,14 +67,6 @@ export function DealCard({
                 {getInitials(deal.owner.full_name)}
               </span>
             )}
-            {deal.ai_score != null && (
-              <span
-                title="AI likelihood-to-close score"
-                className={`rounded-full px-2 py-0.5 text-xs font-semibold ${scoreBadgeClass(deal.ai_score)}`}
-              >
-                {deal.ai_score}
-              </span>
-            )}
           </div>
         </div>
         {(deal.contacts?.name || companyName) && (
@@ -105,21 +88,14 @@ export function DealCard({
         </div>
       </div>
 
-      {scoreReason && (
-        <p className="mt-1 text-xs italic text-slate-400 dark:text-slate-500">{scoreReason}</p>
-      )}
-      {scoreError && <p className="mt-1 text-xs text-red-600 dark:text-red-400">{scoreError}</p>}
-
       <div className="mt-3 flex items-center justify-between gap-1">
         <button
-          onClick={onScore}
-          disabled={scoring}
-          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 disabled:opacity-60 dark:text-purple-400 dark:hover:bg-purple-950/40"
+          type="button"
+          onClick={() => setExpanded((v) => !v)}
+          className="flex items-center gap-1 rounded-lg px-2 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
         >
-          {scoring && (
-            <span className="h-3 w-3 animate-spin rounded-full border-2 border-purple-300 border-t-purple-600 dark:border-purple-800" />
-          )}
-          {scoring ? "Scoring…" : "AI Score"}
+          <Sparkles className="h-3.5 w-3.5" />
+          AI Summary
         </button>
         <RowActionsMenu
           ariaLabel="Deal actions"
@@ -128,6 +104,19 @@ export function DealCard({
             { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
           ]}
         />
+      </div>
+
+      <div
+        className="grid transition-[grid-template-rows] duration-300 ease-out"
+        style={{ gridTemplateRows: expanded ? "1fr" : "0fr" }}
+      >
+        <div className="overflow-hidden">
+          {expanded && (
+            <div className="mt-3 rounded-lg border border-slate-100 bg-slate-50/60 p-3 dark:border-slate-700 dark:bg-slate-900/40">
+              <DealAiSummaryPanel deal={deal} onUpdated={onDealUpdated} variant="compact" />
+            </div>
+          )}
+        </div>
       </div>
     </div>
   );

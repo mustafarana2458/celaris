@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { DealsPageClient } from "@/components/deals/DealsPageClient";
-import type { Company, Contact, Deal, Pipeline, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Contact, Deal, Pipeline, PipelineView, WorkspaceTeamMember } from "@/lib/types";
 
 export default async function DealsPage() {
   const supabase = await createClient();
@@ -16,12 +16,12 @@ export default async function DealsPage() {
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
 
-  const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes] = workspace
+  const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes, preferenceRes] = workspace
     ? await Promise.all([
         supabase
           .from("deals")
           .select(
-            "*, contacts(id, name, company, companies(name)), companies!company_id(id, name), owner:users!owner_id(id, full_name), pipelines!pipeline_id(id, name)"
+            "*, contacts(id, name, company, email, companies(name)), companies!company_id(id, name), owner:users!owner_id(id, full_name), pipelines!pipeline_id(id, name)"
           )
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
@@ -41,6 +41,12 @@ export default async function DealsPage() {
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: true }),
         supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
+        supabase
+          .from("user_preferences")
+          .select("default_pipeline_view")
+          .eq("user_id", user.id)
+          .eq("workspace_id", workspace.id)
+          .maybeSingle<{ default_pipeline_view: PipelineView }>(),
       ])
     : [
         { data: [] as Deal[], error: null },
@@ -48,6 +54,7 @@ export default async function DealsPage() {
         { data: [] as Company[], error: null },
         { data: [] as Pipeline[], error: null },
         { data: [] as WorkspaceTeamMember[], error: null },
+        { data: null as { default_pipeline_view: PipelineView } | null, error: null },
       ];
 
   // A failed embed/join here silently turns into an empty deals list with no
@@ -55,6 +62,12 @@ export default async function DealsPage() {
   const loadError = dealsRes.error?.message ?? null;
   if (dealsRes.error) {
     console.error("[deals/page] failed to load deals:", dealsRes.error);
+  }
+  // Non-fatal: falls back to the "kanban" default, same as a first-time user
+  // with no saved preference yet -- just logged so a real fetch failure
+  // (vs. "no row saved yet") isn't invisible.
+  if (preferenceRes.error) {
+    console.error("[deals/page] failed to load view preference:", preferenceRes.error);
   }
 
   return (
@@ -65,6 +78,7 @@ export default async function DealsPage() {
       initialPipelines={(pipelinesRes.data as Pipeline[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
       currentUserId={user.id}
+      initialView={preferenceRes.data?.default_pipeline_view ?? "kanban"}
       loadError={loadError}
     />
   );

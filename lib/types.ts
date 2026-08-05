@@ -123,6 +123,17 @@ export type SalesTarget = {
 
 export type SalesTargetActionResult = { error?: string; target?: SalesTarget };
 
+export type DealAiSummary = {
+  summary: string;
+  next_steps: string;
+  follow_up_email: { subject: string; body: string };
+};
+
+export type DealSummaryActionResult = { error?: string; summary?: DealAiSummary; generated_at?: string };
+
+export type PipelineView = "kanban" | "list";
+export type UserPreferenceActionResult = { error?: string };
+
 export type Deal = {
   id: string;
   workspace_id: string;
@@ -136,11 +147,14 @@ export type Deal = {
   stage: DealStage;
   expected_close: string | null;
   ai_score: number | null;
+  ai_summary: DealAiSummary | null;
+  ai_summary_generated_at: string | null;
   created_at: string;
   contacts?: {
     id: string;
     name: string;
     company: string | null;
+    email: string | null;
     companies?: { name: string } | null;
   } | null;
   companies?: { id: string; name: string } | null;

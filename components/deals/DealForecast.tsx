@@ -15,7 +15,7 @@ export function DealForecast({ deals }: { deals: Deal[] }) {
   const pipelineValue = open.reduce((sum, d) => sum + (d.value ?? 0), 0);
 
   const weightedValue = open.reduce((sum, d) => {
-    const probability = d.ai_score != null ? d.ai_score / 100 : STAGE_PROBABILITY[d.stage];
+    const probability = d.win_probability != null ? d.win_probability / 100 : STAGE_PROBABILITY[d.stage];
     return sum + (d.value ?? 0) * probability;
   }, 0);
 
@@ -41,7 +41,7 @@ export function DealForecast({ deals }: { deals: Deal[] }) {
           {currency.format(weightedValue)}
         </p>
         <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">
-          By AI score, or stage estimate if unscored
+          By win probability, or stage estimate if unset
         </p>
       </div>
 
