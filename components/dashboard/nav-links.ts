@@ -54,7 +54,7 @@ export const navLinks: NavItem[] = [
     icon: "folder",
     children: [
       { href: "/dashboard/projects", label: "All Projects" },
-      { href: "/dashboard/projects", label: "Project Templates" },
+      { href: "/dashboard/projects/templates", label: "Project Templates" },
       { href: "/dashboard/projects/milestones", label: "Milestones & Timeline" },
     ],
   },

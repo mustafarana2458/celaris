@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { ProjectsPageClient } from "@/components/projects/ProjectsPageClient";
-import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, Project, ProjectTemplateRecord, WorkspaceTeamMember } from "@/lib/types";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -16,7 +16,7 @@ export default async function ProjectsPage() {
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
 
-  const [projectsRes, companiesRes, dealsRes, membersRes] = workspace
+  const [projectsRes, companiesRes, dealsRes, membersRes, templatesRes] = workspace
     ? await Promise.all([
         supabase
           .from("projects")
@@ -36,12 +36,18 @@ export default async function ProjectsPage() {
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
         supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
+        supabase
+          .from("project_templates")
+          .select("id, workspace_id, name, description, estimated_duration_days, structure, created_by, created_at, updated_at")
+          .eq("workspace_id", workspace.id)
+          .order("name", { ascending: true }),
       ])
     : [
         { data: [] as Project[], error: null },
         { data: [] as Company[], error: null },
         { data: [] as Deal[], error: null },
         { data: [] as WorkspaceTeamMember[], error: null },
+        { data: [] as ProjectTemplateRecord[], error: null },
       ];
 
   const loadError = projectsRes.error?.message ?? null;
@@ -55,6 +61,7 @@ export default async function ProjectsPage() {
       companies={(companiesRes.data as Pick<Company, "id" | "name">[]) ?? []}
       deals={(dealsRes.data as Pick<Deal, "id" | "title">[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
+      dbTemplates={(templatesRes.data as ProjectTemplateRecord[]) ?? []}
       loadError={loadError}
     />
   );

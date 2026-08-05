@@ -177,6 +177,28 @@ export type Milestone = {
 
 export type ProjectHealth = "on_track" | "at_risk" | "delayed";
 
+export type ProjectTemplateTaskDraft = { title: string; priority: TaskPriority };
+export type ProjectTemplateMilestoneDraft = {
+  title: string;
+  dueInDays: number;
+  tasks: ProjectTemplateTaskDraft[];
+};
+export type ProjectTemplateStructure = { milestones: ProjectTemplateMilestoneDraft[] };
+
+export type ProjectTemplateRecord = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  estimated_duration_days: number | null;
+  structure: ProjectTemplateStructure;
+  created_by: string | null;
+  created_at: string;
+  updated_at: string;
+};
+
+export type ProjectTemplateActionResult = { error?: string; template?: ProjectTemplateRecord };
+
 export type Project = {
   id: string;
   workspace_id: string;

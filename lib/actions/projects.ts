@@ -4,12 +4,47 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { getProjectTemplate } from "@/lib/projectTemplates";
-import type { ProjectHealth, ProjectStatus } from "@/lib/types";
+import type { ProjectHealth, ProjectStatus, ProjectTemplateStructure, TaskPriority } from "@/lib/types";
+import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type ProjectActionResult = { error?: string };
 
 const VALID_STATUSES: ProjectStatus[] = ["active", "on_hold", "completed"];
 const VALID_HEALTHS: ProjectHealth[] = ["on_track", "at_risk", "delayed"];
+
+type TemplateSeed = {
+  milestones: { title: string; dueInDays: number }[];
+  tasks: { title: string; priority: TaskPriority }[];
+};
+
+// Built-in templates (lib/projectTemplates.ts) are flat: milestones and
+// tasks are separate arrays with no link between them. DB templates
+// (project_templates.structure) nest tasks under their milestone, to
+// support the task-builder UI. Both flatten to the same seed shape here so
+// the insert logic below doesn't care which source a project came from.
+async function resolveTemplateSeed(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  templateId: string
+): Promise<TemplateSeed | null> {
+  const builtIn = getProjectTemplate(templateId);
+  if (builtIn) {
+    return { milestones: builtIn.milestones, tasks: builtIn.tasks };
+  }
+
+  const { data } = await supabase
+    .from("project_templates")
+    .select("structure")
+    .eq("id", templateId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle<{ structure: ProjectTemplateStructure }>();
+
+  if (!data?.structure?.milestones) return null;
+
+  const milestones = data.structure.milestones.map((m) => ({ title: m.title, dueInDays: m.dueInDays }));
+  const tasks = data.structure.milestones.flatMap((m) => m.tasks);
+  return { milestones, tasks };
+}
 
 async function requireWorkspace() {
   const supabase = await createClient();
@@ -95,12 +130,12 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   if (error) return { error: error.message };
 
   const templateId = String(formData.get("template_id") ?? "").trim();
-  const template = templateId ? getProjectTemplate(templateId) : null;
+  const seed = templateId ? await resolveTemplateSeed(ctx.supabase, ctx.workspace.id, templateId) : null;
 
-  if (template) {
-    if (template.milestones.length > 0) {
+  if (seed) {
+    if (seed.milestones.length > 0) {
       const { error: milestonesError } = await ctx.supabase.from("milestones").insert(
-        template.milestones.map((m, index) => ({
+        seed.milestones.map((m, index) => ({
           project_id: project.id,
           workspace_id: ctx.workspace.id,
           title: m.title,
@@ -111,9 +146,9 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
       if (milestonesError) return { error: milestonesError.message };
     }
 
-    if (template.tasks.length > 0) {
+    if (seed.tasks.length > 0) {
       const { error: tasksError } = await ctx.supabase.from("tasks").insert(
-        template.tasks.map((t) => ({
+        seed.tasks.map((t) => ({
           workspace_id: ctx.workspace.id,
           project_id: project.id,
           title: t.title,

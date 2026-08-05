@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ProjectFormFields } from "./ProjectFormFields";
 import { createProject } from "@/lib/actions/projects";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
-import type { Company, Deal, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, ProjectTemplateRecord, WorkspaceTeamMember } from "@/lib/types";
 
 export function NewProjectModal({
   open,
@@ -15,6 +15,7 @@ export function NewProjectModal({
   companies,
   deals,
   members,
+  dbTemplates,
 }: {
   open: boolean;
   onClose: () => void;
@@ -22,6 +23,7 @@ export function NewProjectModal({
   companies: Pick<Company, "id" | "name">[];
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
+  dbTemplates: ProjectTemplateRecord[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -82,6 +84,27 @@ export function NewProjectModal({
                 </p>
               </button>
             ))}
+            {dbTemplates.map((t) => {
+              const taskCount = t.structure.milestones.reduce((sum, m) => sum + m.tasks.length, 0);
+              return (
+                <button
+                  key={t.id}
+                  type="button"
+                  onClick={() => setTemplateId(t.id)}
+                  className={`rounded-lg border p-3 text-left transition-colors ${
+                    templateId === t.id
+                      ? "border-accent bg-accent/5 dark:bg-accent/10"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-600 dark:hover:border-slate-500"
+                  }`}
+                >
+                  <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{t.name}</p>
+                  <p className="mt-0.5 text-xs text-slate-500 dark:text-slate-400">{t.description}</p>
+                  <p className="mt-1 text-[11px] text-slate-400 dark:text-slate-500">
+                    {t.structure.milestones.length} milestones · {taskCount} tasks
+                  </p>
+                </button>
+              );
+            })}
           </div>
         </div>
 

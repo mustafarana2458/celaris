@@ -6,11 +6,12 @@ import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { ProjectCard } from "./ProjectCard";
 import { ProjectsTable } from "./ProjectsTable";
+import { ProjectsTabs } from "./ProjectsTabs";
 import { NewProjectModal } from "./NewProjectModal";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { PROJECT_STATUSES } from "./statuses";
-import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, Project, ProjectTemplateRecord, WorkspaceTeamMember } from "@/lib/types";
 
 type ViewMode = "grid" | "table";
 
@@ -19,12 +20,14 @@ export function ProjectsPageClient({
   companies,
   deals,
   members,
+  dbTemplates,
   loadError,
 }: {
   initialProjects: Project[];
   companies: Pick<Company, "id" | "name">[];
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
+  dbTemplates: ProjectTemplateRecord[];
   loadError?: string | null;
 }) {
   const router = useRouter();
@@ -64,6 +67,8 @@ export function ProjectsPageClient({
 
   return (
     <div className="flex flex-col gap-6">
+      <ProjectsTabs />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Projects</h1>
@@ -180,6 +185,7 @@ export function ProjectsPageClient({
         companies={companies}
         deals={deals}
         members={members}
+        dbTemplates={dbTemplates}
       />
 
       <ProjectModal
