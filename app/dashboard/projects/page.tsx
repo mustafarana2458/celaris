@@ -21,7 +21,7 @@ export default async function ProjectsPage() {
         supabase
           .from("projects")
           .select(
-            "*, companies!client_id(id, name), deals!deal_id(id, title), lead:users!lead_id(id, full_name), milestones(id, is_done), tasks(id, status)"
+            "*, companies!client_id(id, name, logo_url), deals!deal_id(id, title), lead:users!lead_id(id, full_name), milestones(id, is_done), tasks(id, status)"
           )
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),

@@ -92,6 +92,7 @@ export type Company = {
   size: CompanySize | null;
   location: string | null;
   notes: string | null;
+  logo_url: string | null;
   created_at: string;
 };
 
@@ -217,7 +218,7 @@ export type Project = {
   budget: number | null;
   health: ProjectHealth | null;
   created_at: string;
-  companies?: { id: string; name: string } | null;
+  companies?: { id: string; name: string; logo_url: string | null } | null;
   deals?: { id: string; title: string } | null;
   lead?: { id: string; full_name: string } | null;
   milestones?: Milestone[] | null;
