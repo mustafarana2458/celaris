@@ -175,13 +175,25 @@ export type Milestone = {
   created_at: string;
 };
 
+export type ProjectHealth = "on_track" | "at_risk" | "delayed";
+
 export type Project = {
   id: string;
   workspace_id: string;
   name: string;
   description: string | null;
   status: ProjectStatus;
+  client_id: string | null;
+  deal_id: string | null;
+  lead_id: string | null;
+  start_date: string | null;
+  due_date: string | null;
+  budget: number | null;
+  health: ProjectHealth | null;
   created_at: string;
+  companies?: { id: string; name: string } | null;
+  deals?: { id: string; title: string } | null;
+  lead?: { id: string; full_name: string } | null;
   milestones?: Milestone[] | null;
   tasks?:
     | {

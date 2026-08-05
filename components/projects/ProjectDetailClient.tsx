@@ -11,7 +11,7 @@ import { MilestoneChecklist } from "./MilestoneChecklist";
 import { PROJECT_STATUSES } from "./statuses";
 import { TASK_PRIORITIES } from "@/components/tasks/statuses";
 import { getProjectProgress } from "@/lib/projectProgress";
-import type { Project, TaskStatus } from "@/lib/types";
+import type { Company, Deal, Project, TaskStatus, WorkspaceTeamMember } from "@/lib/types";
 
 const statusMap = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.value, s]));
 const priorityMap = Object.fromEntries(TASK_PRIORITIES.map((p) => [p.value, p]));
@@ -36,7 +36,17 @@ function formatDate(value: string | null) {
   });
 }
 
-export function ProjectDetailClient({ project }: { project: Project }) {
+export function ProjectDetailClient({
+  project,
+  companies,
+  deals,
+  members,
+}: {
+  project: Project;
+  companies: Pick<Company, "id" | "name">[];
+  deals: Pick<Deal, "id" | "title">[];
+  members: WorkspaceTeamMember[];
+}) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -167,6 +177,9 @@ export function ProjectDetailClient({ project }: { project: Project }) {
         onClose={() => setEditOpen(false)}
         project={project}
         onSaved={handleEditSaved}
+        companies={companies}
+        deals={deals}
+        members={members}
       />
 
       <DeleteProjectDialog

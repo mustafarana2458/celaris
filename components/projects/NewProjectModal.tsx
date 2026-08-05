@@ -2,21 +2,26 @@
 
 import { useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
-import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
+import { ProjectFormFields } from "./ProjectFormFields";
 import { createProject } from "@/lib/actions/projects";
-import { PROJECT_STATUSES } from "./statuses";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
+import type { Company, Deal, WorkspaceTeamMember } from "@/lib/types";
 
 export function NewProjectModal({
   open,
   onClose,
   onSaved,
+  companies,
+  deals,
+  members,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  companies: Pick<Company, "id" | "name">[];
+  deals: Pick<Deal, "id" | "title">[];
+  members: WorkspaceTeamMember[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -80,27 +85,7 @@ export function NewProjectModal({
           </div>
         </div>
 
-        <Input label="Name" name="name" required />
-
-        <Textarea label="Description" name="description" rows={3} />
-
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Status
-          </label>
-          <select
-            id="status"
-            name="status"
-            defaultValue="active"
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {PROJECT_STATUSES.map((s) => (
-              <option key={s.value} value={s.value}>
-                {s.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <ProjectFormFields project={null} companies={companies} deals={deals} members={members} />
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>

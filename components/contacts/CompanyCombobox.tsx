@@ -9,10 +9,14 @@ export function CompanyCombobox({
   companies,
   defaultCompanyId,
   defaultCompanyName,
+  label = "Company",
+  required,
 }: {
   companies: CompanyOption[];
   defaultCompanyId?: string | null;
   defaultCompanyName?: string | null;
+  label?: string;
+  required?: boolean;
 }) {
   const [options, setOptions] = useState<CompanyOption[]>(companies);
   const [selected, setSelected] = useState<CompanyOption | null>(
@@ -88,7 +92,8 @@ export function CompanyCombobox({
   return (
     <div className="relative flex flex-col gap-1.5">
       <label htmlFor="company_search" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-        Company
+        {label}
+        {required && <span className="text-red-500"> *</span>}
       </label>
       <input type="hidden" name="company_id" value={selected?.id ?? ""} />
       <input type="hidden" name="company_name" value={selected?.name ?? ""} />

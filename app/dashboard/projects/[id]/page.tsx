@@ -2,7 +2,7 @@ import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
-import type { Project } from "@/lib/types";
+import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
 
 export default async function ProjectDetailPage({
   params,
@@ -23,17 +23,31 @@ export default async function ProjectDetailPage({
     notFound();
   }
 
-  const { data: project } = await supabase
-    .from("projects")
-    .select("*, milestones(*), tasks(id, title, status, priority, due_date)")
-    .eq("id", params.id)
-    .eq("workspace_id", workspace.id)
-    .order("position", { referencedTable: "milestones", ascending: true })
-    .maybeSingle();
+  const [{ data: project }, { data: companies }, { data: deals }, { data: members }] = await Promise.all([
+    supabase
+      .from("projects")
+      .select(
+        "*, companies!client_id(id, name), deals!deal_id(id, title), lead:users!lead_id(id, full_name), milestones(*), tasks(id, title, status, priority, due_date)"
+      )
+      .eq("id", params.id)
+      .eq("workspace_id", workspace.id)
+      .order("position", { referencedTable: "milestones", ascending: true })
+      .maybeSingle(),
+    supabase.from("companies").select("id, name").eq("workspace_id", workspace.id).order("name", { ascending: true }),
+    supabase.from("deals").select("id, title").eq("workspace_id", workspace.id).order("created_at", { ascending: false }),
+    supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
+  ]);
 
   if (!project) {
     notFound();
   }
 
-  return <ProjectDetailClient project={project as Project} />;
+  return (
+    <ProjectDetailClient
+      project={project as Project}
+      companies={(companies as Pick<Company, "id" | "name">[]) ?? []}
+      deals={(deals as Pick<Deal, "id" | "title">[]) ?? []}
+      members={(members as WorkspaceTeamMember[]) ?? []}
+    />
+  );
 }

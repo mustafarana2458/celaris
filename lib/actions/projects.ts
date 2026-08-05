@@ -4,11 +4,12 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { getProjectTemplate } from "@/lib/projectTemplates";
-import type { ProjectStatus } from "@/lib/types";
+import type { ProjectHealth, ProjectStatus } from "@/lib/types";
 
 export type ProjectActionResult = { error?: string };
 
 const VALID_STATUSES: ProjectStatus[] = ["active", "on_hold", "completed"];
+const VALID_HEALTHS: ProjectHealth[] = ["on_track", "at_risk", "delayed"];
 
 async function requireWorkspace() {
   const supabase = await createClient();
@@ -36,10 +37,31 @@ function projectFields(formData: FormData) {
     VALID_STATUSES.includes(statusRaw as ProjectStatus) ? statusRaw : "active"
   ) as ProjectStatus;
 
+  // "client_id" -- the field is named after the reused CompanyCombobox's
+  // hidden input (it emits `company_id`), not the `client_id` DB column.
+  const clientId = String(formData.get("company_id") ?? "").trim();
+  const dealId = String(formData.get("deal_id") ?? "").trim();
+  const leadId = String(formData.get("lead_id") ?? "").trim();
+  const startDate = String(formData.get("start_date") ?? "").trim();
+  const dueDate = String(formData.get("due_date") ?? "").trim();
+  const budgetRaw = String(formData.get("budget") ?? "").trim();
+  const healthRaw = String(formData.get("health") ?? "").trim();
+
+  const budgetNum = budgetRaw === "" ? null : Number(budgetRaw);
+  const budget = budgetNum !== null && !Number.isNaN(budgetNum) ? budgetNum : null;
+  const health = (VALID_HEALTHS.includes(healthRaw as ProjectHealth) ? healthRaw : null) as ProjectHealth | null;
+
   return {
     name,
     description: description || null,
     status,
+    client_id: clientId || null,
+    deal_id: dealId || null,
+    lead_id: leadId || null,
+    start_date: startDate || null,
+    due_date: dueDate || null,
+    budget,
+    health,
   };
 }
 
@@ -56,6 +78,9 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   const fields = projectFields(formData);
   if (!fields.name) {
     return { error: "Name is required." };
+  }
+  if (!fields.client_id) {
+    return { error: "Client is required." };
   }
 
   const { data: project, error } = await ctx.supabase
@@ -116,6 +141,9 @@ export async function updateProject(
   const fields = projectFields(formData);
   if (!fields.name) {
     return { error: "Name is required." };
+  }
+  if (!fields.client_id) {
+    return { error: "Client is required." };
   }
 
   const { error } = await ctx.supabase

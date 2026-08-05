@@ -5,20 +5,32 @@ import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { ProjectCard } from "./ProjectCard";
+import { ProjectsTable } from "./ProjectsTable";
 import { NewProjectModal } from "./NewProjectModal";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { PROJECT_STATUSES } from "./statuses";
-import type { Project } from "@/lib/types";
+import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
+
+type ViewMode = "grid" | "table";
 
 export function ProjectsPageClient({
   initialProjects,
+  companies,
+  deals,
+  members,
+  loadError,
 }: {
   initialProjects: Project[];
+  companies: Pick<Company, "id" | "name">[];
+  deals: Pick<Deal, "id" | "title">[];
+  members: WorkspaceTeamMember[];
+  loadError?: string | null;
 }) {
   const router = useRouter();
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Project["status"]>("all");
+  const [view, setView] = useState<ViewMode>("grid");
   const [addOpen, setAddOpen] = useState(false);
   const [editing, setEditing] = useState<Project | null>(null);
   const [deleting, setDeleting] = useState<Project | null>(null);
@@ -59,8 +71,32 @@ export function ProjectsPageClient({
             Organize the work you deliver for your clients.
           </p>
         </div>
-        <Button onClick={() => setAddOpen(true)}>+ Add project</Button>
+        <div className="flex items-center gap-3">
+          <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
+            {(["grid", "table"] as ViewMode[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                  view === mode
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <Button onClick={() => setAddOpen(true)}>+ Add project</Button>
+        </div>
       </div>
+
+      {loadError && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+          Couldn&apos;t load projects: {loadError}
+        </div>
+      )}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
         <input
@@ -116,12 +152,20 @@ export function ProjectsPageClient({
             </Button>
           )}
         </div>
+      ) : view === "table" ? (
+        <ProjectsTable
+          projects={filtered}
+          onView={(p) => router.push(`/dashboard/projects/${p.id}`)}
+          onEdit={setEditing}
+          onDelete={setDeleting}
+        />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((p) => (
             <ProjectCard
               key={p.id}
               project={p}
+              onView={() => router.push(`/dashboard/projects/${p.id}`)}
               onEdit={() => setEditing(p)}
               onDelete={() => setDeleting(p)}
             />
@@ -129,13 +173,23 @@ export function ProjectsPageClient({
         </div>
       )}
 
-      <NewProjectModal open={addOpen} onClose={() => setAddOpen(false)} onSaved={handleAddSaved} />
+      <NewProjectModal
+        open={addOpen}
+        onClose={() => setAddOpen(false)}
+        onSaved={handleAddSaved}
+        companies={companies}
+        deals={deals}
+        members={members}
+      />
 
       <ProjectModal
         open={!!editing}
         onClose={() => setEditing(null)}
         project={editing}
         onSaved={handleEditSaved}
+        companies={companies}
+        deals={deals}
+        members={members}
       />
 
       <DeleteProjectDialog
