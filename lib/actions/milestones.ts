@@ -57,7 +57,9 @@ async function nextPosition(
 export async function createMilestone(
   projectId: string,
   title: string,
-  dueDate: string | null
+  dueDate: string | null,
+  ownerId?: string | null,
+  deliverables?: string | null
 ): Promise<MilestoneActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
@@ -78,11 +80,14 @@ export async function createMilestone(
     title: trimmed,
     due_date: dueDate || null,
     position,
+    owner_id: ownerId || null,
+    deliverables: deliverables?.trim() || null,
   });
 
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/projects");
+  revalidatePath("/dashboard/projects/milestones");
   return {};
 }
 
@@ -99,6 +104,7 @@ export async function toggleMilestone(id: string, isDone: boolean): Promise<Mile
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/projects");
+  revalidatePath("/dashboard/projects/milestones");
   return {};
 }
 
@@ -115,5 +121,6 @@ export async function deleteMilestone(id: string): Promise<MilestoneActionResult
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/projects");
+  revalidatePath("/dashboard/projects/milestones");
   return {};
 }

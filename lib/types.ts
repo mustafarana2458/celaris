@@ -172,7 +172,11 @@ export type Milestone = {
   due_date: string | null;
   is_done: boolean;
   position: number;
+  owner_id: string | null;
+  deliverables: string | null;
   created_at: string;
+  owner?: { id: string; full_name: string } | null;
+  projects?: { id: string; name: string } | null;
 };
 
 export type ProjectHealth = "on_track" | "at_risk" | "delayed";
