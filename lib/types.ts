@@ -105,6 +105,24 @@ export type Pipeline = {
   created_at: string;
 };
 
+export type SalesTarget = {
+  id: string;
+  workspace_id: string;
+  period_label: string;
+  period_start: string;
+  period_end: string;
+  revenue_goal: number;
+  assigned_to: string | null;
+  pipeline_id: string | null;
+  notes: string | null;
+  created_by: string | null;
+  created_at: string;
+  assignee?: { id: string; full_name: string } | null;
+  pipelines?: { id: string; name: string } | null;
+};
+
+export type SalesTargetActionResult = { error?: string; target?: SalesTarget };
+
 export type Deal = {
   id: string;
   workspace_id: string;

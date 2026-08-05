@@ -45,7 +45,7 @@ export const navLinks: NavItem[] = [
     icon: "trending",
     children: [
       { href: "/dashboard/deals", label: "Pipelines" },
-      { href: "/dashboard/deals", label: "Forecasts" },
+      { href: "/dashboard/deals/forecasts", label: "Forecasts" },
     ],
   },
   {

@@ -9,6 +9,7 @@ import { DealForecast } from "./DealForecast";
 import { DealsKanban } from "./DealsKanban";
 import { DealsTable } from "./DealsTable";
 import { PipelineSwitcher } from "./PipelineSwitcher";
+import { DealsTabs } from "./DealsTabs";
 import { scoreDeal, updateDealStage } from "@/lib/actions/deals";
 import type { Company, Contact, Deal, DealStage, Pipeline, WorkspaceTeamMember } from "@/lib/types";
 
@@ -141,6 +142,8 @@ export function DealsPageClient({
 
   return (
     <div className="flex flex-col gap-6">
+      <DealsTabs />
+
       <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">Deals</h1>
