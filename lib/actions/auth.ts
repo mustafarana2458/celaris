@@ -2,12 +2,27 @@
 
 import type { User } from "@supabase/supabase-js";
 import { redirect } from "next/navigation";
+import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
+import { FRESH_LOGIN_COOKIE } from "@/lib/inactivity";
 
 export type AuthActionResult = {
   error?: string;
   needsConfirmation?: boolean;
 };
+
+// Tells InactivityProvider (mounted on the next /dashboard load) to reset
+// the inactivity timer, ignoring any stale lastActivity timestamp left over
+// from a previous session in this browser.
+async function signalFreshLogin() {
+  const cookieStore = await cookies();
+  cookieStore.set(FRESH_LOGIN_COOKIE, "1", {
+    httpOnly: false,
+    path: "/",
+    maxAge: 30,
+    sameSite: "lax",
+  });
+}
 
 function workspaceNameFor(fullName: string, businessName: string) {
   if (businessName) return businessName;
@@ -129,6 +144,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
     return { needsConfirmation: true };
   }
 
+  await signalFreshLogin();
   redirect("/dashboard");
 }
 
@@ -164,6 +180,7 @@ export async function logIn(formData: FormData): Promise<AuthActionResult> {
     await provisionUserAndWorkspace(supabase, user, meta.full_name ?? "", meta.business_name ?? "");
   }
 
+  await signalFreshLogin();
   redirect("/dashboard");
 }
 

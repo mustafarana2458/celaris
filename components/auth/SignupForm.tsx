@@ -7,6 +7,7 @@ import { createBrowserClient } from "@supabase/ssr";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { completeSignupProvisioning } from "@/lib/actions/auth";
+import { clearInactivityState, writeLastActivity } from "@/lib/inactivity";
 
 export function SignupForm() {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
@@ -72,6 +73,8 @@ export function SignupForm() {
       return;
     }
 
+    clearInactivityState();
+    writeLastActivity();
     router.push("/dashboard");
   };
 

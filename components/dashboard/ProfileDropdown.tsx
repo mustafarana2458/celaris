@@ -11,6 +11,7 @@ import {
   DropdownMenuSeparator,
 } from "@/components/ui/dropdown-menu";
 import { logOut } from "@/lib/actions/auth";
+import { clearInactivityState } from "@/lib/inactivity";
 
 export function ProfileDropdown({
   fullName,
@@ -66,7 +67,7 @@ export function ProfileDropdown({
         </DropdownMenuItem>
         <DropdownMenuSeparator />
         <DropdownMenuItem
-          onSelect={() => startTransition(async () => { await logOut(); })}
+          onSelect={() => startTransition(async () => { clearInactivityState(); await logOut(); })}
           className="text-red-600 dark:text-red-400 data-[highlighted]:bg-red-50 data-[highlighted]:text-red-700 dark:data-[highlighted]:bg-red-950/40 dark:data-[highlighted]:text-red-300"
         >
           <LogOut className="h-4 w-4 shrink-0" />
