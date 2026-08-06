@@ -47,6 +47,7 @@ function taskFields(formData: FormData) {
   const description = String(formData.get("description") ?? "").trim();
   const statusRaw = String(formData.get("status") ?? "todo").trim();
   const priorityRaw = String(formData.get("priority") ?? "medium").trim();
+  const startDate = String(formData.get("start_date") ?? "").trim();
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const projectId = String(formData.get("project_id") ?? "").trim();
   const assignedTo = String(formData.get("assigned_to") ?? "").trim();
@@ -63,6 +64,7 @@ function taskFields(formData: FormData) {
     description: normalizeDescription(description),
     status,
     priority,
+    start_date: startDate || null,
     due_date: dueDate || null,
     project_id: projectId || null,
     assigned_to: assignedTo || null,
@@ -127,6 +129,29 @@ export async function updateTaskStatus(
   const { error } = await ctx.supabase
     .from("tasks")
     .update({ status })
+    .eq("id", id)
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/tasks");
+  return {};
+}
+
+export async function updateTaskSchedule(
+  id: string,
+  next: { assignedTo: string | null; startDate: string; dueDate: string }
+): Promise<TaskActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase
+    .from("tasks")
+    .update({
+      assigned_to: next.assignedTo,
+      start_date: next.startDate,
+      due_date: next.dueDate,
+    })
     .eq("id", id)
     .eq("workspace_id", ctx.workspace.id);
 

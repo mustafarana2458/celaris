@@ -10,6 +10,13 @@ import { createTask, updateTask } from "@/lib/actions/tasks";
 import { TASK_PRIORITIES, TASK_STATUSES } from "./statuses";
 import type { Project, Task, WorkspaceTeamMember } from "@/lib/types";
 
+export type NewTaskPrefill = {
+  assignedToId?: string | null;
+  assignedToName?: string | null;
+  startDate?: string;
+  dueDate?: string;
+};
+
 export function TaskModal({
   open,
   onClose,
@@ -18,6 +25,7 @@ export function TaskModal({
   members,
   currentUserId,
   newTaskDefaultAssignee = "current-user",
+  newTaskPrefill,
   onSaved,
 }: {
   open: boolean;
@@ -29,6 +37,9 @@ export function TaskModal({
   // My Tasks defaults a brand-new task to the logged-in user; Team Board
   // (global, not "mine") leaves it unassigned unless picked manually.
   newTaskDefaultAssignee?: "current-user" | "unassigned";
+  // Workload grid-cell clicks pass an explicit assignee/date pair that wins
+  // over newTaskDefaultAssignee -- e.g. clicking Ayesha's Aug 15 cell.
+  newTaskPrefill?: NewTaskPrefill;
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -41,14 +52,20 @@ export function TaskModal({
   );
   const defaultAssigneeId = task
     ? task.assigned_to
-    : newTaskDefaultAssignee === "unassigned"
-      ? null
-      : (currentUser?.user_id ?? currentUserId);
+    : newTaskPrefill
+      ? (newTaskPrefill.assignedToId ?? null)
+      : newTaskDefaultAssignee === "unassigned"
+        ? null
+        : (currentUser?.user_id ?? currentUserId);
   const defaultAssigneeName = task
     ? task.assignee?.full_name ?? null
-    : newTaskDefaultAssignee === "unassigned"
-      ? null
-      : (currentUser?.full_name ?? currentUser?.email ?? null);
+    : newTaskPrefill
+      ? (newTaskPrefill.assignedToName ?? null)
+      : newTaskDefaultAssignee === "unassigned"
+        ? null
+        : (currentUser?.full_name ?? currentUser?.email ?? null);
+  const defaultStartDate = task?.start_date ?? newTaskPrefill?.startDate ?? "";
+  const defaultDueDate = task?.due_date ?? newTaskPrefill?.dueDate ?? "";
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -141,12 +158,10 @@ export function TaskModal({
           </div>
         </div>
 
-        <Input
-          label="Due date"
-          name="due_date"
-          type="date"
-          defaultValue={task?.due_date ?? ""}
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input label="Start date" name="start_date" type="date" defaultValue={defaultStartDate} />
+          <Input label="Due date" name="due_date" type="date" defaultValue={defaultDueDate} />
+        </div>
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
