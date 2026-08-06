@@ -235,6 +235,7 @@ export type Project = {
 
 export type TaskStatus = "todo" | "in_progress" | "done";
 export type TaskPriority = "low" | "medium" | "high" | "urgent";
+export type TaskView = "kanban" | "list";
 
 export type Subtask = {
   id: string;
@@ -255,9 +256,11 @@ export type Task = {
   priority: TaskPriority;
   due_date: string | null;
   project_id: string | null;
+  assigned_to: string | null;
   created_at: string;
   projects?: { id: string; name: string } | null;
   subtasks?: Subtask[] | null;
+  assignee?: { id: string; full_name: string } | null;
 };
 
 export type InvoiceStatus = "unpaid" | "paid" | "overdue";

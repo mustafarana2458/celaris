@@ -1,30 +1,48 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
-import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
+import { AssigneeCombobox } from "./AssigneeCombobox";
+import { RichTextEditor } from "./RichTextEditor";
 import { createTask, updateTask } from "@/lib/actions/tasks";
 import { TASK_PRIORITIES, TASK_STATUSES } from "./statuses";
-import type { Project, Task } from "@/lib/types";
+import type { Project, Task, WorkspaceTeamMember } from "@/lib/types";
 
 export function TaskModal({
   open,
   onClose,
   task,
   projects,
+  members,
+  currentUserId,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   task: Task | null;
   projects: Pick<Project, "id" | "name">[];
+  members: WorkspaceTeamMember[];
+  currentUserId: string;
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!task;
+
+  // My Tasks context: default a brand-new task to the logged-in user instead
+  // of leaving it unassigned.
+  const currentUser = useMemo(
+    () => members.find((m) => m.user_id === currentUserId) ?? null,
+    [members, currentUserId]
+  );
+  const defaultAssigneeId = task
+    ? task.assigned_to
+    : (currentUser?.user_id ?? currentUserId);
+  const defaultAssigneeName = task
+    ? task.assignee?.full_name ?? null
+    : (currentUser?.full_name ?? currentUser?.email ?? null);
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -52,30 +70,32 @@ export function TaskModal({
 
         <Input label="Title" name="title" defaultValue={task?.title} required />
 
-        <Textarea
-          label="Description"
-          name="description"
-          rows={3}
-          defaultValue={task?.description ?? ""}
-        />
+        <RichTextEditor label="Description" name="description" defaultValue={task?.description} />
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Project
-          </label>
-          <select
-            id="project_id"
-            name="project_id"
-            defaultValue={task?.project_id ?? ""}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          >
-            <option value="">No project linked</option>
-            {projects.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Project
+            </label>
+            <select
+              id="project_id"
+              name="project_id"
+              defaultValue={task?.project_id ?? ""}
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="">No project linked</option>
+              {projects.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+          <AssigneeCombobox
+            members={members}
+            defaultAssigneeId={defaultAssigneeId}
+            defaultAssigneeName={defaultAssigneeName}
+          />
         </div>
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">

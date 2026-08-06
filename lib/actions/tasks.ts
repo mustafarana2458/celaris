@@ -29,6 +29,19 @@ async function requireWorkspace() {
   return { supabase, workspace } as const;
 }
 
+// TipTap emits "<p></p>" (or a run of empty paragraphs) for a blank editor --
+// treat that the same as no description instead of storing empty markup.
+function normalizeDescription(raw: string): string | null {
+  const trimmed = raw.trim();
+  if (!trimmed) return null;
+  const stripped = trimmed.replace(/<[^>]+>/g, "").trim();
+  return stripped ? trimmed : null;
+}
+
+function stripHtml(html: string): string {
+  return html.replace(/<[^>]+>/g, " ").replace(/\s+/g, " ").trim();
+}
+
 function taskFields(formData: FormData) {
   const title = String(formData.get("title") ?? "").trim();
   const description = String(formData.get("description") ?? "").trim();
@@ -36,6 +49,7 @@ function taskFields(formData: FormData) {
   const priorityRaw = String(formData.get("priority") ?? "medium").trim();
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const projectId = String(formData.get("project_id") ?? "").trim();
+  const assignedTo = String(formData.get("assigned_to") ?? "").trim();
 
   const status = (
     VALID_STATUSES.includes(statusRaw as TaskStatus) ? statusRaw : "todo"
@@ -46,11 +60,12 @@ function taskFields(formData: FormData) {
 
   return {
     title,
-    description: description || null,
+    description: normalizeDescription(description),
     status,
     priority,
     due_date: dueDate || null,
     project_id: projectId || null,
+    assigned_to: assignedTo || null,
   };
 }
 
@@ -149,7 +164,7 @@ function buildBreakdownPrompt(title: string, description: string | null) {
     `actionable sub-tasks. Each sub-task title should be short (under 8 words) and start ` +
     `with a verb.\n\n` +
     `Task title: ${title}\n` +
-    `${descLine}\n\n` +
+    `${stripHtml(descLine)}\n\n` +
     `Respond with ONLY valid JSON in exactly this shape, no markdown, no extra text: ` +
     `{"subtasks": ["first sub-task", "second sub-task"]}`
   );

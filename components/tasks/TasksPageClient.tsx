@@ -1,43 +1,40 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { TaskModal } from "./TaskModal";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
-import { TaskCard } from "./TaskCard";
+import { TasksKanban } from "./TasksKanban";
+import { TasksTable } from "./TasksTable";
 import { AiBreakdownDrawer } from "./AiBreakdownDrawer";
-import { TASK_STATUSES } from "./statuses";
 import { updateTaskStatus } from "@/lib/actions/tasks";
-import type { Project, Task, TaskStatus } from "@/lib/types";
+import type { Project, Task, TaskStatus, TaskView, WorkspaceTeamMember } from "@/lib/types";
 
 export function TasksPageClient({
   initialTasks,
   projects,
+  members,
+  currentUserId,
 }: {
   initialTasks: Task[];
   projects: Pick<Project, "id" | "name">[];
+  members: WorkspaceTeamMember[];
+  currentUserId: string;
 }) {
   const router = useRouter();
   const [tasks, setTasks] = useState(initialTasks);
+  const [view, setView] = useState<TaskView>("kanban");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Task | null>(null);
   const [deleting, setDeleting] = useState<Task | null>(null);
   const [breakingDown, setBreakingDown] = useState<Task | null>(null);
   const [movingId, setMovingId] = useState<string | null>(null);
+  const [statusError, setStatusError] = useState<string | null>(null);
 
   useEffect(() => {
     setTasks(initialTasks);
   }, [initialTasks]);
-
-  const columns = useMemo(
-    () =>
-      TASK_STATUSES.map((s) => ({
-        ...s,
-        tasks: tasks.filter((t) => t.status === s.value),
-      })),
-    [tasks]
-  );
 
   function openAdd() {
     setEditing(null);
@@ -65,13 +62,19 @@ export function TasksPageClient({
   }
 
   async function handleStatusChange(task: Task, status: TaskStatus) {
-    if (status === task.status) return;
+    setStatusError(null);
+    const previousStatus = task.status;
     setMovingId(task.id);
+    setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status } : t)));
+
     const result = await updateTaskStatus(task.id, status);
     setMovingId(null);
-    if (!result.error) {
-      router.refresh();
+    if (result.error) {
+      setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, status: previousStatus } : t)));
+      setStatusError(result.error);
+      return;
     }
+    router.refresh();
   }
 
   return (
@@ -83,8 +86,32 @@ export function TasksPageClient({
             {tasks.length} task{tasks.length === 1 ? "" : "s"} across your board.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add task</Button>
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
+            {(["kanban", "list"] as TaskView[]).map((mode) => (
+              <button
+                key={mode}
+                type="button"
+                onClick={() => setView(mode)}
+                className={`rounded-md px-3 py-1.5 text-sm font-medium capitalize transition-colors ${
+                  view === mode
+                    ? "bg-white text-slate-900 shadow-sm dark:bg-slate-800 dark:text-slate-100"
+                    : "text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+                }`}
+              >
+                {mode}
+              </button>
+            ))}
+          </div>
+          <Button onClick={openAdd}>+ Add task</Button>
+        </div>
       </div>
+
+      {statusError && (
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+          Couldn&apos;t move that task: {statusError}
+        </div>
+      )}
 
       {tasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
@@ -96,42 +123,23 @@ export function TasksPageClient({
             + Add task
           </Button>
         </div>
+      ) : view === "kanban" ? (
+        <TasksKanban
+          tasks={tasks}
+          movingId={movingId}
+          onStatusChange={handleStatusChange}
+          onEdit={openEdit}
+          onDelete={setDeleting}
+          onBreakdown={setBreakingDown}
+          onChecklistChanged={() => router.refresh()}
+        />
       ) : (
-        <div className="flex gap-4 overflow-x-auto pb-2">
-          {columns.map((col) => (
-            <div
-              key={col.value}
-              className={`flex w-72 shrink-0 flex-col gap-3 rounded-2xl border-x border-b border-t-4 border-slate-200 bg-white p-3 dark:border-slate-700 dark:bg-slate-800 ${col.column}`}
-            >
-              <div className="flex items-center justify-between px-1">
-                <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">{col.label}</h2>
-                <span className="rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium text-slate-500 dark:bg-slate-700 dark:text-slate-400">
-                  {col.tasks.length}
-                </span>
-              </div>
-
-              <div className="flex flex-col gap-2">
-                {col.tasks.map((task) => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    moving={movingId === task.id}
-                    onStatusChange={(status) => handleStatusChange(task, status)}
-                    onEdit={() => openEdit(task)}
-                    onDelete={() => setDeleting(task)}
-                    onBreakdown={() => setBreakingDown(task)}
-                    onChecklistChanged={() => router.refresh()}
-                  />
-                ))}
-                {col.tasks.length === 0 && (
-                  <p className="rounded-lg border border-dashed border-slate-200 p-3 text-center text-xs text-slate-400 dark:border-slate-700 dark:text-slate-500">
-                    No tasks
-                  </p>
-                )}
-              </div>
-            </div>
-          ))}
-        </div>
+        <TasksTable
+          tasks={tasks}
+          onEdit={openEdit}
+          onDelete={setDeleting}
+          onBreakdown={setBreakingDown}
+        />
       )}
 
       <TaskModal
@@ -139,6 +147,8 @@ export function TasksPageClient({
         onClose={closeModal}
         task={editing}
         projects={projects}
+        members={members}
+        currentUserId={currentUserId}
         onSaved={handleSaved}
       />
 
