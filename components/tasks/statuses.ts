@@ -7,6 +7,7 @@ export const TASK_STATUSES: {
 }[] = [
   { value: "todo", label: "To Do", column: "border-t-slate-400" },
   { value: "in_progress", label: "In Progress", column: "border-t-blue-400" },
+  { value: "in_review", label: "In Review", column: "border-t-indigo-400" },
   { value: "done", label: "Done", column: "border-t-emerald-400" },
 ];
 

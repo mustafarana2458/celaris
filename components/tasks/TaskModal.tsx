@@ -17,6 +17,7 @@ export function TaskModal({
   projects,
   members,
   currentUserId,
+  newTaskDefaultAssignee = "current-user",
   onSaved,
 }: {
   open: boolean;
@@ -25,24 +26,29 @@ export function TaskModal({
   projects: Pick<Project, "id" | "name">[];
   members: WorkspaceTeamMember[];
   currentUserId: string;
+  // My Tasks defaults a brand-new task to the logged-in user; Team Board
+  // (global, not "mine") leaves it unassigned unless picked manually.
+  newTaskDefaultAssignee?: "current-user" | "unassigned";
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!task;
 
-  // My Tasks context: default a brand-new task to the logged-in user instead
-  // of leaving it unassigned.
   const currentUser = useMemo(
     () => members.find((m) => m.user_id === currentUserId) ?? null,
     [members, currentUserId]
   );
   const defaultAssigneeId = task
     ? task.assigned_to
-    : (currentUser?.user_id ?? currentUserId);
+    : newTaskDefaultAssignee === "unassigned"
+      ? null
+      : (currentUser?.user_id ?? currentUserId);
   const defaultAssigneeName = task
     ? task.assignee?.full_name ?? null
-    : (currentUser?.full_name ?? currentUser?.email ?? null);
+    : newTaskDefaultAssignee === "unassigned"
+      ? null
+      : (currentUser?.full_name ?? currentUser?.email ?? null);
 
   function handleSubmit(formData: FormData) {
     setError(null);

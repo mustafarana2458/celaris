@@ -8,7 +8,7 @@ import type { TaskPriority, TaskStatus } from "@/lib/types";
 
 export type TaskActionResult = { error?: string };
 
-const VALID_STATUSES: TaskStatus[] = ["todo", "in_progress", "done"];
+const VALID_STATUSES: TaskStatus[] = ["todo", "in_progress", "in_review", "done"];
 const VALID_PRIORITIES: TaskPriority[] = ["low", "medium", "high", "urgent"];
 
 async function requireWorkspace() {

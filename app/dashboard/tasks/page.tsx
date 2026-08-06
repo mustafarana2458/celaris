@@ -22,6 +22,7 @@ export default async function TasksPage() {
           .from("tasks")
           .select("*, projects(id, name), subtasks(*), assignee:users!assigned_to(id, full_name)")
           .eq("workspace_id", workspace.id)
+          .eq("assigned_to", user.id)
           .order("created_at", { ascending: false })
           .order("position", { referencedTable: "subtasks", ascending: true }),
         supabase

@@ -22,6 +22,10 @@ const TASK_STATUS_BADGE: Record<TaskStatus, { label: string; badge: string }> = 
     label: "In Progress",
     badge: "bg-blue-50 text-blue-700 dark:bg-blue-950/40 dark:text-blue-400",
   },
+  in_review: {
+    label: "In Review",
+    badge: "bg-indigo-50 text-indigo-700 dark:bg-indigo-950/40 dark:text-indigo-400",
+  },
   done: {
     label: "Done",
     badge: "bg-emerald-50 text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400",
