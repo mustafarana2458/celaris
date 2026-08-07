@@ -1,6 +1,6 @@
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
-import type { Invoice } from "@/lib/types";
+import type { Invoice, InvoiceSenderDetails } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -22,6 +22,11 @@ function formatDate(value: string | null) {
   });
 }
 
+function formatDueDate(value: string | null) {
+  if (!value) return "Due on receipt";
+  return formatDate(value);
+}
+
 function readAccentColor(): [number, number, number] {
   const fallback: [number, number, number] = [234, 88, 12];
   if (typeof window === "undefined") return fallback;
@@ -34,7 +39,7 @@ function readAccentColor(): [number, number, number] {
   return fallback;
 }
 
-export function downloadInvoicePdf(invoice: Invoice, workspaceName: string) {
+export function downloadInvoicePdf(invoice: Invoice, sender: InvoiceSenderDetails) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const accent = readAccentColor();
   const marginX = 40;
@@ -44,18 +49,38 @@ export function downloadInvoicePdf(invoice: Invoice, workspaceName: string) {
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(...accent);
-  doc.text(workspaceName || "Invoice", marginX, y);
+  doc.text(sender.name || "Invoice", marginX, y);
 
   doc.setFont("helvetica", "normal");
+  doc.setFontSize(9);
+  doc.setTextColor(100, 116, 139);
+  let senderY = y + 15;
+  if (sender.address) {
+    for (const line of sender.address.split("\n")) {
+      doc.text(line, marginX, senderY);
+      senderY += 12;
+    }
+  }
+  if (sender.tax_number) {
+    doc.text(`Tax ID: ${sender.tax_number}`, marginX, senderY);
+    senderY += 12;
+  }
+  const contactLine = [sender.support_email, sender.phone].filter(Boolean).join("  ·  ");
+  if (contactLine) {
+    doc.text(contactLine, marginX, senderY);
+    senderY += 12;
+  }
+
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139);
-  doc.text(`Invoice ${invoice.invoice_number}`, marginX, y + 16);
+  senderY += 4;
+  doc.text(`Invoice ${invoice.invoice_number}`, marginX, senderY);
 
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);
   doc.text(invoice.status.toUpperCase(), rightEdge, y, { align: "right" });
 
-  y += 34;
+  y = senderY + 20;
   doc.setDrawColor(226, 232, 240);
   doc.line(marginX, y, rightEdge, y);
   y += 24;
@@ -81,7 +106,7 @@ export function downloadInvoicePdf(invoice: Invoice, workspaceName: string) {
     doc.text(invoice.contacts.email, marginX, billY);
   }
   doc.text(formatDate(invoice.issued_at), 400, y + 15);
-  doc.text(formatDate(invoice.due_date), 480, y + 15);
+  doc.text(formatDueDate(invoice.due_date), 480, y + 15);
 
   y = Math.max(billY, y + 15) + 30;
 
@@ -166,6 +191,25 @@ export function downloadInvoicePdf(invoice: Invoice, workspaceName: string) {
     const freqLabel = FREQUENCY_LABELS[invoice.recurring_frequency] ?? invoice.recurring_frequency;
     const nextLabel = invoice.next_issue_date ? formatDate(invoice.next_issue_date) : "—";
     doc.text(`Recurring · ${freqLabel} · Next issue ${nextLabel}`, marginX, totalsY);
+  }
+
+  if (sender.payment_instructions) {
+    let notesY = totalsY + 40;
+    if (notesY > 760) {
+      doc.addPage();
+      notesY = 60;
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9);
+    doc.setTextColor(148, 163, 184);
+    doc.text("PAYMENT METHODS / NOTES", marginX, notesY);
+    notesY += 14;
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(71, 85, 105);
+    const wrapped = doc.splitTextToSize(sender.payment_instructions, rightEdge - marginX);
+    doc.text(wrapped, marginX, notesY);
   }
 
   doc.save(`${invoice.invoice_number || "invoice"}.pdf`);

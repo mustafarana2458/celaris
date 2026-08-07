@@ -2,16 +2,17 @@
 
 import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
+import { CheckCircle2, Pencil, Printer, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
-import { useWorkspace } from "@/components/workspace/WorkspaceContext";
+import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { InvoiceModal } from "./InvoiceModal";
 import { DeleteInvoiceDialog } from "./DeleteInvoiceDialog";
 import { PrintInvoiceModal } from "./PrintInvoiceModal";
 import { INVOICE_STATUSES } from "./statuses";
 import { updateInvoiceStatus } from "@/lib/actions/invoices";
 import { downloadInvoicePdf } from "@/lib/invoicePdf";
-import type { Contact, Invoice, InvoiceStatus } from "@/lib/types";
+import type { Contact, Invoice, InvoiceSenderDetails, InvoiceStatus, Project } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -32,12 +33,15 @@ function formatDate(value: string | null) {
 export function InvoicesPageClient({
   initialInvoices,
   contacts,
+  projects,
+  senderDetails,
 }: {
   initialInvoices: Invoice[];
   contacts: Pick<Contact, "id" | "name">[];
+  projects: Pick<Project, "id" | "name">[];
+  senderDetails: InvoiceSenderDetails | null;
 }) {
   const router = useRouter();
-  const workspace = useWorkspace();
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
@@ -95,7 +99,17 @@ export function InvoicesPageClient({
   }
 
   function handleDownloadPdf(invoice: Invoice) {
-    downloadInvoicePdf(invoice, workspace?.name ?? "");
+    downloadInvoicePdf(
+      invoice,
+      senderDetails ?? {
+        name: "",
+        address: null,
+        tax_number: null,
+        support_email: null,
+        phone: null,
+        payment_instructions: null,
+      }
+    );
   }
 
   return (
@@ -225,40 +239,30 @@ export function InvoicesPageClient({
                       {formatDate(invoice.due_date)}
                     </td>
                     <td className="px-5 py-3">
-                      <div className="flex justify-end gap-2">
-                        {invoice.status !== "paid" && (
-                          <button
-                            onClick={() => markPaid(invoice)}
-                            disabled={updatingId === invoice.id}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-emerald-600 hover:bg-emerald-50 disabled:opacity-60 dark:text-emerald-400 dark:hover:bg-emerald-950/40"
-                          >
-                            Mark paid
-                          </button>
-                        )}
-                        <button
-                          onClick={() => setPrinting(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                          Print
-                        </button>
-                        <button
-                          onClick={() => handleDownloadPdf(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-slate-600 hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-slate-700"
-                        >
-                          PDF
-                        </button>
-                        <button
-                          onClick={() => openEdit(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                        >
-                          Edit
-                        </button>
-                        <button
-                          onClick={() => setDeleting(invoice)}
-                          className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                        >
-                          Delete
-                        </button>
+                      <div className="flex justify-end">
+                        <RowActionsMenu
+                          ariaLabel={`Actions for ${invoice.invoice_number}`}
+                          actions={[
+                            ...(invoice.status !== "paid"
+                              ? [
+                                  {
+                                    label: updatingId === invoice.id ? "Marking paid…" : "Mark paid",
+                                    icon: CheckCircle2,
+                                    onClick: () => markPaid(invoice),
+                                  },
+                                ]
+                              : []),
+                            { label: "Print", icon: Printer, onClick: () => setPrinting(invoice) },
+                            { label: "PDF", icon: Download, onClick: () => handleDownloadPdf(invoice) },
+                            { label: "Edit", icon: Pencil, onClick: () => openEdit(invoice) },
+                            {
+                              label: "Delete",
+                              icon: Trash2,
+                              destructive: true,
+                              onClick: () => setDeleting(invoice),
+                            },
+                          ]}
+                        />
                       </div>
                     </td>
                   </tr>
@@ -274,6 +278,8 @@ export function InvoicesPageClient({
         onClose={closeModal}
         invoice={editing}
         contacts={contacts}
+        projects={projects}
+        existingInvoiceNumbers={initialInvoices.map((i) => i.invoice_number)}
         onSaved={handleSaved}
       />
 
@@ -283,7 +289,11 @@ export function InvoicesPageClient({
         onDeleted={handleDeleted}
       />
 
-      <PrintInvoiceModal invoice={printing} onClose={() => setPrinting(null)} />
+      <PrintInvoiceModal
+        invoice={printing}
+        senderDetails={senderDetails}
+        onClose={() => setPrinting(null)}
+      />
     </div>
   );
 }

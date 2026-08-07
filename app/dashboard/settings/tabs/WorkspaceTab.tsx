@@ -72,9 +72,21 @@ export function WorkspaceTab({
             </dd>
           </div>
           <div className="grid grid-cols-3 gap-4 py-3 text-sm">
+            <dt className="text-slate-500 dark:text-slate-400">Phone</dt>
+            <dd className="col-span-2 font-medium text-slate-900 dark:text-slate-100">
+              {branding?.phone || "—"}
+            </dd>
+          </div>
+          <div className="grid grid-cols-3 gap-4 py-3 text-sm">
             <dt className="text-slate-500 dark:text-slate-400">Default currency</dt>
             <dd className="col-span-2 font-medium text-slate-900 dark:text-slate-100">
               {branding?.currency || "USD"}
+            </dd>
+          </div>
+          <div className="grid grid-cols-3 gap-4 py-3 text-sm">
+            <dt className="text-slate-500 dark:text-slate-400">Payment instructions</dt>
+            <dd className="col-span-2 whitespace-pre-line font-medium text-slate-900 dark:text-slate-100">
+              {branding?.payment_instructions || "—"}
             </dd>
           </div>
         </dl>
@@ -125,6 +137,13 @@ export function WorkspaceTab({
             defaultValue={branding?.tax_number ?? ""}
           />
 
+          <Input
+            label="Phone"
+            name="phone"
+            type="tel"
+            defaultValue={branding?.phone ?? ""}
+          />
+
           <div className="flex flex-col gap-1.5">
             <label
               htmlFor="currency"
@@ -152,6 +171,17 @@ export function WorkspaceTab({
             rows={3}
             defaultValue={branding?.address ?? ""}
           />
+
+          <Textarea
+            label="Payment Instructions"
+            name="payment_instructions"
+            rows={3}
+            placeholder="e.g. Bank transfer to IBAN ... / We accept card payments via the link below."
+            defaultValue={branding?.payment_instructions ?? ""}
+          />
+          <p className="-mt-2 text-xs text-slate-400 dark:text-slate-500">
+            Shown at the bottom of every printed invoice and PDF.
+          </p>
 
           <div className="mt-2 flex justify-end">
             <Button type="submit" loading={isPending}>

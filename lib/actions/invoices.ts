@@ -59,6 +59,7 @@ function parseLineItems(formData: FormData): LineItemInput[] {
 function invoiceFields(formData: FormData, lineItems: LineItemInput[]) {
   const invoiceNumber = String(formData.get("invoice_number") ?? "").trim();
   const contactId = String(formData.get("contact_id") ?? "").trim();
+  const projectId = String(formData.get("project_id") ?? "").trim();
   const statusRaw = String(formData.get("status") ?? "unpaid").trim();
   const dueDate = String(formData.get("due_date") ?? "").trim();
 
@@ -88,6 +89,7 @@ function invoiceFields(formData: FormData, lineItems: LineItemInput[]) {
   return {
     invoice_number: invoiceNumber,
     contact_id: contactId || null,
+    project_id: projectId || null,
     amount: subtotal,
     tax,
     tax_percent: taxPercent,

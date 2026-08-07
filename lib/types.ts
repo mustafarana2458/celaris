@@ -284,6 +284,7 @@ export type Invoice = {
   workspace_id: string;
   invoice_number: string;
   contact_id: string | null;
+  project_id: string | null;
   amount: number;
   tax: number;
   tax_percent: number;
@@ -302,7 +303,17 @@ export type Invoice = {
     company?: string | null;
     email?: string | null;
   } | null;
+  projects?: { id: string; name: string } | null;
   invoice_items?: InvoiceLineItem[] | null;
+};
+
+export type InvoiceSenderDetails = {
+  name: string;
+  address: string | null;
+  tax_number: string | null;
+  support_email: string | null;
+  phone: string | null;
+  payment_instructions: string | null;
 };
 
 export type TeamRole = "owner" | "admin" | "member";

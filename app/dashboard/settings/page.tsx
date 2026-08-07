@@ -11,6 +11,8 @@ export type WorkspaceBranding = {
   tax_number: string | null;
   currency: string | null;
   address: string | null;
+  phone: string | null;
+  payment_instructions: string | null;
 };
 
 export default async function SettingsPage() {
@@ -34,7 +36,7 @@ export default async function SettingsPage() {
     workspace
       ? supabase
           .from("workspaces")
-          .select("id, name, support_email, tax_number, currency, address")
+          .select("id, name, support_email, tax_number, currency, address, phone, payment_instructions")
           .eq("id", workspace.id)
           .maybeSingle<WorkspaceBranding>()
       : Promise.resolve({ data: null }),

@@ -62,6 +62,8 @@ export async function updateWorkspaceBranding(formData: FormData): Promise<Setti
   const taxNumber = String(formData.get("tax_number") ?? "").trim();
   const currencyRaw = String(formData.get("currency") ?? "USD").trim();
   const address = String(formData.get("address") ?? "").trim();
+  const phone = String(formData.get("phone") ?? "").trim();
+  const paymentInstructions = String(formData.get("payment_instructions") ?? "").trim();
   const currency = CURRENCIES.includes(currencyRaw) ? currencyRaw : "USD";
 
   if (!name) {
@@ -76,6 +78,8 @@ export async function updateWorkspaceBranding(formData: FormData): Promise<Setti
       tax_number: taxNumber || null,
       currency,
       address: address || null,
+      phone: phone || null,
+      payment_instructions: paymentInstructions || null,
     })
     .eq("id", ctx.workspace.id);
 

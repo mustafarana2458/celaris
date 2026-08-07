@@ -5,9 +5,10 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { createInvoice, updateInvoice } from "@/lib/actions/invoices";
+import { suggestNextInvoiceNumber } from "@/lib/invoiceNumber";
 import { INVOICE_STATUSES } from "./statuses";
 import { InvoiceLineItemsEditor, type LineItemDraft } from "./InvoiceLineItemsEditor";
-import type { Contact, Invoice, RecurringFrequency } from "@/lib/types";
+import type { Contact, Invoice, Project, RecurringFrequency } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -45,17 +46,25 @@ export function InvoiceModal({
   onClose,
   invoice,
   contacts,
+  projects,
+  existingInvoiceNumbers,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   invoice: Invoice | null;
   contacts: Pick<Contact, "id" | "name">[];
+  projects: Pick<Project, "id" | "name">[];
+  existingInvoiceNumbers: string[];
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!invoice;
+  const suggestedInvoiceNumber = useMemo(
+    () => suggestNextInvoiceNumber(existingInvoiceNumbers),
+    [existingInvoiceNumbers]
+  );
 
   const [lineItems, setLineItems] = useState<LineItemDraft[]>(() => defaultLineItems(invoice));
   const [taxPercent, setTaxPercent] = useState(invoice ? String(invoice.tax_percent) : "0");
@@ -120,7 +129,7 @@ export function InvoiceModal({
   }
 
   return (
-    <Modal open={open} onClose={onClose} title={isEdit ? "Edit invoice" : "Add invoice"}>
+    <Modal open={open} onClose={onClose} title={isEdit ? "Edit invoice" : "Add invoice"} size="wide">
       <form key={invoice?.id ?? "new"} action={handleSubmit} className="flex flex-col gap-4">
         {error && (
           <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
@@ -128,28 +137,49 @@ export function InvoiceModal({
           </div>
         )}
 
-        <Input
-          label="Invoice number"
-          name="invoice_number"
-          defaultValue={invoice?.invoice_number}
-          placeholder="INV-0001"
-          required
-        />
+        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+          <Input
+            label="Invoice number"
+            name="invoice_number"
+            defaultValue={invoice?.invoice_number ?? suggestedInvoiceNumber}
+            placeholder="INV-0001"
+            required
+          />
+
+          <div className="flex flex-col gap-1.5">
+            <label htmlFor="contact_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+              Contact
+            </label>
+            <select
+              id="contact_id"
+              name="contact_id"
+              defaultValue={invoice?.contact_id ?? ""}
+              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+            >
+              <option value="">No contact linked</option>
+              {contacts.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="contact_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Contact
+          <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+            Link to Project <span className="font-normal text-slate-400 dark:text-slate-500">(optional)</span>
           </label>
           <select
-            id="contact_id"
-            name="contact_id"
-            defaultValue={invoice?.contact_id ?? ""}
+            id="project_id"
+            name="project_id"
+            defaultValue={invoice?.project_id ?? ""}
             className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
-            <option value="">No contact linked</option>
-            {contacts.map((c) => (
-              <option key={c.id} value={c.id}>
-                {c.name}
+            <option value="">No project linked</option>
+            {projects.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name}
               </option>
             ))}
           </select>

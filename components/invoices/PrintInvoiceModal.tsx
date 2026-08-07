@@ -2,10 +2,9 @@
 
 import { useEffect, useRef } from "react";
 import { Button } from "@/components/ui/Button";
-import { useWorkspace } from "@/components/workspace/WorkspaceContext";
 import { INVOICE_STATUSES } from "./statuses";
 import { InvoiceQrCode } from "./InvoiceQrCode";
-import type { Invoice } from "@/lib/types";
+import type { Invoice, InvoiceSenderDetails } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -21,6 +20,11 @@ function formatDate(value: string | null) {
     month: "long",
     day: "numeric",
   });
+}
+
+function formatDueDate(value: string | null) {
+  if (!value) return "Due on receipt";
+  return formatDate(value);
 }
 
 function formatIssuedDate(value: string) {
@@ -40,12 +44,13 @@ function getPublicInvoiceUrl(token: string) {
 
 export function PrintInvoiceModal({
   invoice,
+  senderDetails,
   onClose,
 }: {
   invoice: Invoice | null;
+  senderDetails: InvoiceSenderDetails | null;
   onClose: () => void;
 }) {
-  const workspace = useWorkspace();
   const hasAutoPrintedRef = useRef(false);
 
   useEffect(() => {
@@ -64,6 +69,22 @@ export function PrintInvoiceModal({
 
   const statusInfo = statusMap[invoice.status];
   const publicUrl = getPublicInvoiceUrl(invoice.public_token);
+  const items: { id: string; description: string; quantity: number; unit_price: number }[] =
+    invoice.invoice_items && invoice.invoice_items.length > 0
+      ? invoice.invoice_items.map((item) => ({
+          id: item.id,
+          description: item.description,
+          quantity: item.quantity,
+          unit_price: item.unit_price,
+        }))
+      : [
+          {
+            id: "fallback",
+            description: "Invoice amount",
+            quantity: 1,
+            unit_price: invoice.amount,
+          },
+        ];
 
   return (
     <div className="fixed inset-0 z-50 overflow-y-auto bg-slate-900/40 print:static print:bg-transparent">
@@ -83,8 +104,19 @@ export function PrintInvoiceModal({
         <div className="print-invoice w-full rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex items-start justify-between border-b border-slate-200 pb-6">
             <div>
-              <p className="text-lg font-semibold text-slate-900">{workspace?.name}</p>
-              <p className="mt-1 text-sm text-slate-500">Invoice {invoice.invoice_number}</p>
+              <p className="text-lg font-semibold text-slate-900">{senderDetails?.name}</p>
+              {senderDetails?.address && (
+                <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{senderDetails.address}</p>
+              )}
+              {senderDetails?.tax_number && (
+                <p className="mt-1 text-xs text-slate-500">Tax ID: {senderDetails.tax_number}</p>
+              )}
+              {(senderDetails?.support_email || senderDetails?.phone) && (
+                <p className="mt-1 text-xs text-slate-500">
+                  {[senderDetails?.support_email, senderDetails?.phone].filter(Boolean).join(" · ")}
+                </p>
+              )}
+              <p className="mt-2 text-sm text-slate-500">Invoice {invoice.invoice_number}</p>
             </div>
             {statusInfo && (
               <span
@@ -118,34 +150,84 @@ export function PrintInvoiceModal({
               <p className="mt-3 text-xs font-medium uppercase tracking-wide text-slate-400">
                 Due
               </p>
-              <p className="mt-1 text-sm text-slate-700">{formatDate(invoice.due_date)}</p>
+              <p className="mt-1 text-sm text-slate-700">{formatDueDate(invoice.due_date)}</p>
             </div>
           </div>
 
           <div className="mt-8 overflow-hidden rounded-xl border border-slate-200">
             <table className="w-full text-sm">
-              <tbody>
-                <tr className="border-b border-slate-100">
-                  <td className="px-4 py-3 text-slate-500">Amount</td>
-                  <td className="px-4 py-3 text-right text-slate-900">
-                    {currency.format(invoice.amount)}
-                  </td>
+              <thead>
+                <tr className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500">
+                  <th className="px-4 py-2 text-left font-medium">Description</th>
+                  <th className="px-4 py-2 text-right font-medium">Qty</th>
+                  <th className="px-4 py-2 text-right font-medium">Unit price</th>
+                  <th className="px-4 py-2 text-right font-medium">Line total</th>
                 </tr>
-                <tr className="border-b border-slate-100">
-                  <td className="px-4 py-3 text-slate-500">Tax</td>
-                  <td className="px-4 py-3 text-right text-slate-900">
-                    {currency.format(invoice.tax)}
-                  </td>
-                </tr>
-                <tr className="bg-slate-50">
-                  <td className="px-4 py-3 font-semibold text-slate-900">Total</td>
-                  <td className="px-4 py-3 text-right font-semibold text-slate-900">
-                    {currency.format(invoice.total)}
-                  </td>
-                </tr>
+              </thead>
+              <tbody className="divide-y divide-slate-100">
+                {items.map((item) => (
+                  <tr key={item.id}>
+                    <td className="px-4 py-2 text-slate-700">{item.description}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">{item.quantity}</td>
+                    <td className="px-4 py-2 text-right text-slate-700">
+                      {currency.format(item.unit_price)}
+                    </td>
+                    <td className="px-4 py-2 text-right text-slate-900">
+                      {currency.format(item.quantity * item.unit_price)}
+                    </td>
+                  </tr>
+                ))}
               </tbody>
             </table>
           </div>
+
+          <div className="mt-6 flex justify-end">
+            <div className="w-full max-w-xs overflow-hidden rounded-xl border border-slate-200">
+              <table className="w-full text-sm">
+                <tbody>
+                  <tr className="border-b border-slate-100">
+                    <td className="px-4 py-3 text-slate-500">Subtotal</td>
+                    <td className="px-4 py-3 text-right text-slate-900">
+                      {currency.format(invoice.amount)}
+                    </td>
+                  </tr>
+                  {invoice.discount > 0 && (
+                    <tr className="border-b border-slate-100">
+                      <td className="px-4 py-3 text-slate-500">Discount</td>
+                      <td className="px-4 py-3 text-right text-slate-900">
+                        -{currency.format(invoice.discount)}
+                      </td>
+                    </tr>
+                  )}
+                  <tr className="border-b border-slate-100">
+                    <td className="px-4 py-3 text-slate-500">
+                      Tax{invoice.tax_percent > 0 ? ` (${invoice.tax_percent}%)` : ""}
+                    </td>
+                    <td className="px-4 py-3 text-right text-slate-900">
+                      {currency.format(invoice.tax)}
+                    </td>
+                  </tr>
+                  <tr className="bg-slate-50">
+                    <td className="px-4 py-3 font-semibold text-slate-900">Total</td>
+                    <td className="px-4 py-3 text-right font-semibold text-slate-900">
+                      {currency.format(invoice.total)}
+                    </td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+          </div>
+
+          {senderDetails?.payment_instructions && (
+            <div className="mt-8 rounded-xl border border-slate-200 bg-slate-50 p-4">
+              <p className="text-xs font-medium uppercase tracking-wide text-slate-400">
+                Payment methods / Notes
+              </p>
+              <p className="mt-1 whitespace-pre-line text-sm text-slate-600">
+                {senderDetails.payment_instructions}
+              </p>
+            </div>
+          )}
 
           <div className="mt-8 flex items-end justify-between gap-4">
             <p className="max-w-xs text-xs text-slate-400">
