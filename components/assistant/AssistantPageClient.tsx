@@ -4,12 +4,14 @@ import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type ReactNode }
 import { ArrowUp, FileText, ListChecks, Paperclip, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
+import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
+import { setSaveAiHistory } from "@/lib/actions/userPreferences";
 import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
 import type { CreateContactParams, CreateDealParams, CreateTaskParams } from "@/lib/assistantTools";
 
 const INPUT_MAX_HEIGHT = 200;
 
-type AnswerMessage = {
+export type AnswerMessage = {
   id: string;
   role: "user" | "assistant";
   kind: "answer";
@@ -17,7 +19,7 @@ type AnswerMessage = {
   tool?: ReadTool | WriteTool;
 };
 
-type ConfirmMessage = {
+export type ConfirmMessage = {
   id: string;
   role: "assistant";
   kind: "confirm";
@@ -28,7 +30,7 @@ type ConfirmMessage = {
   error?: string;
 };
 
-type ChatMessage = AnswerMessage | ConfirmMessage;
+export type ChatMessage = AnswerMessage | ConfirmMessage;
 
 const EXAMPLE_QUESTIONS = [
   { question: "How many leads do I have?", icon: Users },
@@ -49,14 +51,36 @@ function renderWithBold(text: string): ReactNode[] {
   });
 }
 
-export function AssistantPageClient() {
-  const [messages, setMessages] = useState<ChatMessage[]>([]);
+export function AssistantPageClient({
+  initialMessages,
+  initialSaveHistory,
+}: {
+  initialMessages: ChatMessage[];
+  initialSaveHistory: boolean;
+}) {
+  const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [saveHistory, setSaveHistory] = useState(true);
+  const [saveHistory, setSaveHistory] = useState(initialSaveHistory);
   const listEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Only the final user prompt / assistant answer is persisted -- intermediate
+  // tool-call confirmation prompts are not, per the "final response only" scope.
+  function persistMessage(role: "user" | "assistant", content: string) {
+    if (!saveHistory) return;
+    void saveAiChatMessage(role, content);
+  }
+
+  async function handleSaveHistoryToggle(checked: boolean) {
+    setSaveHistory(checked);
+    const result = await setSaveAiHistory(checked);
+    if (result.error) {
+      setSaveHistory(!checked);
+      setError(result.error);
+    }
+  }
 
   // Every new message (sent or received) — as well as the "thinking" indicator
   // appearing/disappearing — should bring the latest content into view.
@@ -84,6 +108,7 @@ export function AssistantPageClient() {
     setError(null);
     setInput("");
     setMessages((prev) => [...prev, { id: makeId(), role: "user", kind: "answer", content: trimmed }]);
+    persistMessage("user", trimmed);
     setLoading(true);
 
     const result = await askAssistant(trimmed);
@@ -99,6 +124,7 @@ export function AssistantPageClient() {
         ...prev,
         { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
       ]);
+      persistMessage("assistant", result.text);
     } else {
       setMessages((prev) => [
         ...prev,
@@ -141,6 +167,7 @@ export function AssistantPageClient() {
       ),
       { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
     ]);
+    persistMessage("assistant", result.text);
   }
 
   function handleCancel(message: ConfirmMessage) {
@@ -178,7 +205,7 @@ export function AssistantPageClient() {
             <input
               type="checkbox"
               checked={saveHistory}
-              onChange={(e) => setSaveHistory(e.target.checked)}
+              onChange={(e) => handleSaveHistoryToggle(e.target.checked)}
               className="h-5 w-9 shrink-0 appearance-none rounded-full bg-slate-300 outline-none transition-colors before:block before:h-4 before:w-4 before:translate-x-0.5 before:translate-y-0.5 before:rounded-full before:bg-white before:shadow before:transition-transform checked:bg-accent checked:before:translate-x-4 dark:bg-slate-600"
             />
           </label>
