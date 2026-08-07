@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { createRecurringProfile, updateRecurringProfile } from "@/lib/actions/recurringProfiles";
 import { InvoiceLineItemsEditor, type LineItemDraft } from "../InvoiceLineItemsEditor";
 import { RECURRING_PROFILE_FREQUENCIES } from "./profileStatuses";
-import type { Contact, RecurringProfile, RecurringProfileFrequency } from "@/lib/types";
+import type { Contact, Product, RecurringProfile, RecurringProfileFrequency } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -30,12 +30,14 @@ export function RecurringProfileModal({
   onClose,
   profile,
   contacts,
+  products,
   onSaved,
 }: {
   open: boolean;
   onClose: () => void;
   profile: RecurringProfile | null;
   contacts: Pick<Contact, "id" | "name">[];
+  products: Pick<Product, "id" | "name" | "unit_price">[];
   onSaved: () => void;
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -127,7 +129,7 @@ export function RecurringProfileModal({
           </div>
         </div>
 
-        <InvoiceLineItemsEditor items={lineItems} onChange={setLineItems} />
+        <InvoiceLineItemsEditor items={lineItems} onChange={setLineItems} products={products} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input

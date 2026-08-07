@@ -10,7 +10,7 @@ import { setRecurringProfileStatus } from "@/lib/actions/recurringProfiles";
 import { RecurringProfileModal } from "./RecurringProfileModal";
 import { DeleteRecurringProfileDialog } from "./DeleteRecurringProfileDialog";
 import { RECURRING_PROFILE_FREQUENCIES, RECURRING_PROFILE_STATUSES } from "./profileStatuses";
-import type { Contact, RecurringProfile } from "@/lib/types";
+import type { Contact, Product, RecurringProfile } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -38,9 +38,11 @@ function profileTotal(profile: RecurringProfile) {
 export function RecurringBillingPageClient({
   initialProfiles,
   contacts,
+  products,
 }: {
   initialProfiles: RecurringProfile[];
   contacts: Pick<Contact, "id" | "name">[];
+  products: Pick<Product, "id" | "name" | "unit_price">[];
 }) {
   const router = useRouter();
   const [modalOpen, setModalOpen] = useState(false);
@@ -215,6 +217,7 @@ export function RecurringBillingPageClient({
         onClose={closeModal}
         profile={editing}
         contacts={contacts}
+        products={products}
         onSaved={handleSaved}
       />
 

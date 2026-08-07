@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { InvoicesPageClient } from "@/components/invoices/InvoicesPageClient";
-import type { Contact, Invoice, InvoiceSenderDetails, Project } from "@/lib/types";
+import type { Contact, Invoice, InvoiceSenderDetails, Product, Project } from "@/lib/types";
 
 export default async function InvoicesPage() {
   const supabase = await createClient();
@@ -16,7 +16,7 @@ export default async function InvoicesPage() {
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
 
-  const [{ data: invoices }, { data: contacts }, { data: projects }, { data: branding }] =
+  const [{ data: invoices }, { data: contacts }, { data: projects }, { data: branding }, { data: products }] =
     workspace
       ? await Promise.all([
           supabase
@@ -41,12 +41,18 @@ export default async function InvoicesPage() {
             .select("name, address, tax_number, support_email, phone, payment_instructions")
             .eq("id", workspace.id)
             .maybeSingle<InvoiceSenderDetails>(),
+          supabase
+            .from("products")
+            .select("id, name, unit_price")
+            .eq("workspace_id", workspace.id)
+            .order("name", { ascending: true }),
         ])
       : [
           { data: [] as Invoice[] },
           { data: [] as Contact[] },
           { data: [] as Project[] },
           { data: null as InvoiceSenderDetails | null },
+          { data: [] as Product[] },
         ];
 
   return (
@@ -54,6 +60,7 @@ export default async function InvoicesPage() {
       initialInvoices={(invoices as Invoice[]) ?? []}
       contacts={(contacts as Pick<Contact, "id" | "name">[]) ?? []}
       projects={(projects as Pick<Project, "id" | "name">[]) ?? []}
+      products={(products as Pick<Product, "id" | "name" | "unit_price">[]) ?? []}
       senderDetails={branding as InvoiceSenderDetails | null}
     />
   );

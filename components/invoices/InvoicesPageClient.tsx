@@ -12,7 +12,7 @@ import { PrintInvoiceModal } from "./PrintInvoiceModal";
 import { INVOICE_STATUSES } from "./statuses";
 import { updateInvoiceStatus } from "@/lib/actions/invoices";
 import { downloadInvoicePdf } from "@/lib/invoicePdf";
-import type { Contact, Invoice, InvoiceSenderDetails, InvoiceStatus, Project } from "@/lib/types";
+import type { Contact, Invoice, InvoiceSenderDetails, InvoiceStatus, Product, Project } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -34,11 +34,13 @@ export function InvoicesPageClient({
   initialInvoices,
   contacts,
   projects,
+  products,
   senderDetails,
 }: {
   initialInvoices: Invoice[];
   contacts: Pick<Contact, "id" | "name">[];
   projects: Pick<Project, "id" | "name">[];
+  products: Pick<Product, "id" | "name" | "unit_price">[];
   senderDetails: InvoiceSenderDetails | null;
 }) {
   const router = useRouter();
@@ -279,6 +281,7 @@ export function InvoicesPageClient({
         invoice={editing}
         contacts={contacts}
         projects={projects}
+        products={products}
         existingInvoiceNumbers={initialInvoices.map((i) => i.invoice_number)}
         onSaved={handleSaved}
       />

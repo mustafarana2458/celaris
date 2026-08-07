@@ -8,7 +8,7 @@ import { createInvoice, updateInvoice } from "@/lib/actions/invoices";
 import { suggestNextInvoiceNumber } from "@/lib/invoiceNumber";
 import { INVOICE_STATUSES } from "./statuses";
 import { InvoiceLineItemsEditor, type LineItemDraft } from "./InvoiceLineItemsEditor";
-import type { Contact, Invoice, Project, RecurringFrequency } from "@/lib/types";
+import type { Contact, Invoice, Product, Project, RecurringFrequency } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -47,6 +47,7 @@ export function InvoiceModal({
   invoice,
   contacts,
   projects,
+  products,
   existingInvoiceNumbers,
   onSaved,
 }: {
@@ -55,6 +56,7 @@ export function InvoiceModal({
   invoice: Invoice | null;
   contacts: Pick<Contact, "id" | "name">[];
   projects: Pick<Project, "id" | "name">[];
+  products: Pick<Product, "id" | "name" | "unit_price">[];
   existingInvoiceNumbers: string[];
   onSaved: () => void;
 }) {
@@ -185,7 +187,7 @@ export function InvoiceModal({
           </select>
         </div>
 
-        <InvoiceLineItemsEditor items={lineItems} onChange={setLineItems} />
+        <InvoiceLineItemsEditor items={lineItems} onChange={setLineItems} products={products} />
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input

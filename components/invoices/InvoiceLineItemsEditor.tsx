@@ -1,5 +1,7 @@
 "use client";
 
+import type { Product } from "@/lib/types";
+
 export type LineItemDraft = { description: string; quantity: string; unit_price: string };
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -10,9 +12,11 @@ const currency = new Intl.NumberFormat("en-US", {
 export function InvoiceLineItemsEditor({
   items,
   onChange,
+  products = [],
 }: {
   items: LineItemDraft[];
   onChange: (items: LineItemDraft[]) => void;
+  products?: Pick<Product, "id" | "name" | "unit_price">[];
 }) {
   function updateItem(index: number, field: keyof LineItemDraft, value: string) {
     onChange(items.map((item, i) => (i === index ? { ...item, [field]: value } : item)));
@@ -24,6 +28,15 @@ export function InvoiceLineItemsEditor({
 
   function removeItem(index: number) {
     onChange(items.filter((_, i) => i !== index));
+  }
+
+  function addFromProduct(productId: string) {
+    const product = products.find((p) => p.id === productId);
+    if (!product) return;
+    const newItem = { description: product.name, quantity: "1", unit_price: String(product.unit_price) };
+    const isSingleBlankRow =
+      items.length === 1 && !items[0].description.trim() && !items[0].unit_price.trim();
+    onChange(isSingleBlankRow ? [newItem] : [...items, newItem]);
   }
 
   return (
@@ -103,13 +116,32 @@ export function InvoiceLineItemsEditor({
           </tbody>
         </table>
       </div>
-      <button
-        type="button"
-        onClick={addItem}
-        className="self-start rounded-lg px-3 py-1.5 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-      >
-        + Add line
-      </button>
+      <div className="flex flex-wrap items-center gap-2">
+        <button
+          type="button"
+          onClick={addItem}
+          className="rounded-lg px-3 py-1.5 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
+        >
+          + Add line
+        </button>
+        {products.length > 0 && (
+          <select
+            aria-label="Add from product library"
+            value=""
+            onChange={(e) => {
+              if (e.target.value) addFromProduct(e.target.value);
+            }}
+            className="rounded-lg border border-slate-200 bg-white px-2.5 py-1.5 text-xs font-medium text-slate-600 outline-none focus:border-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
+          >
+            <option value="">+ Add from product library</option>
+            {products.map((p) => (
+              <option key={p.id} value={p.id}>
+                {p.name} — {currency.format(p.unit_price)}
+              </option>
+            ))}
+          </select>
+        )}
+      </div>
     </div>
   );
 }

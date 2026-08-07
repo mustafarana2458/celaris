@@ -341,6 +341,18 @@ export type RecurringProfile = {
 
 export type RecurringProfileActionResult = { error?: string };
 
+export type Product = {
+  id: string;
+  workspace_id: string;
+  name: string;
+  description: string | null;
+  unit_price: number;
+  taxable: boolean;
+  created_at: string;
+};
+
+export type ProductActionResult = { error?: string };
+
 export type InvoiceSenderDetails = {
   name: string;
   address: string | null;
