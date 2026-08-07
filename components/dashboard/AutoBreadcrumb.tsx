@@ -7,10 +7,10 @@ import { useBreadcrumbContext } from "./BreadcrumbContext";
 
 export function AutoBreadcrumb() {
   const pathname = usePathname();
-  const { extraLabel } = useBreadcrumbContext();
+  const { extraLabel, hidden } = useBreadcrumbContext();
   const baseItems = getBreadcrumbItems(pathname);
 
-  if (baseItems.length === 0) return null;
+  if (hidden || baseItems.length === 0) return null;
 
   // A detail route (e.g. /dashboard/projects/123) matches its nav leaf
   // (/dashboard/projects) as a prefix, not exactly -- that's the signal to

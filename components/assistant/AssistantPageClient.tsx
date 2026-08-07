@@ -3,6 +3,7 @@
 import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type ReactNode } from "react";
 import { ArrowUp, FileText, ListChecks, Paperclip, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { HideBreadcrumb } from "@/components/dashboard/BreadcrumbContext";
 import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
 import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
 import { setSaveAiHistory } from "@/lib/actions/userPreferences";
@@ -198,7 +199,8 @@ export function AssistantPageClient({
   }
 
   return (
-    <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
+    <div className="flex h-[calc(100vh-6rem)] flex-col gap-4">
+      <HideBreadcrumb />
       <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
         <div>
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">AI Assistant</h1>
