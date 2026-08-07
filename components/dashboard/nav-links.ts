@@ -74,7 +74,7 @@ export const navLinks: NavItem[] = [
     icon: "invoice",
     children: [
       { href: "/dashboard/invoices", label: "All Invoices" },
-      { href: "/dashboard/invoices", label: "Recurring Billing" },
+      { href: "/dashboard/invoices/recurring", label: "Recurring Billing" },
       { href: "/dashboard/invoices/product-library", label: "Product Library" },
     ],
   },

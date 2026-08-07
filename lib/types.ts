@@ -307,6 +307,40 @@ export type Invoice = {
   invoice_items?: InvoiceLineItem[] | null;
 };
 
+export type RecurringProfileFrequency = "weekly" | "monthly" | "quarterly" | "annually";
+export type RecurringProfileStatus = "active" | "paused";
+
+export type RecurringLineItem = {
+  description: string;
+  quantity: number;
+  unit_price: number;
+};
+
+export type RecurringProfile = {
+  id: string;
+  workspace_id: string;
+  profile_name: string;
+  contact_id: string | null;
+  line_items: RecurringLineItem[];
+  tax_percent: number;
+  discount: number;
+  frequency: RecurringProfileFrequency;
+  start_date: string;
+  end_date: string | null;
+  next_issue_date: string;
+  auto_send: boolean;
+  status: RecurringProfileStatus;
+  created_at: string;
+  contacts?: {
+    id: string;
+    name: string;
+    company?: string | null;
+    email?: string | null;
+  } | null;
+};
+
+export type RecurringProfileActionResult = { error?: string };
+
 export type InvoiceSenderDetails = {
   name: string;
   address: string | null;
