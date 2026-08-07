@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
 import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
 import { setSaveAiHistory } from "@/lib/actions/userPreferences";
+import { ClearChatDialog } from "./ClearChatDialog";
 import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
 import type { CreateContactParams, CreateDealParams, CreateTaskParams } from "@/lib/assistantTools";
 
@@ -63,6 +64,7 @@ export function AssistantPageClient({
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [saveHistory, setSaveHistory] = useState(initialSaveHistory);
+  const [confirmingClear, setConfirmingClear] = useState(false);
   const listEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -97,8 +99,13 @@ export function AssistantPageClient({
   }, [input]);
 
   function handleClearChat() {
+    setConfirmingClear(true);
+  }
+
+  function handleChatCleared() {
     setMessages([]);
     setError(null);
+    setConfirmingClear(false);
   }
 
   async function sendQuestion(question: string) {
@@ -355,6 +362,13 @@ export function AssistantPageClient({
           </div>
         </form>
       </div>
+
+      <ClearChatDialog
+        open={confirmingClear}
+        saveHistory={saveHistory}
+        onClose={() => setConfirmingClear(false)}
+        onCleared={handleChatCleared}
+      />
     </div>
   );
 }

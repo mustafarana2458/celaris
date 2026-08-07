@@ -36,3 +36,28 @@ export async function saveAiChatMessage(
   if (error) return { error: error.message };
   return {};
 }
+
+export async function clearAiChatHistory(): Promise<AiChatHistoryActionResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    return { error: "Not authenticated." };
+  }
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+  if (!workspace) {
+    return { error: "No workspace found for this account." };
+  }
+
+  const { error } = await supabase
+    .from("ai_chat_history")
+    .delete()
+    .eq("user_id", user.id)
+    .eq("workspace_id", workspace.id);
+
+  if (error) return { error: error.message };
+  return {};
+}
