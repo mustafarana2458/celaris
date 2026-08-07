@@ -33,8 +33,14 @@ export function WorkspaceSwitcher({
   function handleSwitch(id: string) {
     if (id === activeWorkspace?.id) return;
     startTransition(async () => {
+      // Full browser reload (not router.push/refresh) so every bit of
+      // React state, cached data, and context tied to the old workspace is
+      // wiped rather than risking stale data leaking into the new one. The
+      // DB-side active-workspace update (users.last_active_workspace_id,
+      // done inside switchWorkspace) must finish first or the reload could
+      // land back on the old workspace.
       const result = await switchWorkspace(id);
-      if (!result.error) router.refresh();
+      if (!result.error) window.location.href = "/dashboard";
     });
   }
 
