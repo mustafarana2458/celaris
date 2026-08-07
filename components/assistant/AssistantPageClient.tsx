@@ -1,10 +1,13 @@
 "use client";
 
-import { FormEvent, useRef, useState, type ReactNode } from "react";
+import { FormEvent, KeyboardEvent, useEffect, useRef, useState, type ReactNode } from "react";
+import { ArrowUp, FileText, ListChecks, Paperclip, Trash2, Users } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
 import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
 import type { CreateContactParams, CreateDealParams, CreateTaskParams } from "@/lib/assistantTools";
+
+const INPUT_MAX_HEIGHT = 200;
 
 type AnswerMessage = {
   id: string;
@@ -28,9 +31,9 @@ type ConfirmMessage = {
 type ChatMessage = AnswerMessage | ConfirmMessage;
 
 const EXAMPLE_QUESTIONS = [
-  "How many leads do I have?",
-  "List my overdue invoices",
-  "Create a task to call Ahmed tomorrow",
+  { question: "How many leads do I have?", icon: Users },
+  { question: "List my overdue invoices", icon: FileText },
+  { question: "Create a task to call Ahmed tomorrow", icon: ListChecks },
 ];
 
 function makeId() {
@@ -51,12 +54,27 @@ export function AssistantPageClient() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [saveHistory, setSaveHistory] = useState(true);
   const listEndRef = useRef<HTMLDivElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
 
-  function scrollToEnd() {
-    requestAnimationFrame(() => {
-      listEndRef.current?.scrollIntoView({ behavior: "smooth" });
-    });
+  // Every new message (sent or received) — as well as the "thinking" indicator
+  // appearing/disappearing — should bring the latest content into view.
+  useEffect(() => {
+    listEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  }, [messages, loading]);
+
+  // Auto-grow the textarea with content, capped at INPUT_MAX_HEIGHT (then it scrolls).
+  useEffect(() => {
+    const el = textareaRef.current;
+    if (!el) return;
+    el.style.height = "auto";
+    el.style.height = `${Math.min(el.scrollHeight, INPUT_MAX_HEIGHT)}px`;
+  }, [input]);
+
+  function handleClearChat() {
+    setMessages([]);
+    setError(null);
   }
 
   async function sendQuestion(question: string) {
@@ -95,8 +113,6 @@ export function AssistantPageClient() {
         },
       ]);
     }
-
-    scrollToEnd();
   }
 
   async function handleConfirm(message: ConfirmMessage) {
@@ -125,7 +141,6 @@ export function AssistantPageClient() {
       ),
       { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
     ]);
-    scrollToEnd();
   }
 
   function handleCancel(message: ConfirmMessage) {
@@ -141,13 +156,43 @@ export function AssistantPageClient() {
     sendQuestion(input);
   }
 
+  function handleKeyDown(e: KeyboardEvent<HTMLTextAreaElement>) {
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      sendQuestion(input);
+    }
+  }
+
   return (
     <div className="flex h-[calc(100vh-8rem)] flex-col gap-4">
-      <div>
-        <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">AI Business Assistant</h1>
-        <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-          Ask questions or ask it to create a contact, task, or deal for you.
-        </p>
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-start sm:justify-between">
+        <div>
+          <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">AI Assistant</h1>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Your intelligent copilot for managing contacts, deals, and daily tasks.
+          </p>
+        </div>
+        <div className="flex items-center gap-3">
+          <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
+            <span>Save Chat History</span>
+            <input
+              type="checkbox"
+              checked={saveHistory}
+              onChange={(e) => setSaveHistory(e.target.checked)}
+              className="h-5 w-9 shrink-0 appearance-none rounded-full bg-slate-300 outline-none transition-colors before:block before:h-4 before:w-4 before:translate-x-0.5 before:translate-y-0.5 before:rounded-full before:bg-white before:shadow before:transition-transform checked:bg-accent checked:before:translate-x-4 dark:bg-slate-600"
+            />
+          </label>
+          <button
+            type="button"
+            onClick={handleClearChat}
+            disabled={messages.length === 0}
+            aria-label="Clear chat"
+            title="Clear chat"
+            className="rounded-lg p-2 text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-600 disabled:cursor-not-allowed disabled:opacity-40 dark:text-slate-500 dark:hover:bg-slate-700 dark:hover:text-slate-300"
+          >
+            <Trash2 className="h-4 w-4" />
+          </button>
+        </div>
       </div>
 
       <div className="flex flex-1 flex-col overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -158,15 +203,16 @@ export function AssistantPageClient() {
                 Ask a question or give it something to do to get started.
               </p>
               <div className="flex flex-wrap justify-center gap-2">
-                {EXAMPLE_QUESTIONS.map((q) => (
+                {EXAMPLE_QUESTIONS.map(({ question, icon: Icon }) => (
                   <button
-                    key={q}
+                    key={question}
                     type="button"
-                    onClick={() => sendQuestion(q)}
+                    onClick={() => sendQuestion(question)}
                     disabled={loading}
-                    className="rounded-full border border-slate-200 bg-slate-50 px-3 py-1.5 text-xs font-medium text-slate-600 hover:bg-slate-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-700/40 dark:text-slate-300 dark:hover:bg-slate-700"
+                    className="flex items-center gap-2 rounded-full border border-slate-200 bg-white px-3.5 py-2 text-xs font-medium text-slate-600 shadow-sm transition-colors hover:bg-gray-100 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300 dark:hover:bg-slate-700"
                   >
-                    {q}
+                    <Icon className="h-3.5 w-3.5 shrink-0 text-slate-400 dark:text-slate-500" />
+                    {question}
                   </button>
                 ))}
               </div>
@@ -244,19 +290,42 @@ export function AssistantPageClient() {
           </div>
         )}
 
-        <form onSubmit={handleSubmit} className="flex items-center gap-3 border-t border-slate-200 p-4 dark:border-slate-700">
-          <input
-            type="text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder="Ask about your data, or ask it to create a contact, task, or deal..."
-            disabled={loading}
-            maxLength={500}
-            className="flex-1 rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100 dark:placeholder:text-slate-500"
-          />
-          <Button type="submit" loading={loading} disabled={!input.trim()}>
-            Send
-          </Button>
+        <form onSubmit={handleSubmit} className="border-t border-slate-200 p-4 dark:border-slate-700">
+          <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition-shadow focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 dark:border-slate-600 dark:bg-slate-800">
+            <button
+              type="button"
+              disabled
+              aria-label="Attach a file (coming soon)"
+              title="Attach a file — coming soon"
+              className="mb-1 shrink-0 rounded-lg p-1.5 text-slate-400 disabled:cursor-not-allowed disabled:opacity-50 dark:text-slate-500"
+            >
+              <Paperclip className="h-4 w-4" />
+            </button>
+            <textarea
+              ref={textareaRef}
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Ask about your data, or ask it to create a contact, task, or deal..."
+              disabled={loading}
+              maxLength={500}
+              rows={1}
+              className="max-h-[200px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500"
+            />
+            <button
+              type="submit"
+              disabled={loading || !input.trim()}
+              aria-label="Send message"
+              title="Send"
+              className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
+            >
+              {loading ? (
+                <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-white/40 border-t-white" />
+              ) : (
+                <ArrowUp className="h-4 w-4" />
+              )}
+            </button>
+          </div>
         </form>
       </div>
     </div>
