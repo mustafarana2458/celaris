@@ -222,7 +222,14 @@ export function InvoicesPageClient({
                       {invoice.contacts?.name || "—"}
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                      {currency.format(invoice.amount)}
+                      <div className="flex items-center gap-2">
+                        <span>{currency.format(invoice.amount)}</span>
+                        {invoice.discount > 0 && (
+                          <span className="rounded-full bg-gray-100 px-2 py-0.5 text-xs text-gray-500 dark:bg-slate-700 dark:text-slate-400">
+                            (-{currency.format(invoice.discount)})
+                          </span>
+                        )}
+                      </div>
                     </td>
                     <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
                       {currency.format(invoice.tax)}
