@@ -2,6 +2,7 @@ import { Resend } from "resend";
 import type { InvitationRole } from "@/lib/types";
 
 const FROM_ADDRESS = "Celaris <invites@celaris.cloud>";
+const SUPPORT_EMAIL = "support@celaris.cloud";
 const INVITE_EXPIRY_DAYS = 7;
 
 let resendClient: Resend | null = null;
@@ -77,6 +78,7 @@ function inviteEmailHtml({
             <tr>
               <td style="padding:20px 32px;border-top:1px solid #e2e8f0;">
                 <p style="margin:0;font-size:12px;color:#94a3b8;">If you weren&#39;t expecting this invite, you can safely ignore this email.</p>
+                <p style="margin:8px 0 0;font-size:12px;color:#94a3b8;">For further queries you can contact us at <a href="mailto:${SUPPORT_EMAIL}" style="color:#6366f1;">${SUPPORT_EMAIL}</a></p>
               </td>
             </tr>
           </table>
@@ -116,6 +118,7 @@ export async function sendInviteEmail(params: SendInviteEmailParams): Promise<Se
     const { error } = await client.emails.send({
       from: FROM_ADDRESS,
       to: params.to,
+      replyTo: SUPPORT_EMAIL,
       subject: `You're invited to join ${params.workspaceName} on Celaris`,
       html: inviteEmailHtml({
         workspaceName: params.workspaceName,
