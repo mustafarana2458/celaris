@@ -3,9 +3,10 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { sendInviteEmail } from "@/lib/email";
 import type { InvitationRole, WorkspacePermissions } from "@/lib/types";
 
-export type TeamInviteActionResult = { error?: string };
+export type TeamInviteActionResult = { error?: string; emailWarning?: string };
 export type AcceptInvitationResult = { error?: string; workspaceId?: string };
 
 const VALID_INVITE_ROLES: InvitationRole[] = ["admin", "member"];
@@ -60,16 +61,43 @@ export async function createInvitation(formData: FormData): Promise<TeamInviteAc
     return { error: "Enter a valid email address." };
   }
 
-  const { error } = await ctx.supabase.from("invitations").insert({
-    workspace_id: ctx.workspace.id,
-    email,
-    role,
-    invited_by: ctx.userId,
-  });
+  const { data: invitation, error } = await ctx.supabase
+    .from("invitations")
+    .insert({
+      workspace_id: ctx.workspace.id,
+      email,
+      role,
+      invited_by: ctx.userId,
+    })
+    .select("token")
+    .single();
 
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/team");
+
+  const { data: inviterProfile } = await ctx.supabase
+    .from("users")
+    .select("full_name")
+    .eq("id", ctx.userId)
+    .maybeSingle();
+
+  const emailResult = await sendInviteEmail({
+    to: email,
+    workspaceName: ctx.workspace.name,
+    inviterName: inviterProfile?.full_name || "A workspace admin",
+    role,
+    token: invitation.token,
+  });
+
+  if (emailResult.error) {
+    console.error("[createInvitation] invite email failed:", emailResult.error);
+    return {
+      emailWarning:
+        "Invite created, but the email couldn't be sent. Copy the link from Pending Invites and share it manually.",
+    };
+  }
+
   return {};
 }
 
@@ -80,16 +108,41 @@ export async function resendInvitation(id: string): Promise<TeamInviteActionResu
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;
 
-  const { error } = await ctx.supabase
+  const { data: invitation, error } = await ctx.supabase
     .from("invitations")
     .update({ expires_at: new Date(Date.now() + INVITE_EXPIRY_MS).toISOString() })
     .eq("id", id)
     .eq("workspace_id", ctx.workspace.id)
-    .eq("status", "pending");
+    .eq("status", "pending")
+    .select("token, email, role, invited_by")
+    .maybeSingle();
 
   if (error) return { error: error.message };
+  if (!invitation) return { error: "This invite is no longer pending." };
 
   revalidatePath("/dashboard/team");
+
+  const { data: inviterProfile } = await ctx.supabase
+    .from("users")
+    .select("full_name")
+    .eq("id", invitation.invited_by ?? ctx.userId)
+    .maybeSingle();
+
+  const emailResult = await sendInviteEmail({
+    to: invitation.email,
+    workspaceName: ctx.workspace.name,
+    inviterName: inviterProfile?.full_name || "A workspace admin",
+    role: invitation.role,
+    token: invitation.token,
+  });
+
+  if (emailResult.error) {
+    console.error("[resendInvitation] invite email failed:", emailResult.error);
+    return {
+      emailWarning: "Invite extended, but the email couldn't be resent. Copy the link and share it manually.",
+    };
+  }
+
   return {};
 }
 
