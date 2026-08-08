@@ -258,10 +258,12 @@ export type Task = {
   due_date: string | null;
   project_id: string | null;
   assigned_to: string | null;
+  assigned_to_member_id: string | null;
   created_at: string;
   projects?: { id: string; name: string } | null;
   subtasks?: Subtask[] | null;
   assignee?: { id: string; full_name: string } | null;
+  assignee_member?: { id: string; member_name: string; job_title: string | null } | null;
 };
 
 export type InvoiceStatus = "unpaid" | "paid" | "overdue";
@@ -369,6 +371,8 @@ export type TeamMember = {
   workspace_id: string;
   member_name: string;
   member_email: string | null;
+  job_title: string | null;
+  phone_number: string | null;
   role: TeamRole;
   created_at: string;
 };

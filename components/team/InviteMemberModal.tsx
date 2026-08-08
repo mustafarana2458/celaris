@@ -15,10 +15,12 @@ export function InviteMemberModal({
   open,
   onClose,
   onSaved,
+  initialEmail,
 }: {
   open: boolean;
   onClose: () => void;
   onSaved: () => void;
+  initialEmail?: string | null;
 }) {
   const [error, setError] = useState<string | null>(null);
   const [sent, setSent] = useState<{ email: string; warning?: string } | null>(null);
@@ -76,7 +78,14 @@ export function InviteMemberModal({
             </div>
           )}
 
-          <Input label="Email" name="email" type="email" placeholder="teammate@company.com" required />
+          <Input
+            label="Email"
+            name="email"
+            type="email"
+            placeholder="teammate@company.com"
+            defaultValue={initialEmail ?? ""}
+            required
+          />
 
           <div className="flex flex-col gap-1.5">
             <label htmlFor="role" className="text-sm font-medium text-slate-700 dark:text-slate-300">

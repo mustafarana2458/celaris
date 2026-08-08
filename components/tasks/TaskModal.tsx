@@ -7,11 +7,12 @@ import { Button } from "@/components/ui/Button";
 import { AssigneeCombobox } from "./AssigneeCombobox";
 import { RichTextEditor } from "./RichTextEditor";
 import { createTask, updateTask } from "@/lib/actions/tasks";
+import { assigneeKey, taskAssigneeKey } from "@/lib/assignee";
 import { TASK_PRIORITIES, TASK_STATUSES } from "./statuses";
-import type { Project, Task, WorkspaceTeamMember } from "@/lib/types";
+import type { Project, Task, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export type NewTaskPrefill = {
-  assignedToId?: string | null;
+  assignedToKey?: string | null;
   assignedToName?: string | null;
   startDate?: string;
   dueDate?: string;
@@ -23,6 +24,7 @@ export function TaskModal({
   task,
   projects,
   members,
+  directory,
   currentUserId,
   newTaskDefaultAssignee = "current-user",
   newTaskPrefill,
@@ -33,6 +35,7 @@ export function TaskModal({
   task: Task | null;
   projects: Pick<Project, "id" | "name">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
   // My Tasks defaults a brand-new task to the logged-in user; Team Board
   // (global, not "mine") leaves it unassigned unless picked manually.
@@ -50,15 +53,15 @@ export function TaskModal({
     () => members.find((m) => m.user_id === currentUserId) ?? null,
     [members, currentUserId]
   );
-  const defaultAssigneeId = task
-    ? task.assigned_to
+  const defaultAssigneeKey = task
+    ? taskAssigneeKey(task)
     : newTaskPrefill
-      ? (newTaskPrefill.assignedToId ?? null)
+      ? (newTaskPrefill.assignedToKey ?? null)
       : newTaskDefaultAssignee === "unassigned"
         ? null
-        : (currentUser?.user_id ?? currentUserId);
+        : assigneeKey("user", currentUser?.user_id ?? currentUserId);
   const defaultAssigneeName = task
-    ? task.assignee?.full_name ?? null
+    ? (task.assignee?.full_name ?? task.assignee_member?.member_name ?? null)
     : newTaskPrefill
       ? (newTaskPrefill.assignedToName ?? null)
       : newTaskDefaultAssignee === "unassigned"
@@ -116,7 +119,8 @@ export function TaskModal({
           </div>
           <AssigneeCombobox
             members={members}
-            defaultAssigneeId={defaultAssigneeId}
+            directory={directory}
+            defaultAssigneeKey={defaultAssigneeKey}
             defaultAssigneeName={defaultAssigneeName}
           />
         </div>

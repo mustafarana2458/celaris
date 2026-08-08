@@ -5,7 +5,6 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { createTeamMember, updateTeamMember } from "@/lib/actions/team";
-import { TEAM_ROLES } from "./roles";
 import type { TeamMember } from "@/lib/types";
 
 export function TeamMemberModal({
@@ -59,36 +58,32 @@ export function TeamMemberModal({
         />
 
         <Input
+          label="Title"
+          name="job_title"
+          placeholder="Freelance Designer, Contractor..."
+          defaultValue={member?.job_title ?? ""}
+        />
+
+        <Input
           label="Email"
           name="member_email"
           type="email"
           defaultValue={member?.member_email ?? ""}
         />
 
-        <div className="flex flex-col gap-1.5">
-          <label htmlFor="role" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-            Role
-          </label>
-          <select
-            id="role"
-            name="role"
-            defaultValue={member?.role ?? "member"}
-            className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-          >
-            {TEAM_ROLES.map((r) => (
-              <option key={r.value} value={r.value}>
-                {r.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <Input
+          label="Contact / Phone"
+          name="phone_number"
+          type="tel"
+          defaultValue={member?.phone_number ?? ""}
+        />
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
             Cancel
           </Button>
           <Button type="submit" loading={isPending}>
-            {isEdit ? "Save changes" : "Add team member"}
+            Save Profile
           </Button>
         </div>
       </form>

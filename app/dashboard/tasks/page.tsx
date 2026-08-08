@@ -3,7 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { TasksPageClient } from "@/components/tasks/TasksPageClient";
-import type { Project, Task, WorkspaceTeamMember } from "@/lib/types";
+import type { Project, Task, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+
+const TASKS_SELECT =
+  "*, projects(id, name), subtasks(*), assignee:users!assigned_to(id, full_name), assignee_member:team_members!assigned_to_member_id(id, member_name, job_title)";
 
 export default async function TasksPage() {
   const supabase = await createClient();
@@ -18,11 +21,11 @@ export default async function TasksPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "tasks");
 
-  const [{ data: tasks }, { data: projects }, { data: members }] = workspace
+  const [{ data: tasks }, { data: projects }, { data: members }, { data: directory }] = workspace
     ? await Promise.all([
         supabase
           .from("tasks")
-          .select("*, projects(id, name), subtasks(*), assignee:users!assigned_to(id, full_name)")
+          .select(TASKS_SELECT)
           .eq("workspace_id", workspace.id)
           .eq("assigned_to", user.id)
           .order("created_at", { ascending: false })
@@ -33,14 +36,25 @@ export default async function TasksPage() {
           .eq("workspace_id", workspace.id)
           .order("name", { ascending: true }),
         supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
+        supabase
+          .from("team_members")
+          .select("*")
+          .eq("workspace_id", workspace.id)
+          .order("member_name", { ascending: true }),
       ])
-    : [{ data: [] as Task[] }, { data: [] as Project[] }, { data: [] as WorkspaceTeamMember[] }];
+    : [
+        { data: [] as Task[] },
+        { data: [] as Project[] },
+        { data: [] as WorkspaceTeamMember[] },
+        { data: [] as TeamMember[] },
+      ];
 
   return (
     <TasksPageClient
       initialTasks={(tasks as Task[]) ?? []}
       projects={(projects as Pick<Project, "id" | "name">[]) ?? []}
       members={(members as WorkspaceTeamMember[]) ?? []}
+      directory={(directory as TeamMember[]) ?? []}
       currentUserId={user.id}
     />
   );

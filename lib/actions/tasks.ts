@@ -51,6 +51,7 @@ function taskFields(formData: FormData) {
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const projectId = String(formData.get("project_id") ?? "").trim();
   const assignedTo = String(formData.get("assigned_to") ?? "").trim();
+  const assignedToMemberId = String(formData.get("assigned_to_member_id") ?? "").trim();
 
   const status = (
     VALID_STATUSES.includes(statusRaw as TaskStatus) ? statusRaw : "todo"
@@ -67,7 +68,11 @@ function taskFields(formData: FormData) {
     start_date: startDate || null,
     due_date: dueDate || null,
     project_id: projectId || null,
+    // Mutually exclusive by construction (AssigneeCombobox only ever
+    // populates one of the two hidden inputs) -- re-enforced here too so a
+    // stray client value can't ever trip the DB's exclusivity check.
     assigned_to: assignedTo || null,
+    assigned_to_member_id: assignedTo ? null : assignedToMemberId || null,
   };
 }
 
@@ -140,7 +145,12 @@ export async function updateTaskStatus(
 
 export async function updateTaskSchedule(
   id: string,
-  next: { assignedTo: string | null; startDate: string; dueDate: string }
+  next: {
+    assignedTo: string | null;
+    assignedToMemberId: string | null;
+    startDate: string;
+    dueDate: string;
+  }
 ): Promise<TaskActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
@@ -149,6 +159,7 @@ export async function updateTaskSchedule(
     .from("tasks")
     .update({
       assigned_to: next.assignedTo,
+      assigned_to_member_id: next.assignedTo ? null : next.assignedToMemberId,
       start_date: next.startDate,
       due_date: next.dueDate,
     })

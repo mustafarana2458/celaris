@@ -2,30 +2,16 @@
 
 import { useState } from "react";
 import { useRouter } from "next/navigation";
+import { UserPlus, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
+import { RowActionsMenu, type RowAction } from "@/components/ui/RowActionsMenu";
 import { TeamMemberModal } from "./TeamMemberModal";
 import { DeleteTeamMemberDialog } from "./DeleteTeamMemberDialog";
 import { InviteMemberModal } from "./InviteMemberModal";
 import { WorkspaceMembersList } from "./WorkspaceMembersList";
 import { PendingInvitationsList } from "./PendingInvitationsList";
-import { TEAM_ROLES } from "./roles";
 import type { Invitation, TeamMember, WorkspaceRole, WorkspaceTeamMember } from "@/lib/types";
-
-const roleMap = Object.fromEntries(TEAM_ROLES.map((r) => [r.value, r]));
-
-function roleBadge(role: string) {
-  const r = roleMap[role];
-  return r ? (
-    <span className={`inline-flex items-center rounded-full px-2 py-0.5 text-xs font-medium capitalize ${r.badge}`}>
-      {r.label}
-    </span>
-  ) : (
-    <span className="inline-flex items-center rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-      {role}
-    </span>
-  );
-}
 
 export function TeamPageClient({
   workspaceMembers,
@@ -44,6 +30,7 @@ export function TeamPageClient({
   const canManage = currentUserRole === "owner" || currentUserRole === "admin";
 
   const [inviteOpen, setInviteOpen] = useState(false);
+  const [inviteInitialEmail, setInviteInitialEmail] = useState<string | null>(null);
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<TeamMember | null>(null);
   const [deleting, setDeleting] = useState<TeamMember | null>(null);
@@ -75,7 +62,13 @@ export function TeamPageClient({
 
   function handleInviteSaved() {
     setInviteOpen(false);
+    setInviteInitialEmail(null);
     router.refresh();
+  }
+
+  function openConvert(member: TeamMember) {
+    setInviteInitialEmail(member.member_email);
+    setInviteOpen(true);
   }
 
   return (
@@ -87,7 +80,16 @@ export function TeamPageClient({
             Manage who has access to this workspace and keep a directory of your team.
           </p>
         </div>
-        {canManage && <Button onClick={() => setInviteOpen(true)}>+ Invite member</Button>}
+        {canManage && (
+          <Button
+            onClick={() => {
+              setInviteInitialEmail(null);
+              setInviteOpen(true);
+            }}
+          >
+            + Invite member
+          </Button>
+        )}
       </div>
 
       <WorkspaceMembersList
@@ -126,39 +128,53 @@ export function TeamPageClient({
                 <thead className="border-b border-slate-200 bg-slate-50 text-xs uppercase tracking-wide text-slate-500 dark:border-slate-700 dark:bg-slate-800/60 dark:text-slate-400">
                   <tr>
                     <th className="px-5 py-3 font-medium">Name</th>
+                    <th className="px-5 py-3 font-medium">Title</th>
                     <th className="px-5 py-3 font-medium">Email</th>
-                    <th className="px-5 py-3 font-medium">Role</th>
+                    <th className="px-5 py-3 font-medium">Contact</th>
                     <th className="px-5 py-3 font-medium text-right">Actions</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-slate-100 dark:divide-slate-700">
-                  {initialTeamMembers.map((member) => (
-                    <tr key={member.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
-                      <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
-                        {member.member_name}
-                      </td>
-                      <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
-                        {member.member_email || "—"}
-                      </td>
-                      <td className="px-5 py-3">{roleBadge(member.role)}</td>
-                      <td className="px-5 py-3">
-                        <div className="flex justify-end gap-2">
-                          <button
-                            onClick={() => openEdit(member)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-accent-hover hover:bg-accent/10 dark:text-accent dark:hover:bg-accent/15"
-                          >
-                            Edit
-                          </button>
-                          <button
-                            onClick={() => setDeleting(member)}
-                            className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 dark:text-red-400 dark:hover:bg-red-950/40"
-                          >
-                            Delete
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                  {initialTeamMembers.map((member) => {
+                    const actions: RowAction[] = [
+                      {
+                        label: "Convert to Active Member",
+                        onClick: () => openConvert(member),
+                        icon: UserPlus,
+                      },
+                      { label: "Edit", onClick: () => openEdit(member), icon: Pencil },
+                      {
+                        label: "Delete",
+                        onClick: () => setDeleting(member),
+                        icon: Trash2,
+                        destructive: true,
+                      },
+                    ];
+                    return (
+                      <tr key={member.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">
+                        <td className="px-5 py-3 font-medium text-slate-900 dark:text-slate-100">
+                          {member.member_name}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                          {member.job_title || "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                          {member.member_email || "—"}
+                        </td>
+                        <td className="px-5 py-3 text-slate-600 dark:text-slate-300">
+                          {member.phone_number || "—"}
+                        </td>
+                        <td className="px-5 py-3">
+                          <div className="flex justify-end">
+                            <RowActionsMenu
+                              ariaLabel={`Actions for ${member.member_name}`}
+                              actions={actions}
+                            />
+                          </div>
+                        </td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -168,8 +184,12 @@ export function TeamPageClient({
 
       <InviteMemberModal
         open={inviteOpen}
-        onClose={() => setInviteOpen(false)}
+        onClose={() => {
+          setInviteOpen(false);
+          setInviteInitialEmail(null);
+        }}
         onSaved={handleInviteSaved}
+        initialEmail={inviteInitialEmail}
       />
 
       <TeamMemberModal

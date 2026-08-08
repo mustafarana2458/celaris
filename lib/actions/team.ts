@@ -3,11 +3,8 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import type { TeamRole } from "@/lib/types";
 
 export type TeamActionResult = { error?: string };
-
-const VALID_ROLES: TeamRole[] = ["owner", "admin", "member"];
 
 async function requireWorkspace() {
   const supabase = await createClient();
@@ -27,18 +24,20 @@ async function requireWorkspace() {
   return { supabase, workspace } as const;
 }
 
+// Ghost profiles (this table) have no role concept in the UI -- the DB
+// column defaults to 'member' and is left alone here, both on insert (just
+// omitted so the default applies) and on edit (never overwritten).
 function teamMemberFields(formData: FormData) {
   const memberName = String(formData.get("member_name") ?? "").trim();
   const memberEmail = String(formData.get("member_email") ?? "").trim();
-  const roleRaw = String(formData.get("role") ?? "member").trim();
-  const role = (
-    VALID_ROLES.includes(roleRaw as TeamRole) ? roleRaw : "member"
-  ) as TeamRole;
+  const jobTitle = String(formData.get("job_title") ?? "").trim();
+  const phoneNumber = String(formData.get("phone_number") ?? "").trim();
 
   return {
     member_name: memberName,
     member_email: memberEmail || null,
-    role,
+    job_title: jobTitle || null,
+    phone_number: phoneNumber || null,
   };
 }
 

@@ -9,17 +9,19 @@ import { TasksKanban } from "./TasksKanban";
 import { TasksTable } from "./TasksTable";
 import { AiBreakdownDrawer } from "./AiBreakdownDrawer";
 import { updateTaskStatus } from "@/lib/actions/tasks";
-import type { Project, Task, TaskStatus, TaskView, WorkspaceTeamMember } from "@/lib/types";
+import type { Project, Task, TaskStatus, TaskView, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export function TasksPageClient({
   initialTasks,
   projects,
   members,
+  directory,
   currentUserId,
 }: {
   initialTasks: Task[];
   projects: Pick<Project, "id" | "name">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -148,6 +150,7 @@ export function TasksPageClient({
         task={editing}
         projects={projects}
         members={members}
+        directory={directory}
         currentUserId={currentUserId}
         onSaved={handleSaved}
       />

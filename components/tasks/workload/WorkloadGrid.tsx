@@ -16,9 +16,10 @@ import { WorkloadBar } from "./WorkloadBar";
 import { addDays, diffDays, isSameDay, packLanes, parseDateOnly, toDateOnly } from "./dateUtils";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
+import { taskAssigneeKey } from "@/lib/assignee";
 import type { Task } from "@/lib/types";
 
-export type WorkloadRow = { id: string; label: string; unassigned?: boolean };
+export type WorkloadRow = { id: string; label: string; unassigned?: boolean; isExternal?: boolean };
 
 const ROW_LABEL_WIDTH = 200;
 const DAY_COLUMN_WIDTH = 96;
@@ -48,7 +49,7 @@ export function WorkloadGrid({
   onTaskClick: (task: Task) => void;
   onScheduleChange: (
     task: Task,
-    next: { assignedTo: string | null; startDate: string; dueDate: string }
+    next: { assigneeKey: string | null; startDate: string; dueDate: string }
   ) => void;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -83,16 +84,15 @@ export function WorkloadGrid({
 
     const newStart = targetDate;
     const newDue = addDays(targetDate, durationDays);
-    const newAssignee = targetRowId === "unassigned" ? null : targetRowId;
 
     const unchanged =
       toDateOnly(newStart) === (task.start_date ?? task.due_date) &&
       toDateOnly(newDue) === task.due_date &&
-      newAssignee === (task.assigned_to ?? null);
+      targetRowId === taskAssigneeKey(task);
     if (unchanged) return;
 
     onScheduleChange(task, {
-      assignedTo: newAssignee,
+      assigneeKey: targetRowId === "unassigned" ? null : targetRowId,
       startDate: toDateOnly(newStart),
       dueDate: toDateOnly(newDue),
     });
@@ -168,7 +168,12 @@ export function WorkloadGrid({
                     </span>
                   ) : (
                     <span
-                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(row.label).dot}`}
+                      title={row.isExternal ? `${row.label} (External)` : row.label}
+                      className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(row.label).dot} ${
+                        row.isExternal
+                          ? "ring-2 ring-dashed ring-offset-1 ring-slate-400 dark:ring-offset-slate-800 dark:ring-slate-500"
+                          : ""
+                      }`}
                     >
                       {getInitials(row.label)}
                     </span>

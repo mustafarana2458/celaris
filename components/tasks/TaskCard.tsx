@@ -8,6 +8,7 @@ import { TaskChecklist } from "./TaskChecklist";
 import { TASK_PRIORITIES } from "./statuses";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
+import { taskAssigneeDisplay } from "@/lib/assignee";
 import type { Task, TaskStatus } from "@/lib/types";
 
 const priorityMap = Object.fromEntries(TASK_PRIORITIES.map((p) => [p.value, p]));
@@ -43,6 +44,7 @@ export function TaskCard({
   onChecklistChanged: () => void;
 }) {
   const overdue = isOverdue(task.due_date, task.status);
+  const assignee = taskAssigneeDisplay(task);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
   });
@@ -104,12 +106,16 @@ export function TaskCard({
         >
           <span aria-hidden>✨</span>
         </button>
-        {task.assignee && (
+        {assignee && (
           <span
-            title={`Assigned to ${task.assignee.full_name}`}
-            className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(task.assignee.full_name).dot}`}
+            title={`Assigned to ${assignee.name}${assignee.isExternal ? " (External)" : ""}`}
+            className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(assignee.name).dot} ${
+              assignee.isExternal
+                ? "ring-2 ring-dashed ring-offset-1 ring-slate-400 dark:ring-offset-slate-800 dark:ring-slate-500"
+                : ""
+            }`}
           >
-            {getInitials(task.assignee.full_name)}
+            {getInitials(assignee.name)}
           </span>
         )}
       </div>

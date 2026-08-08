@@ -2,6 +2,7 @@ import { Pencil, Sparkles, Trash2 } from "lucide-react";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
+import { taskAssigneeDisplay } from "@/lib/assignee";
 import { TASK_PRIORITIES, TASK_STATUSES } from "./statuses";
 import type { Task } from "@/lib/types";
 
@@ -43,6 +44,7 @@ export function TasksTable({
           {tasks.map((task) => {
             const status = TASK_STATUSES.find((s) => s.value === task.status);
             const priority = TASK_PRIORITIES.find((p) => p.value === task.priority);
+            const assignee = taskAssigneeDisplay(task);
             return (
               <tr key={task.id} className="text-slate-700 dark:text-slate-300">
                 <td className="px-4 py-3 font-medium text-slate-900 dark:text-slate-100">{task.title}</td>
@@ -63,14 +65,23 @@ export function TasksTable({
                 </td>
                 <td className="px-4 py-3">{formatDate(task.due_date)}</td>
                 <td className="px-4 py-3">
-                  {task.assignee ? (
+                  {assignee ? (
                     <div className="flex items-center gap-2">
                       <span
-                        className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white ${tagColor(task.assignee.full_name).dot}`}
+                        className={`flex h-5 w-5 items-center justify-center rounded-full text-[9px] font-semibold text-white ${tagColor(assignee.name).dot} ${
+                          assignee.isExternal
+                            ? "ring-2 ring-dashed ring-offset-1 ring-slate-400 dark:ring-offset-slate-800 dark:ring-slate-500"
+                            : ""
+                        }`}
                       >
-                        {getInitials(task.assignee.full_name)}
+                        {getInitials(assignee.name)}
                       </span>
-                      {task.assignee.full_name}
+                      {assignee.name}
+                      {assignee.isExternal && (
+                        <span className="rounded-full bg-slate-100 px-1.5 py-0.5 text-[10px] font-medium uppercase tracking-wide text-slate-500 dark:bg-slate-700 dark:text-slate-400">
+                          External
+                        </span>
+                      )}
                     </div>
                   ) : (
                     "—"

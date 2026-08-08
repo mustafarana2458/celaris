@@ -10,7 +10,8 @@ import { tagColor } from "@/lib/tagColors";
 import { WorkloadGrid, type WorkloadRow } from "./WorkloadGrid";
 import { addDays, startOfWeek, toDateOnly } from "./dateUtils";
 import { updateTaskSchedule } from "@/lib/actions/tasks";
-import type { Project, Task, WorkspaceTeamMember } from "@/lib/types";
+import { buildAssigneeOptions, parseAssigneeKey, taskAssigneeDisplay, taskAssigneeKey } from "@/lib/assignee";
+import type { Project, Task, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 const WINDOW_DAYS = 21;
 
@@ -18,11 +19,13 @@ export function WorkloadPageClient({
   initialTasks,
   projects,
   members,
+  directory,
   currentUserId,
 }: {
   initialTasks: Task[];
   projects: Pick<Project, "id" | "name">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -45,17 +48,21 @@ export function WorkloadPageClient({
 
   const rows: WorkloadRow[] = useMemo(
     () => [
-      ...members.map((m) => ({ id: m.user_id, label: m.full_name ?? m.email ?? "Unnamed" })),
+      ...buildAssigneeOptions(members, directory).map((o) => ({
+        id: o.key,
+        label: o.name,
+        isExternal: o.kind === "directory",
+      })),
       { id: "unassigned", label: "Unassigned", unassigned: true },
     ],
-    [members]
+    [members, directory]
   );
 
   const tasksByRowId = useMemo(() => {
     const map = new Map<string, Task[]>();
     for (const row of rows) map.set(row.id, []);
     for (const task of tasks) {
-      const key = task.assigned_to ?? "unassigned";
+      const key = taskAssigneeKey(task);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(task);
     }
@@ -87,39 +94,63 @@ export function WorkloadPageClient({
     router.refresh();
   }
 
-  function resolveAssignee(id: string | null) {
-    if (!id) return null;
-    const member = members.find((m) => m.user_id === id);
-    return member ? { id: member.user_id, full_name: member.full_name ?? member.email ?? "Unnamed" } : null;
+  function resolveAssigneeFields(assigneeKey: string | null) {
+    const ref = parseAssigneeKey(assigneeKey);
+    if (!ref) return { assigned_to: null, assigned_to_member_id: null, assignee: null, assignee_member: null };
+
+    if (ref.kind === "user") {
+      const member = members.find((m) => m.user_id === ref.id);
+      return {
+        assigned_to: ref.id,
+        assigned_to_member_id: null,
+        assignee: member ? { id: member.user_id, full_name: member.full_name ?? member.email ?? "Unnamed" } : null,
+        assignee_member: null,
+      };
+    }
+
+    const dirMember = directory.find((d) => d.id === ref.id);
+    return {
+      assigned_to: null,
+      assigned_to_member_id: ref.id,
+      assignee: null,
+      assignee_member: dirMember ? { id: dirMember.id, member_name: dirMember.member_name, job_title: null } : null,
+    };
   }
 
   async function handleScheduleChange(
     task: Task,
-    next: { assignedTo: string | null; startDate: string; dueDate: string }
+    next: { assigneeKey: string | null; startDate: string; dueDate: string }
   ) {
     setScheduleError(null);
     const previous = {
       assigned_to: task.assigned_to,
+      assigned_to_member_id: task.assigned_to_member_id,
       start_date: task.start_date,
       due_date: task.due_date,
       assignee: task.assignee,
+      assignee_member: task.assignee_member,
     };
     setMovingId(task.id);
+    const patch = resolveAssigneeFields(next.assigneeKey);
     setTasks((prev) =>
       prev.map((t) =>
         t.id === task.id
           ? {
               ...t,
-              assigned_to: next.assignedTo,
               start_date: next.startDate,
               due_date: next.dueDate,
-              assignee: resolveAssignee(next.assignedTo),
+              ...patch,
             }
           : t
       )
     );
 
-    const result = await updateTaskSchedule(task.id, next);
+    const result = await updateTaskSchedule(task.id, {
+      assignedTo: patch.assigned_to,
+      assignedToMemberId: patch.assigned_to_member_id,
+      startDate: next.startDate,
+      dueDate: next.dueDate,
+    });
     setMovingId(null);
     if (result.error) {
       setTasks((prev) => prev.map((t) => (t.id === task.id ? { ...t, ...previous } : t)));
@@ -180,23 +211,30 @@ export function WorkloadPageClient({
             Unscheduled ({unscheduledTasks.length}) &middot; no due date, click to set one
           </p>
           <div className="flex flex-wrap gap-2">
-            {unscheduledTasks.map((task) => (
-              <button
-                key={task.id}
-                type="button"
-                onClick={() => openEdit(task)}
-                className="flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-accent/40 hover:bg-accent/5 dark:border-slate-600 dark:text-slate-300"
-              >
-                {task.assignee && (
-                  <span
-                    className={`flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white ${tagColor(task.assignee.full_name).dot}`}
-                  >
-                    {getInitials(task.assignee.full_name)}
-                  </span>
-                )}
-                {task.title}
-              </button>
-            ))}
+            {unscheduledTasks.map((task) => {
+              const assignee = taskAssigneeDisplay(task);
+              return (
+                <button
+                  key={task.id}
+                  type="button"
+                  onClick={() => openEdit(task)}
+                  className="flex items-center gap-1.5 rounded-full border border-slate-200 px-2.5 py-1 text-xs text-slate-600 hover:border-accent/40 hover:bg-accent/5 dark:border-slate-600 dark:text-slate-300"
+                >
+                  {assignee && (
+                    <span
+                      className={`flex h-4 w-4 items-center justify-center rounded-full text-[8px] font-semibold text-white ${tagColor(assignee.name).dot} ${
+                        assignee.isExternal
+                          ? "ring-1 ring-dashed ring-offset-1 ring-slate-400 dark:ring-offset-slate-800 dark:ring-slate-500"
+                          : ""
+                      }`}
+                    >
+                      {getInitials(assignee.name)}
+                    </span>
+                  )}
+                  {task.title}
+                </button>
+              );
+            })}
           </div>
         </div>
       )}
@@ -219,7 +257,7 @@ export function WorkloadPageClient({
           movingId={movingId}
           onCellClick={(row, date) =>
             openAdd({
-              assignedToId: row.unassigned ? null : row.id,
+              assignedToKey: row.unassigned ? null : row.id,
               assignedToName: row.unassigned ? null : row.label,
               startDate: toDateOnly(date),
               dueDate: toDateOnly(date),
@@ -236,6 +274,7 @@ export function WorkloadPageClient({
         task={editing}
         projects={projects}
         members={members}
+        directory={directory}
         currentUserId={currentUserId}
         newTaskPrefill={prefill}
         onSaved={handleSaved}

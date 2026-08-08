@@ -9,7 +9,8 @@ import { TasksKanban } from "../TasksKanban";
 import { AiBreakdownDrawer } from "../AiBreakdownDrawer";
 import { TeamBoardFilters, type TeamBoardFilterState } from "./TeamBoardFilters";
 import { updateTaskStatus } from "@/lib/actions/tasks";
-import type { Project, Task, TaskStatus, WorkspaceTeamMember } from "@/lib/types";
+import { taskAssigneeKey } from "@/lib/assignee";
+import type { Project, Task, TaskStatus, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 const EMPTY_FILTERS: TeamBoardFilterState = { assigneeIds: [], projectIds: [], priorities: [] };
 
@@ -17,11 +18,13 @@ export function TeamBoardPageClient({
   initialTasks,
   projects,
   members,
+  directory,
   currentUserId,
 }: {
   initialTasks: Task[];
   projects: Pick<Project, "id" | "name">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
 }) {
   const router = useRouter();
@@ -41,8 +44,7 @@ export function TeamBoardPageClient({
   const filteredTasks = useMemo(() => {
     return tasks.filter((task) => {
       if (filters.assigneeIds.length > 0) {
-        const assigneeKey = task.assigned_to ?? "unassigned";
-        if (!filters.assigneeIds.includes(assigneeKey)) return false;
+        if (!filters.assigneeIds.includes(taskAssigneeKey(task))) return false;
       }
       if (filters.projectIds.length > 0 && !filters.projectIds.includes(task.project_id ?? "")) {
         return false;
@@ -108,7 +110,13 @@ export function TeamBoardPageClient({
         <Button onClick={openAdd}>+ Add task</Button>
       </div>
 
-      <TeamBoardFilters members={members} projects={projects} filters={filters} onChange={setFilters} />
+      <TeamBoardFilters
+        members={members}
+        directory={directory}
+        projects={projects}
+        filters={filters}
+        onChange={setFilters}
+      />
 
       {statusError && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
@@ -155,6 +163,7 @@ export function TeamBoardPageClient({
         task={editing}
         projects={projects}
         members={members}
+        directory={directory}
         currentUserId={currentUserId}
         newTaskDefaultAssignee="unassigned"
         onSaved={handleSaved}

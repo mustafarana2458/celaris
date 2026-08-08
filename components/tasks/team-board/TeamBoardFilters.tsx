@@ -1,8 +1,9 @@
 "use client";
 
 import { MultiSelectFilter } from "./MultiSelectFilter";
+import { buildAssigneeOptions } from "@/lib/assignee";
 import { TASK_PRIORITIES } from "../statuses";
-import type { Project, WorkspaceTeamMember } from "@/lib/types";
+import type { Project, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export type TeamBoardFilterState = {
   assigneeIds: string[];
@@ -12,18 +13,23 @@ export type TeamBoardFilterState = {
 
 export function TeamBoardFilters({
   members,
+  directory,
   projects,
   filters,
   onChange,
 }: {
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   projects: Pick<Project, "id" | "name">[];
   filters: TeamBoardFilterState;
   onChange: (filters: TeamBoardFilterState) => void;
 }) {
   const assigneeOptions = [
     { id: "unassigned", label: "Unassigned" },
-    ...members.map((m) => ({ id: m.user_id, label: m.full_name ?? m.email ?? "Unnamed" })),
+    ...buildAssigneeOptions(members, directory).map((o) => ({
+      id: o.key,
+      label: o.kind === "directory" ? `${o.name} (External)` : o.name,
+    })),
   ];
   const projectOptions = projects.map((p) => ({ id: p.id, label: p.name }));
   const priorityOptions = TASK_PRIORITIES.map((p) => ({ id: p.value, label: p.label }));
