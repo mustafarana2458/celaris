@@ -8,6 +8,7 @@ import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
 import { DealAiSummaryPanel } from "./DealAiSummaryPanel";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
+import { resolveAssigneeDisplay } from "@/lib/assignee";
 import type { Deal } from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
@@ -41,11 +42,7 @@ export function DealCard({
   });
 
   const companyName = deal.companies?.name ?? deal.contacts?.companies?.name ?? deal.contacts?.company;
-  const owner = deal.owner
-    ? { name: deal.owner.full_name, isExternal: false }
-    : deal.owner_member
-      ? { name: deal.owner_member.member_name, isExternal: true }
-      : null;
+  const owner = resolveAssigneeDisplay(deal.owner, deal.owner_member);
 
   return (
     <div

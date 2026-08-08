@@ -48,6 +48,20 @@ export function taskAssigneeKey(task: {
   return combinedAssigneeKey(task.assigned_to, task.assigned_to_member_id);
 }
 
+// Generic version of the "which of the two joined rows is populated"
+// resolution -- any entity with a `users` join and a `team_members` join
+// (whatever their field names) can call this directly and get the same
+// name + "External" flag used consistently across Tasks, Deals, and
+// Department membership.
+export function resolveAssigneeDisplay(
+  userLike: { full_name: string } | null | undefined,
+  memberLike: { member_name: string } | null | undefined
+): { name: string; isExternal: boolean } | null {
+  if (userLike) return { name: userLike.full_name, isExternal: false };
+  if (memberLike) return { name: memberLike.member_name, isExternal: true };
+  return null;
+}
+
 // Resolves a task's assignee for display regardless of which of the two FK
 // columns is populated, and flags directory (ghost) assignees so callers can
 // render the "External" indicator consistently everywhere a task shows up.
@@ -55,9 +69,7 @@ export function taskAssigneeDisplay(task: {
   assignee?: { full_name: string } | null;
   assignee_member?: { member_name: string } | null;
 }): { name: string; isExternal: boolean } | null {
-  if (task.assignee) return { name: task.assignee.full_name, isExternal: false };
-  if (task.assignee_member) return { name: task.assignee_member.member_name, isExternal: true };
-  return null;
+  return resolveAssigneeDisplay(task.assignee, task.assignee_member);
 }
 
 // Combined, order-preserving assignee list for pickers: active workspace

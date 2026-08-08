@@ -417,3 +417,21 @@ export type Invitation = {
   expires_at: string;
   created_at: string;
 };
+
+export type Department = {
+  id: string;
+  workspace_id: string;
+  department_name: string;
+  created_at: string;
+};
+
+export type DepartmentMember = {
+  id: string;
+  department_id: string;
+  workspace_id: string;
+  user_id: string | null;
+  team_member_id: string | null;
+  created_at: string;
+  user?: { id: string; full_name: string } | null;
+  team_member?: { id: string; member_name: string; job_title: string | null } | null;
+};
