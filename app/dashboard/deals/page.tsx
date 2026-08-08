@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { DealsPageClient } from "@/components/deals/DealsPageClient";
-import type { Company, Contact, Deal, Pipeline, PipelineView, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Contact, Deal, Pipeline, PipelineView, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export default async function DealsPage() {
   const supabase = await createClient();
@@ -18,12 +18,12 @@ export default async function DealsPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "deals");
 
-  const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes, preferenceRes] = workspace
+  const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes, preferenceRes, directoryRes] = workspace
     ? await Promise.all([
         supabase
           .from("deals")
           .select(
-            "*, contacts(id, name, company, email, companies(name)), companies!company_id(id, name), owner:users!owner_id(id, full_name), pipelines!pipeline_id(id, name)"
+            "*, contacts(id, name, company, email, companies(name)), companies!company_id(id, name), owner:users!owner_id(id, full_name), owner_member:team_members!owner_member_id(id, member_name, job_title), pipelines!pipeline_id(id, name)"
           )
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
@@ -49,6 +49,11 @@ export default async function DealsPage() {
           .eq("user_id", user.id)
           .eq("workspace_id", workspace.id)
           .maybeSingle<{ default_pipeline_view: PipelineView }>(),
+        supabase
+          .from("team_members")
+          .select("*")
+          .eq("workspace_id", workspace.id)
+          .order("member_name", { ascending: true }),
       ])
     : [
         { data: [] as Deal[], error: null },
@@ -57,6 +62,7 @@ export default async function DealsPage() {
         { data: [] as Pipeline[], error: null },
         { data: [] as WorkspaceTeamMember[], error: null },
         { data: null as { default_pipeline_view: PipelineView } | null, error: null },
+        { data: [] as TeamMember[], error: null },
       ];
 
   // A failed embed/join here silently turns into an empty deals list with no
@@ -79,6 +85,7 @@ export default async function DealsPage() {
       companies={(companiesRes.data as Pick<Company, "id" | "name">[]) ?? []}
       initialPipelines={(pipelinesRes.data as Pipeline[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
+      directory={(directoryRes.data as TeamMember[]) ?? []}
       currentUserId={user.id}
       initialView={preferenceRes.data?.default_pipeline_view ?? "kanban"}
       loadError={loadError}

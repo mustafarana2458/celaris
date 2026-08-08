@@ -25,6 +25,18 @@ export function parseAssigneeKey(key: string | null | undefined): AssigneeRef {
   return { kind, id };
 }
 
+// Any entity storing assignment as two mutually-exclusive nullable FK
+// columns (a `users` FK and a `team_members` FK) turns that pair into one
+// combined key through this -- the generic version of the pattern below.
+export function combinedAssigneeKey(
+  userId: string | null | undefined,
+  memberId: string | null | undefined
+): string {
+  if (userId) return assigneeKey("user", userId);
+  if (memberId) return assigneeKey("directory", memberId);
+  return "unassigned";
+}
+
 // Task assignment is stored as two mutually-exclusive nullable FK columns
 // (assigned_to -> users, assigned_to_member_id -> team_members) -- this is
 // the single place that turns that pair into one combined key, used for
@@ -33,9 +45,7 @@ export function taskAssigneeKey(task: {
   assigned_to: string | null;
   assigned_to_member_id?: string | null;
 }): string {
-  if (task.assigned_to) return assigneeKey("user", task.assigned_to);
-  if (task.assigned_to_member_id) return assigneeKey("directory", task.assigned_to_member_id);
-  return "unassigned";
+  return combinedAssigneeKey(task.assigned_to, task.assigned_to_member_id);
 }
 
 // Resolves a task's assignee for display regardless of which of the two FK

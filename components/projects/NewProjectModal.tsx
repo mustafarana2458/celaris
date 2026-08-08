@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ProjectFormFields } from "./ProjectFormFields";
 import { createProject } from "@/lib/actions/projects";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
-import type { Company, Deal, ProjectTemplateRecord, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, ProjectTemplateRecord, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export function NewProjectModal({
   open,
@@ -15,6 +15,7 @@ export function NewProjectModal({
   companies,
   deals,
   members,
+  directory,
   dbTemplates,
 }: {
   open: boolean;
@@ -23,6 +24,7 @@ export function NewProjectModal({
   companies: Pick<Company, "id" | "name">[];
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   dbTemplates: ProjectTemplateRecord[];
 }) {
   const [error, setError] = useState<string | null>(null);
@@ -108,7 +110,13 @@ export function NewProjectModal({
           </div>
         </div>
 
-        <ProjectFormFields project={null} companies={companies} deals={deals} members={members} />
+        <ProjectFormFields
+          project={null}
+          companies={companies}
+          deals={deals}
+          members={members}
+          directory={directory}
+        />
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>

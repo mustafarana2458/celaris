@@ -7,8 +7,9 @@ import { Button } from "@/components/ui/Button";
 import { CompanyCombobox } from "@/components/contacts/CompanyCombobox";
 import { ContactCombobox } from "./ContactCombobox";
 import { createDeal, updateDeal } from "@/lib/actions/deals";
+import { buildAssigneeOptions, combinedAssigneeKey } from "@/lib/assignee";
 import { STAGES } from "./stages";
-import type { Company, Contact, Deal, Pipeline, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Contact, Deal, Pipeline, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export function DealModal({
   open,
@@ -18,6 +19,7 @@ export function DealModal({
   companies,
   pipelines,
   members,
+  directory,
   currentUserId,
   defaultPipelineId,
   onSaved,
@@ -29,6 +31,7 @@ export function DealModal({
   companies: Pick<Company, "id" | "name">[];
   pipelines: Pipeline[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
   defaultPipelineId: string | null;
   onSaved: () => void;
@@ -118,19 +121,23 @@ export function DealModal({
         </div>
 
         <div className="flex flex-col gap-1.5">
-          <label htmlFor="owner_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+          <label htmlFor="owner_assignee" className="text-sm font-medium text-slate-700 dark:text-slate-300">
             Deal Owner
           </label>
           <select
-            id="owner_id"
-            name="owner_id"
-            defaultValue={deal ? deal.owner_id ?? "" : currentUserId}
+            id="owner_assignee"
+            name="owner_assignee"
+            defaultValue={
+              deal
+                ? combinedAssigneeKey(deal.owner_id, deal.owner_member_id)
+                : combinedAssigneeKey(currentUserId, null)
+            }
             className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
           >
-            <option value="">Unassigned</option>
-            {members.map((m) => (
-              <option key={m.user_id} value={m.user_id}>
-                {m.full_name ?? m.email ?? "Unnamed"}
+            <option value="unassigned">Unassigned</option>
+            {buildAssigneeOptions(members, directory).map((o) => (
+              <option key={o.key} value={o.key}>
+                {o.kind === "directory" ? `${o.name} (External)` : o.name}
               </option>
             ))}
           </select>

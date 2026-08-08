@@ -41,6 +41,11 @@ export function DealCard({
   });
 
   const companyName = deal.companies?.name ?? deal.contacts?.companies?.name ?? deal.contacts?.company;
+  const owner = deal.owner
+    ? { name: deal.owner.full_name, isExternal: false }
+    : deal.owner_member
+      ? { name: deal.owner_member.member_name, isExternal: true }
+      : null;
 
   return (
     <div
@@ -59,12 +64,16 @@ export function DealCard({
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{deal.title}</p>
           <div className="flex shrink-0 items-center gap-1.5">
-            {deal.owner && (
+            {owner && (
               <span
-                title={`Owner: ${deal.owner.full_name}`}
-                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(deal.owner.full_name).dot}`}
+                title={`Owner: ${owner.name}${owner.isExternal ? " (External)" : ""}`}
+                className={`flex h-6 w-6 items-center justify-center rounded-full text-[10px] font-semibold text-white ${tagColor(owner.name).dot} ${
+                  owner.isExternal
+                    ? "ring-2 ring-dashed ring-offset-1 ring-slate-400 dark:ring-offset-slate-800 dark:ring-slate-500"
+                    : ""
+                }`}
               >
-                {getInitials(deal.owner.full_name)}
+                {getInitials(owner.name)}
               </span>
             )}
           </div>

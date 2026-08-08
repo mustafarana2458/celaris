@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { getProjectTemplate } from "@/lib/projectTemplates";
+import { parseAssigneeKey } from "@/lib/assignee";
 import type { ProjectHealth, ProjectStatus, ProjectTemplateStructure, TaskPriority } from "@/lib/types";
 import type { SupabaseClient } from "@supabase/supabase-js";
 
@@ -76,7 +77,7 @@ function projectFields(formData: FormData) {
   // hidden input (it emits `company_id`), not the `client_id` DB column.
   const clientId = String(formData.get("company_id") ?? "").trim();
   const dealId = String(formData.get("deal_id") ?? "").trim();
-  const leadId = String(formData.get("lead_id") ?? "").trim();
+  const leadRef = parseAssigneeKey(String(formData.get("lead_assignee") ?? "").trim() || null);
   const startDate = String(formData.get("start_date") ?? "").trim();
   const dueDate = String(formData.get("due_date") ?? "").trim();
   const budgetRaw = String(formData.get("budget") ?? "").trim();
@@ -92,7 +93,10 @@ function projectFields(formData: FormData) {
     status,
     client_id: clientId || null,
     deal_id: dealId || null,
-    lead_id: leadId || null,
+    // parseAssigneeKey() already re-derives this server-side from the
+    // combined key -- never trust which of the two a client claims.
+    lead_id: leadRef?.kind === "user" ? leadRef.id : null,
+    lead_member_id: leadRef?.kind === "directory" ? leadRef.id : null,
     start_date: startDate || null,
     due_date: dueDate || null,
     budget,

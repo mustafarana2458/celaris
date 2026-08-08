@@ -13,7 +13,16 @@ import { DealsTabs } from "./DealsTabs";
 import { AiSummarySheet } from "./AiSummarySheet";
 import { updateDealStage } from "@/lib/actions/deals";
 import { setPipelineView } from "@/lib/actions/userPreferences";
-import type { Company, Contact, Deal, DealStage, Pipeline, PipelineView, WorkspaceTeamMember } from "@/lib/types";
+import type {
+  Company,
+  Contact,
+  Deal,
+  DealStage,
+  Pipeline,
+  PipelineView,
+  TeamMember,
+  WorkspaceTeamMember,
+} from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -31,6 +40,7 @@ export function DealsPageClient({
   companies,
   initialPipelines,
   members,
+  directory,
   currentUserId,
   initialView,
   loadError,
@@ -40,6 +50,7 @@ export function DealsPageClient({
   companies: Pick<Company, "id" | "name">[];
   initialPipelines: Pipeline[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
   currentUserId: string;
   initialView: PipelineView;
   loadError?: string | null;
@@ -228,6 +239,7 @@ export function DealsPageClient({
         companies={companies}
         pipelines={pipelines}
         members={members}
+        directory={directory}
         currentUserId={currentUserId}
         defaultPipelineId={selectedPipelineId}
         onSaved={handleSaved}

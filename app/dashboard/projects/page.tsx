@@ -3,7 +3,10 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { ProjectsPageClient } from "@/components/projects/ProjectsPageClient";
-import type { Company, Deal, Project, ProjectTemplateRecord, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, Project, ProjectTemplateRecord, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+
+const PROJECTS_SELECT =
+  "*, companies!client_id(id, name, logo_url), deals!deal_id(id, title), lead:users!lead_id(id, full_name), lead_member:team_members!lead_member_id(id, member_name, job_title), milestones(id, is_done), tasks(id, status)";
 
 export default async function ProjectsPage() {
   const supabase = await createClient();
@@ -18,13 +21,11 @@ export default async function ProjectsPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "projects");
 
-  const [projectsRes, companiesRes, dealsRes, membersRes, templatesRes] = workspace
+  const [projectsRes, companiesRes, dealsRes, membersRes, templatesRes, directoryRes] = workspace
     ? await Promise.all([
         supabase
           .from("projects")
-          .select(
-            "*, companies!client_id(id, name, logo_url), deals!deal_id(id, title), lead:users!lead_id(id, full_name), milestones(id, is_done), tasks(id, status)"
-          )
+          .select(PROJECTS_SELECT)
           .eq("workspace_id", workspace.id)
           .order("created_at", { ascending: false }),
         supabase
@@ -43,6 +44,11 @@ export default async function ProjectsPage() {
           .select("id, workspace_id, name, description, estimated_duration_days, structure, created_by, created_at, updated_at")
           .eq("workspace_id", workspace.id)
           .order("name", { ascending: true }),
+        supabase
+          .from("team_members")
+          .select("*")
+          .eq("workspace_id", workspace.id)
+          .order("member_name", { ascending: true }),
       ])
     : [
         { data: [] as Project[], error: null },
@@ -50,6 +56,7 @@ export default async function ProjectsPage() {
         { data: [] as Deal[], error: null },
         { data: [] as WorkspaceTeamMember[], error: null },
         { data: [] as ProjectTemplateRecord[], error: null },
+        { data: [] as TeamMember[], error: null },
       ];
 
   const loadError = projectsRes.error?.message ?? null;
@@ -63,6 +70,7 @@ export default async function ProjectsPage() {
       companies={(companiesRes.data as Pick<Company, "id" | "name">[]) ?? []}
       deals={(dealsRes.data as Pick<Deal, "id" | "title">[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
+      directory={(directoryRes.data as TeamMember[]) ?? []}
       dbTemplates={(templatesRes.data as ProjectTemplateRecord[]) ?? []}
       loadError={loadError}
     />

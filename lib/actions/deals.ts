@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { parseAssigneeKey } from "@/lib/assignee";
 import type { DealStage } from "@/lib/types";
 
 export type DealActionResult = { error?: string };
@@ -32,7 +33,7 @@ function dealFields(formData: FormData) {
   const contactId = String(formData.get("contact_id") ?? "").trim();
   const companyId = String(formData.get("company_id") ?? "").trim();
   const pipelineId = String(formData.get("pipeline_id") ?? "").trim();
-  const ownerId = String(formData.get("owner_id") ?? "").trim();
+  const ownerRef = parseAssigneeKey(String(formData.get("owner_assignee") ?? "").trim() || null);
   const valueRaw = String(formData.get("value") ?? "").trim();
   const winProbabilityRaw = String(formData.get("win_probability") ?? "").trim();
   const stageRaw = String(formData.get("stage") ?? "new").trim();
@@ -51,7 +52,10 @@ function dealFields(formData: FormData) {
     contact_id: contactId || null,
     company_id: companyId || null,
     pipeline_id: pipelineId || null,
-    owner_id: ownerId || null,
+    // parseAssigneeKey() already re-derives this server-side from the
+    // combined key -- never trust which of the two a client claims.
+    owner_id: ownerRef?.kind === "user" ? ownerRef.id : null,
+    owner_member_id: ownerRef?.kind === "directory" ? ownerRef.id : null,
     value: value !== null && !Number.isNaN(value) ? value : null,
     win_probability: winProbability,
     stage,

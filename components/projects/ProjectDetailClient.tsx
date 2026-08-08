@@ -11,7 +11,7 @@ import { MilestoneChecklist } from "./MilestoneChecklist";
 import { PROJECT_STATUSES } from "./statuses";
 import { TASK_PRIORITIES } from "@/components/tasks/statuses";
 import { getProjectProgress } from "@/lib/projectProgress";
-import type { Company, Deal, Project, TaskStatus, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Deal, Project, TaskStatus, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 const statusMap = Object.fromEntries(PROJECT_STATUSES.map((s) => [s.value, s]));
 const priorityMap = Object.fromEntries(TASK_PRIORITIES.map((p) => [p.value, p]));
@@ -45,11 +45,13 @@ export function ProjectDetailClient({
   companies,
   deals,
   members,
+  directory,
 }: {
   project: Project;
   companies: Pick<Company, "id" | "name">[];
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
 }) {
   const router = useRouter();
   const [editOpen, setEditOpen] = useState(false);
@@ -184,6 +186,7 @@ export function ProjectDetailClient({
         companies={companies}
         deals={deals}
         members={members}
+        directory={directory}
       />
 
       <DeleteProjectDialog

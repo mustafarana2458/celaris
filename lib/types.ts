@@ -143,6 +143,7 @@ export type Deal = {
   company_id: string | null;
   pipeline_id: string | null;
   owner_id: string | null;
+  owner_member_id: string | null;
   value: number | null;
   win_probability: number | null;
   stage: DealStage;
@@ -161,6 +162,7 @@ export type Deal = {
   companies?: { id: string; name: string } | null;
   pipelines?: { id: string; name: string } | null;
   owner?: { id: string; full_name: string } | null;
+  owner_member?: { id: string; member_name: string; job_title: string | null } | null;
 };
 
 export type ProjectStatus = "active" | "on_hold" | "completed";
@@ -213,6 +215,7 @@ export type Project = {
   client_id: string | null;
   deal_id: string | null;
   lead_id: string | null;
+  lead_member_id: string | null;
   start_date: string | null;
   due_date: string | null;
   budget: number | null;
@@ -221,6 +224,7 @@ export type Project = {
   companies?: { id: string; name: string; logo_url: string | null } | null;
   deals?: { id: string; title: string } | null;
   lead?: { id: string; full_name: string } | null;
+  lead_member?: { id: string; member_name: string; job_title: string | null } | null;
   milestones?: Milestone[] | null;
   tasks?:
     | {

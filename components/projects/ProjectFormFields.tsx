@@ -4,7 +4,8 @@ import { CompanyCombobox } from "@/components/contacts/CompanyCombobox";
 import { DealCombobox } from "./DealCombobox";
 import { PROJECT_STATUSES } from "./statuses";
 import { PROJECT_HEALTHS } from "./healths";
-import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
+import { buildAssigneeOptions, combinedAssigneeKey } from "@/lib/assignee";
+import type { Company, Deal, Project, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 const selectClass =
   "rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100";
@@ -16,11 +17,13 @@ export function ProjectFormFields({
   companies,
   deals,
   members,
+  directory,
 }: {
   project: Project | null;
   companies: Pick<Company, "id" | "name">[];
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
+  directory: Pick<TeamMember, "id" | "member_name">[];
 }) {
   return (
     <>
@@ -56,14 +59,19 @@ export function ProjectFormFields({
       />
 
       <div className="flex flex-col gap-1.5">
-        <label htmlFor="lead_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+        <label htmlFor="lead_assignee" className="text-sm font-medium text-slate-700 dark:text-slate-300">
           Lead / Project Manager
         </label>
-        <select id="lead_id" name="lead_id" defaultValue={project?.lead_id ?? ""} className={selectClass}>
-          <option value="">Unassigned</option>
-          {members.map((m) => (
-            <option key={m.user_id} value={m.user_id}>
-              {m.full_name ?? m.email ?? "Unnamed"}
+        <select
+          id="lead_assignee"
+          name="lead_assignee"
+          defaultValue={combinedAssigneeKey(project?.lead_id, project?.lead_member_id)}
+          className={selectClass}
+        >
+          <option value="unassigned">Unassigned</option>
+          {buildAssigneeOptions(members, directory).map((o) => (
+            <option key={o.key} value={o.key}>
+              {o.kind === "directory" ? `${o.name} (External)` : o.name}
             </option>
           ))}
         </select>
