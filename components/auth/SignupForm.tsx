@@ -9,7 +9,9 @@ import { Input } from "@/components/ui/Input";
 import { completeSignupProvisioning } from "@/lib/actions/auth";
 import { clearInactivityState, writeLastActivity } from "@/lib/inactivity";
 
-export function SignupForm() {
+export type SignupInvite = { token: string; email: string; workspaceName: string };
+
+export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
   const [captchaToken, setCaptchaToken] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
@@ -34,8 +36,13 @@ export function SignupForm() {
 
     const formData = new FormData(e.currentTarget);
     const fullName = formData.get("fullName") as string;
-    const businessName = formData.get("businessName") as string;
-    const email = formData.get("email") as string;
+    const businessName = invite ? "" : (formData.get("businessName") as string);
+    // Locked to the invite's email when present -- the field is disabled so
+    // it isn't even in formData, but resolving it from `invite` here rather
+    // than trusting anything client-controllable is the more defensive path.
+    // The real enforcement is server-side: acceptInvitation() re-checks this
+    // exact email against the invite before joining the workspace.
+    const email = invite ? invite.email : (formData.get("email") as string);
     const password = formData.get("password") as string;
 
     const { data, error } = await supabase.auth.signUp({
@@ -65,7 +72,7 @@ export function SignupForm() {
       return;
     }
 
-    const result = await completeSignupProvisioning(fullName, businessName);
+    const result = await completeSignupProvisioning(fullName, businessName, invite?.token ?? null);
     setLoading(false);
 
     if (result.error) {
@@ -103,13 +110,15 @@ export function SignupForm() {
         required
       />
 
-      <Input
-        id="businessName"
-        name="businessName"
-        type="text"
-        label="Business name (optional)"
-        placeholder="Celaris Inc"
-      />
+      {!invite && (
+        <Input
+          id="businessName"
+          name="businessName"
+          type="text"
+          label="Business name (optional)"
+          placeholder="Celaris Inc"
+        />
+      )}
 
       <Input
         id="email"
@@ -117,6 +126,8 @@ export function SignupForm() {
         type="email"
         label="Email"
         placeholder="bilal@celaris.cloud"
+        defaultValue={invite?.email}
+        disabled={!!invite}
         required
       />
 

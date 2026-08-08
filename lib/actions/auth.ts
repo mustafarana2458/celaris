@@ -5,6 +5,7 @@ import { redirect } from "next/navigation";
 import { cookies } from "next/headers";
 import { createClient } from "@/lib/supabase/server";
 import { FRESH_LOGIN_COOKIE } from "@/lib/inactivity";
+import { acceptInvitation } from "@/lib/actions/team-invites";
 
 export type AuthActionResult = {
   error?: string;
@@ -32,15 +33,18 @@ function workspaceNameFor(fullName: string, businessName: string) {
 
 // Shared by the form-based signUp action below and by
 // completeSignupProvisioning (called from the client-side signup form, which
-// talks to Supabase auth directly for hCaptcha). Creates the profile row, a
-// first workspace (falling back to "[First Name]'s Workspace" when no
-// business name was given), and the owner membership -- safe to call more
-// than once for the same user (unique-violation on re-insert is ignored).
+// talks to Supabase auth directly for hCaptcha). Creates the profile row,
+// then either joins an invited workspace (when a valid invite token is
+// passed) or creates a first workspace (falling back to "[First Name]'s
+// Workspace" when no business name was given) with this user as owner --
+// safe to call more than once for the same user (unique-violation on
+// re-insert is ignored).
 async function provisionUserAndWorkspace(
   supabase: Awaited<ReturnType<typeof createClient>>,
   user: User,
   fullName: string,
-  businessName: string
+  businessName: string,
+  inviteToken?: string | null
 ): Promise<AuthActionResult> {
   const { error: profileError } = await supabase.from("users").insert({
     id: user.id,
@@ -61,6 +65,24 @@ async function provisionUserAndWorkspace(
     .maybeSingle();
   if (existingMembership) {
     return {};
+  }
+
+  if (inviteToken) {
+    // acceptInvitation() re-verifies the token server-side (pending, not
+    // expired, and -- crucially -- that this user's actual auth email
+    // matches the invite's email) before inserting the workspace_members
+    // row, so a tampered/locked email field on the client can't bypass it.
+    const inviteResult = await acceptInvitation(inviteToken);
+    if (!inviteResult.error) {
+      return {};
+    }
+    // Invite couldn't be honored (expired between page load and submit,
+    // email mismatch, already used, etc.) -- fall through to normal
+    // provisioning rather than leaving the account with zero workspaces.
+    console.error(
+      "[provisionUserAndWorkspace] invite accept failed, falling back to a new workspace:",
+      inviteResult.error
+    );
   }
 
   const { data: workspace, error: workspaceError } = await supabase
@@ -94,7 +116,8 @@ async function provisionUserAndWorkspace(
 // come from the client.
 export async function completeSignupProvisioning(
   fullName: string,
-  businessName: string
+  businessName: string,
+  inviteToken?: string | null
 ): Promise<AuthActionResult> {
   const supabase = await createClient();
   const {
@@ -105,7 +128,7 @@ export async function completeSignupProvisioning(
     return { error: "Not authenticated." };
   }
 
-  return provisionUserAndWorkspace(supabase, user, fullName, businessName);
+  return provisionUserAndWorkspace(supabase, user, fullName, businessName, inviteToken);
 }
 
 export async function signUp(formData: FormData): Promise<AuthActionResult> {
@@ -113,6 +136,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
   const password = String(formData.get("password") ?? "");
   const fullName = String(formData.get("fullName") ?? "").trim();
   const businessName = String(formData.get("businessName") ?? "").trim();
+  const inviteToken = String(formData.get("token") ?? "").trim() || null;
 
   if (!email || !password || !fullName) {
     return { error: "Please fill in all fields." };
@@ -136,7 +160,7 @@ export async function signUp(formData: FormData): Promise<AuthActionResult> {
   }
 
   if (data.user) {
-    const result = await provisionUserAndWorkspace(supabase, data.user, fullName, businessName);
+    const result = await provisionUserAndWorkspace(supabase, data.user, fullName, businessName, inviteToken);
     if (result.error) return result;
   }
 

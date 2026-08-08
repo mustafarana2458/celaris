@@ -70,18 +70,18 @@ export default async function InvitePage({
         ) : (
           <div className="mt-6 flex flex-col gap-3">
             <p className="text-xs text-slate-400">
-              Sign in or create an account with {invitation.email}, then come back to this link to
-              accept.
+              Sign up with {invitation.email} to join automatically, or log in with an existing
+              account and come back to this link to accept.
             </p>
             <div className="flex gap-2">
               <Link
-                href="/login"
+                href={`/login?token=${encodeURIComponent(params.token)}`}
                 className="flex-1 rounded-lg border border-slate-200 px-4 py-2.5 text-sm font-medium text-slate-700 hover:bg-slate-50"
               >
                 Log in
               </Link>
               <Link
-                href="/signup"
+                href={`/signup?token=${encodeURIComponent(params.token)}`}
                 className="flex-1 rounded-lg bg-accent px-4 py-2.5 text-sm font-medium text-white hover:bg-accent-hover"
               >
                 Sign up
