@@ -3,7 +3,10 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { updateMemberRole, removeMember } from "@/lib/actions/team-invites";
+import { RowActionsMenu, type RowAction } from "@/components/ui/RowActionsMenu";
 import { WORKSPACE_ROLES } from "./workspaceRoles";
+import { TransferOwnershipDialog } from "./TransferOwnershipDialog";
+import { EditPermissionsDrawer } from "./EditPermissionsDrawer";
 import type { WorkspaceRole, WorkspaceTeamMember } from "@/lib/types";
 
 const roleMap = Object.fromEntries(WORKSPACE_ROLES.map((r) => [r.value, r]));
@@ -20,18 +23,34 @@ function formatDate(value: string | null) {
 export function WorkspaceMembersList({
   members,
   currentUserId,
+  currentUserRole,
   canManage,
 }: {
   members: WorkspaceTeamMember[];
   currentUserId: string;
+  currentUserRole: WorkspaceRole;
   canManage: boolean;
 }) {
   const router = useRouter();
   const [rows, setRows] = useState(members);
   const [busyId, setBusyId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [transferTarget, setTransferTarget] = useState<WorkspaceTeamMember | null>(null);
+  const [permissionsTarget, setPermissionsTarget] = useState<WorkspaceTeamMember | null>(null);
+
+  const isOwnerViewer = currentUserRole === "owner";
+  const roleOptions = isOwnerViewer ? WORKSPACE_ROLES : WORKSPACE_ROLES.filter((r) => r.value !== "owner");
 
   useEffect(() => setRows(members), [members]);
+
+  function handleRoleSelect(member: WorkspaceTeamMember, role: WorkspaceRole) {
+    if (role === member.role) return;
+    if (role === "owner") {
+      setTransferTarget(member);
+      return;
+    }
+    handleRoleChange(member, role);
+  }
 
   async function handleRoleChange(member: WorkspaceTeamMember, role: WorkspaceRole) {
     if (role === member.role) return;
@@ -110,10 +129,10 @@ export function WorkspaceMembersList({
                         <select
                           value={m.role}
                           disabled={busyId === m.user_id}
-                          onChange={(e) => handleRoleChange(m, e.target.value as WorkspaceRole)}
+                          onChange={(e) => handleRoleSelect(m, e.target.value as WorkspaceRole)}
                           className="rounded-lg border border-slate-200 px-2 py-1 text-xs text-slate-600 outline-none focus:border-accent disabled:opacity-60 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-300"
                         >
-                          {WORKSPACE_ROLES.map((r) => (
+                          {roleOptions.map((r) => (
                             <option key={r.value} value={r.value}>
                               {r.label}
                             </option>
@@ -132,17 +151,34 @@ export function WorkspaceMembersList({
                     </td>
                     {canManage && (
                       <td className="px-5 py-3">
-                        {canEditThisRow && (
-                          <div className="flex justify-end">
-                            <button
-                              onClick={() => handleRemove(m)}
-                              disabled={busyId === m.user_id}
-                              className="rounded-lg px-2 py-1 text-xs font-medium text-red-600 hover:bg-red-50 disabled:opacity-60 dark:text-red-400 dark:hover:bg-red-950/40"
-                            >
-                              Remove
-                            </button>
-                          </div>
-                        )}
+                        {(() => {
+                          const canEditPermissions = isOwnerViewer && !isSelf;
+                          if (!canEditThisRow && !canEditPermissions) return null;
+
+                          const actions: RowAction[] = [];
+                          if (canEditPermissions) {
+                            actions.push({
+                              label: "Edit Permissions",
+                              onClick: () => setPermissionsTarget(m),
+                            });
+                          }
+                          if (canEditThisRow) {
+                            actions.push({
+                              label: "Remove",
+                              onClick: () => handleRemove(m),
+                              destructive: true,
+                            });
+                          }
+
+                          return (
+                            <div className="flex justify-end">
+                              <RowActionsMenu
+                                ariaLabel={`Actions for ${m.full_name || m.email || "member"}`}
+                                actions={actions}
+                              />
+                            </div>
+                          );
+                        })()}
                       </td>
                     )}
                   </tr>
@@ -162,6 +198,24 @@ export function WorkspaceMembersList({
           </table>
         </div>
       </div>
+
+      <TransferOwnershipDialog
+        member={transferTarget}
+        onClose={() => setTransferTarget(null)}
+        onTransferred={() => {
+          setTransferTarget(null);
+          router.refresh();
+        }}
+      />
+
+      <EditPermissionsDrawer
+        member={permissionsTarget}
+        onClose={() => setPermissionsTarget(null)}
+        onSaved={() => {
+          setPermissionsTarget(null);
+          router.refresh();
+        }}
+      />
     </div>
   );
 }

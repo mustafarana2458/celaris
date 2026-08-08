@@ -93,6 +93,7 @@ export function TeamPageClient({
       <WorkspaceMembersList
         members={workspaceMembers}
         currentUserId={currentUserId}
+        currentUserRole={currentUserRole}
         canManage={canManage}
       />
 

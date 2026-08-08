@@ -381,12 +381,18 @@ export type WorkspaceMemberRow = {
 
 export type WorkspaceRole = "owner" | "admin" | "member";
 
+export type WorkspacePermissions = {
+  modules?: Record<string, boolean>;
+  submodules?: Record<string, Record<string, boolean>>;
+};
+
 export type WorkspaceTeamMember = {
   user_id: string;
   email: string | null;
   full_name: string | null;
   role: WorkspaceRole;
   joined_at: string | null;
+  permissions?: WorkspacePermissions;
 };
 
 export type InvitationStatus = "pending" | "accepted" | "cancelled";

@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import type { InvitationRole } from "@/lib/types";
+import type { InvitationRole, WorkspacePermissions } from "@/lib/types";
 
 export type TeamInviteActionResult = { error?: string };
 export type AcceptInvitationResult = { error?: string; workspaceId?: string };
@@ -32,6 +32,13 @@ async function requireWorkspace() {
 function requireOwnerOrAdmin(role: string): TeamInviteActionResult | null {
   if (role !== "owner" && role !== "admin") {
     return { error: "Only owners and admins can manage the team." };
+  }
+  return null;
+}
+
+function requireOwner(role: string): TeamInviteActionResult | null {
+  if (role !== "owner") {
+    return { error: "Only the workspace owner can do this." };
   }
   return null;
 }
@@ -132,6 +139,43 @@ export async function removeMember(targetUserId: string): Promise<TeamInviteActi
     p_workspace_id: ctx.workspace.id,
     p_target_user_id: targetUserId,
   });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/team");
+  return {};
+}
+
+export async function transferOwnership(targetUserId: string): Promise<TeamInviteActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase.rpc("transfer_workspace_ownership", {
+    p_workspace_id: ctx.workspace.id,
+    p_target_user_id: targetUserId,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/team");
+  return {};
+}
+
+export async function updateMemberPermissions(
+  targetUserId: string,
+  permissions: WorkspacePermissions
+): Promise<TeamInviteActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const permError = requireOwner(ctx.workspace.role);
+  if (permError) return permError;
+
+  const { error } = await ctx.supabase
+    .from("workspace_members")
+    .update({ permissions })
+    .eq("workspace_id", ctx.workspace.id)
+    .eq("user_id", targetUserId);
 
   if (error) return { error: error.message };
 
