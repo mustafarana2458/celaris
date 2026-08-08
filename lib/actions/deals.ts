@@ -152,3 +152,108 @@ export async function deleteDeal(id: string): Promise<DealActionResult> {
   return {};
 }
 
+// ── Bulk (multi-)assignment: tagging only in this phase, no access effect ──
+
+export type DealAssignmentsResult = {
+  assignees: { id: string; user_id: string | null; team_member_id: string | null }[];
+  departments: { id: string; department_id: string }[];
+  error?: string;
+};
+
+export async function getDealAssignments(dealId: string): Promise<DealAssignmentsResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return { assignees: [], departments: [], error: ctx.error };
+
+  const [{ data: assignees, error: assigneesError }, { data: departments, error: departmentsError }] =
+    await Promise.all([
+      ctx.supabase
+        .from("deal_assignees")
+        .select("id, user_id, team_member_id")
+        .eq("deal_id", dealId)
+        .eq("workspace_id", ctx.workspace.id),
+      ctx.supabase
+        .from("deal_departments")
+        .select("id, department_id")
+        .eq("deal_id", dealId)
+        .eq("workspace_id", ctx.workspace.id),
+    ]);
+
+  if (assigneesError || departmentsError) {
+    return { assignees: [], departments: [], error: (assigneesError ?? departmentsError)?.message };
+  }
+
+  return { assignees: assignees ?? [], departments: departments ?? [] };
+}
+
+// `assignee` is the combined "user:<id>" / "directory:<id>" key from
+// lib/assignee.ts, same convention as the single owner_id/owner_member_id.
+export async function addDealAssignee(dealId: string, assignee: string): Promise<DealActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const ref = parseAssigneeKey(assignee);
+  if (!ref) return { error: "No member selected." };
+
+  const { error } = await ctx.supabase.from("deal_assignees").insert({
+    deal_id: dealId,
+    workspace_id: ctx.workspace.id,
+    user_id: ref.kind === "user" ? ref.id : null,
+    team_member_id: ref.kind === "directory" ? ref.id : null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/deals");
+  return {};
+}
+
+export async function removeDealAssignee(id: string, dealId: string): Promise<DealActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase
+    .from("deal_assignees")
+    .delete()
+    .eq("id", id)
+    .eq("deal_id", dealId)
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/deals");
+  return {};
+}
+
+export async function addDealDepartment(dealId: string, departmentId: string): Promise<DealActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase.from("deal_departments").insert({
+    deal_id: dealId,
+    workspace_id: ctx.workspace.id,
+    department_id: departmentId,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/deals");
+  return {};
+}
+
+export async function removeDealDepartment(id: string, dealId: string): Promise<DealActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase
+    .from("deal_departments")
+    .delete()
+    .eq("id", id)
+    .eq("deal_id", dealId)
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/deals");
+  return {};
+}
+

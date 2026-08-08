@@ -1,15 +1,24 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import { CompanyCombobox } from "@/components/contacts/CompanyCombobox";
 import { ContactCombobox } from "./ContactCombobox";
-import { createDeal, updateDeal } from "@/lib/actions/deals";
+import {
+  createDeal,
+  updateDeal,
+  getDealAssignments,
+  addDealAssignee,
+  removeDealAssignee,
+  addDealDepartment,
+  removeDealDepartment,
+} from "@/lib/actions/deals";
 import { buildAssigneeOptions, combinedAssigneeKey } from "@/lib/assignee";
+import { AssigneesTabs, type AssigneeJunctionRow, type DepartmentJunctionRow } from "@/components/team/AssigneesTabs";
 import { STAGES } from "./stages";
-import type { Company, Contact, Deal, Pipeline, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+import type { Company, Contact, Deal, Department, Pipeline, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export function DealModal({
   open,
@@ -20,6 +29,7 @@ export function DealModal({
   pipelines,
   members,
   directory,
+  departments,
   currentUserId,
   defaultPipelineId,
   onSaved,
@@ -32,6 +42,7 @@ export function DealModal({
   pipelines: Pipeline[];
   members: WorkspaceTeamMember[];
   directory: Pick<TeamMember, "id" | "member_name">[];
+  departments: Department[];
   currentUserId: string;
   defaultPipelineId: string | null;
   onSaved: () => void;
@@ -39,6 +50,37 @@ export function DealModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!deal;
+
+  const [assigneeRows, setAssigneeRows] = useState<AssigneeJunctionRow[]>([]);
+  const [departmentRows, setDepartmentRows] = useState<DepartmentJunctionRow[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+
+  useEffect(() => {
+    if (!open || !deal) {
+      setAssigneeRows([]);
+      setDepartmentRows([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAssignments(true);
+    getDealAssignments(deal.id).then((result) => {
+      if (cancelled) return;
+      setAssigneeRows(result.assignees);
+      setDepartmentRows(result.departments);
+      setLoadingAssignments(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, deal]);
+
+  function refreshAssignments() {
+    if (!deal) return;
+    getDealAssignments(deal.id).then((result) => {
+      setAssigneeRows(result.assignees);
+      setDepartmentRows(result.departments);
+    });
+  }
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -142,6 +184,23 @@ export function DealModal({
             ))}
           </select>
         </div>
+
+        {isEdit && deal && (
+          <AssigneesTabs
+            entityId={deal.id}
+            members={members}
+            directory={directory}
+            departments={departments}
+            assigneeRows={assigneeRows}
+            departmentRows={departmentRows}
+            loading={loadingAssignments}
+            onAddAssignee={addDealAssignee}
+            onRemoveAssignee={removeDealAssignee}
+            onAddDepartment={addDealDepartment}
+            onRemoveDepartment={removeDealDepartment}
+            onChanged={refreshAssignments}
+          />
+        )}
 
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
           <Input

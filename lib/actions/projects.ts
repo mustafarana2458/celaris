@@ -212,3 +212,115 @@ export async function deleteProject(id: string): Promise<ProjectActionResult> {
   revalidatePath("/dashboard/projects");
   return {};
 }
+
+// ── Bulk (multi-)assignment: tagging only in this phase, no access effect ──
+
+export type ProjectAssignmentsResult = {
+  assignees: { id: string; user_id: string | null; team_member_id: string | null }[];
+  departments: { id: string; department_id: string }[];
+  error?: string;
+};
+
+export async function getProjectAssignments(projectId: string): Promise<ProjectAssignmentsResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return { assignees: [], departments: [], error: ctx.error };
+
+  const [{ data: assignees, error: assigneesError }, { data: departments, error: departmentsError }] =
+    await Promise.all([
+      ctx.supabase
+        .from("project_assignees")
+        .select("id, user_id, team_member_id")
+        .eq("project_id", projectId)
+        .eq("workspace_id", ctx.workspace.id),
+      ctx.supabase
+        .from("project_departments")
+        .select("id, department_id")
+        .eq("project_id", projectId)
+        .eq("workspace_id", ctx.workspace.id),
+    ]);
+
+  if (assigneesError || departmentsError) {
+    return { assignees: [], departments: [], error: (assigneesError ?? departmentsError)?.message };
+  }
+
+  return { assignees: assignees ?? [], departments: departments ?? [] };
+}
+
+// `assignee` is the combined "user:<id>" / "directory:<id>" key from
+// lib/assignee.ts, same convention as the single lead_id/lead_member_id.
+export async function addProjectAssignee(projectId: string, assignee: string): Promise<ProjectActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const ref = parseAssigneeKey(assignee);
+  if (!ref) return { error: "No member selected." };
+
+  const { error } = await ctx.supabase.from("project_assignees").insert({
+    project_id: projectId,
+    workspace_id: ctx.workspace.id,
+    user_id: ref.kind === "user" ? ref.id : null,
+    team_member_id: ref.kind === "directory" ? ref.id : null,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return {};
+}
+
+export async function removeProjectAssignee(id: string, projectId: string): Promise<ProjectActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase
+    .from("project_assignees")
+    .delete()
+    .eq("id", id)
+    .eq("project_id", projectId)
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return {};
+}
+
+export async function addProjectDepartment(
+  projectId: string,
+  departmentId: string
+): Promise<ProjectActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase.from("project_departments").insert({
+    project_id: projectId,
+    workspace_id: ctx.workspace.id,
+    department_id: departmentId,
+  });
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return {};
+}
+
+export async function removeProjectDepartment(id: string, projectId: string): Promise<ProjectActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  const { error } = await ctx.supabase
+    .from("project_departments")
+    .delete()
+    .eq("id", id)
+    .eq("project_id", projectId)
+    .eq("workspace_id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/projects");
+  revalidatePath(`/dashboard/projects/${projectId}`);
+  return {};
+}

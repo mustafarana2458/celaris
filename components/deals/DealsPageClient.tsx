@@ -18,6 +18,7 @@ import type {
   Contact,
   Deal,
   DealStage,
+  Department,
   Pipeline,
   PipelineView,
   TeamMember,
@@ -41,6 +42,7 @@ export function DealsPageClient({
   initialPipelines,
   members,
   directory,
+  departments,
   currentUserId,
   initialView,
   loadError,
@@ -51,6 +53,7 @@ export function DealsPageClient({
   initialPipelines: Pipeline[];
   members: WorkspaceTeamMember[];
   directory: Pick<TeamMember, "id" | "member_name">[];
+  departments: Department[];
   currentUserId: string;
   initialView: PipelineView;
   loadError?: string | null;
@@ -240,6 +243,7 @@ export function DealsPageClient({
         pipelines={pipelines}
         members={members}
         directory={directory}
+        departments={departments}
         currentUserId={currentUserId}
         defaultPipelineId={selectedPipelineId}
         onSaved={handleSaved}

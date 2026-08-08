@@ -435,3 +435,42 @@ export type DepartmentMember = {
   user?: { id: string; full_name: string } | null;
   team_member?: { id: string; member_name: string; job_title: string | null } | null;
 };
+
+// Bulk (multi-)assignment junction rows for Projects/Deals. Raw shape only,
+// deliberately without embedded joins -- resolve display names in JS
+// against already-fetched members/directory/departments lists instead
+// (a nested `users!user_id`/`team_members!team_member_id` embed silently
+// came back empty on department_members, a similarly brand-new table).
+export type ProjectAssignee = {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  user_id: string | null;
+  team_member_id: string | null;
+  created_at: string;
+};
+
+export type ProjectDepartmentLink = {
+  id: string;
+  workspace_id: string;
+  project_id: string;
+  department_id: string;
+  created_at: string;
+};
+
+export type DealAssignee = {
+  id: string;
+  workspace_id: string;
+  deal_id: string;
+  user_id: string | null;
+  team_member_id: string | null;
+  created_at: string;
+};
+
+export type DealDepartmentLink = {
+  id: string;
+  workspace_id: string;
+  deal_id: string;
+  department_id: string;
+  created_at: string;
+};

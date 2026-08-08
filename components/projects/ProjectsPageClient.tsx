@@ -11,7 +11,15 @@ import { NewProjectModal } from "./NewProjectModal";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { PROJECT_STATUSES } from "./statuses";
-import type { Company, Deal, Project, ProjectTemplateRecord, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+import type {
+  Company,
+  Deal,
+  Department,
+  Project,
+  ProjectTemplateRecord,
+  TeamMember,
+  WorkspaceTeamMember,
+} from "@/lib/types";
 
 type ViewMode = "grid" | "table";
 
@@ -21,6 +29,7 @@ export function ProjectsPageClient({
   deals,
   members,
   directory,
+  departments,
   dbTemplates,
   loadError,
 }: {
@@ -29,6 +38,7 @@ export function ProjectsPageClient({
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
   directory: Pick<TeamMember, "id" | "member_name">[];
+  departments: Department[];
   dbTemplates: ProjectTemplateRecord[];
   loadError?: string | null;
 }) {
@@ -200,6 +210,7 @@ export function ProjectsPageClient({
         deals={deals}
         members={members}
         directory={directory}
+        departments={departments}
       />
 
       <DeleteProjectDialog

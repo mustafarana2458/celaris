@@ -3,7 +3,16 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { DealsPageClient } from "@/components/deals/DealsPageClient";
-import type { Company, Contact, Deal, Pipeline, PipelineView, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+import type {
+  Company,
+  Contact,
+  Deal,
+  Department,
+  Pipeline,
+  PipelineView,
+  TeamMember,
+  WorkspaceTeamMember,
+} from "@/lib/types";
 
 export default async function DealsPage() {
   const supabase = await createClient();
@@ -18,7 +27,16 @@ export default async function DealsPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "deals");
 
-  const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes, preferenceRes, directoryRes] = workspace
+  const [
+    dealsRes,
+    contactsRes,
+    companiesRes,
+    pipelinesRes,
+    membersRes,
+    preferenceRes,
+    directoryRes,
+    departmentsRes,
+  ] = workspace
     ? await Promise.all([
         supabase
           .from("deals")
@@ -54,6 +72,11 @@ export default async function DealsPage() {
           .select("*")
           .eq("workspace_id", workspace.id)
           .order("member_name", { ascending: true }),
+        supabase
+          .from("departments")
+          .select("*")
+          .eq("workspace_id", workspace.id)
+          .order("department_name", { ascending: true }),
       ])
     : [
         { data: [] as Deal[], error: null },
@@ -63,6 +86,7 @@ export default async function DealsPage() {
         { data: [] as WorkspaceTeamMember[], error: null },
         { data: null as { default_pipeline_view: PipelineView } | null, error: null },
         { data: [] as TeamMember[], error: null },
+        { data: [] as Department[], error: null },
       ];
 
   // A failed embed/join here silently turns into an empty deals list with no
@@ -86,6 +110,7 @@ export default async function DealsPage() {
       initialPipelines={(pipelinesRes.data as Pipeline[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
       directory={(directoryRes.data as TeamMember[]) ?? []}
+      departments={(departmentsRes.data as Department[]) ?? []}
       currentUserId={user.id}
       initialView={preferenceRes.data?.default_pipeline_view ?? "kanban"}
       loadError={loadError}

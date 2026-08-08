@@ -1,11 +1,20 @@
 "use client";
 
-import { useState, useTransition } from "react";
+import { useEffect, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { ProjectFormFields } from "./ProjectFormFields";
-import { createProject, updateProject } from "@/lib/actions/projects";
-import type { Company, Deal, Project, TeamMember, WorkspaceTeamMember } from "@/lib/types";
+import { AssigneesTabs, type AssigneeJunctionRow, type DepartmentJunctionRow } from "@/components/team/AssigneesTabs";
+import {
+  createProject,
+  updateProject,
+  getProjectAssignments,
+  addProjectAssignee,
+  removeProjectAssignee,
+  addProjectDepartment,
+  removeProjectDepartment,
+} from "@/lib/actions/projects";
+import type { Company, Deal, Department, Project, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
 export function ProjectModal({
   open,
@@ -16,6 +25,7 @@ export function ProjectModal({
   deals,
   members,
   directory,
+  departments,
 }: {
   open: boolean;
   onClose: () => void;
@@ -25,10 +35,42 @@ export function ProjectModal({
   deals: Pick<Deal, "id" | "title">[];
   members: WorkspaceTeamMember[];
   directory: Pick<TeamMember, "id" | "member_name">[];
+  departments: Department[];
 }) {
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!project;
+
+  const [assigneeRows, setAssigneeRows] = useState<AssigneeJunctionRow[]>([]);
+  const [departmentRows, setDepartmentRows] = useState<DepartmentJunctionRow[]>([]);
+  const [loadingAssignments, setLoadingAssignments] = useState(false);
+
+  useEffect(() => {
+    if (!open || !project) {
+      setAssigneeRows([]);
+      setDepartmentRows([]);
+      return;
+    }
+    let cancelled = false;
+    setLoadingAssignments(true);
+    getProjectAssignments(project.id).then((result) => {
+      if (cancelled) return;
+      setAssigneeRows(result.assignees);
+      setDepartmentRows(result.departments);
+      setLoadingAssignments(false);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, project]);
+
+  function refreshAssignments() {
+    if (!project) return;
+    getProjectAssignments(project.id).then((result) => {
+      setAssigneeRows(result.assignees);
+      setDepartmentRows(result.departments);
+    });
+  }
 
   function handleSubmit(formData: FormData) {
     setError(null);
@@ -61,6 +103,23 @@ export function ProjectModal({
           members={members}
           directory={directory}
         />
+
+        {isEdit && project && (
+          <AssigneesTabs
+            entityId={project.id}
+            members={members}
+            directory={directory}
+            departments={departments}
+            assigneeRows={assigneeRows}
+            departmentRows={departmentRows}
+            loading={loadingAssignments}
+            onAddAssignee={addProjectAssignee}
+            onRemoveAssignee={removeProjectAssignee}
+            onAddDepartment={addProjectDepartment}
+            onRemoveDepartment={removeProjectDepartment}
+            onChanged={refreshAssignments}
+          />
+        )}
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
