@@ -5,6 +5,15 @@ import { requireModuleAccess } from "@/lib/permissions";
 import { DepartmentDetailClient } from "@/components/team/departments/DepartmentDetailClient";
 import type { Department, DepartmentMember, TeamMember, WorkspaceTeamMember } from "@/lib/types";
 
+type DepartmentMemberRow = {
+  id: string;
+  department_id: string;
+  workspace_id: string;
+  user_id: string | null;
+  team_member_id: string | null;
+  created_at: string;
+};
+
 export default async function DepartmentDetailPage({ params }: { params: { id: string } }) {
   const supabase = await createClient();
   const {
@@ -21,7 +30,7 @@ export default async function DepartmentDetailPage({ params }: { params: { id: s
   }
   requireModuleAccess(workspace, "team");
 
-  const [{ data: department }, { data: departmentMembers }, { data: members }, { data: directory }] =
+  const [{ data: department }, { data: departmentMemberRows, error: membersError }, { data: members }, { data: directory }] =
     await Promise.all([
       supabase
         .from("departments")
@@ -29,11 +38,14 @@ export default async function DepartmentDetailPage({ params }: { params: { id: s
         .eq("id", params.id)
         .eq("workspace_id", workspace.id)
         .maybeSingle(),
+      // Plain select, no nested embed -- resolved against `members`/
+      // `directory` below in JS instead of a `users!user_id`/
+      // `team_members!team_member_id` join, which was silently coming back
+      // empty for this brand-new table (relationship-hint/schema-cache
+      // quirk) and made every row's name resolve to nothing.
       supabase
         .from("department_members")
-        .select(
-          "*, user:users!user_id(id, full_name), team_member:team_members!team_member_id(id, member_name, job_title)"
-        )
+        .select("*")
         .eq("department_id", params.id)
         .eq("workspace_id", workspace.id)
         .order("created_at", { ascending: true }),
@@ -49,14 +61,39 @@ export default async function DepartmentDetailPage({ params }: { params: { id: s
     notFound();
   }
 
+  if (membersError) {
+    console.error("[department detail] failed to load department_members:", membersError);
+  }
+
+  const workspaceMembers = (members as WorkspaceTeamMember[]) ?? [];
+  const teamDirectory = (directory as TeamMember[]) ?? [];
+  const usersById = new Map(workspaceMembers.map((m) => [m.user_id, m]));
+  const teamMembersById = new Map(teamDirectory.map((d) => [d.id, d]));
+
+  const initialMembers: DepartmentMember[] = ((departmentMemberRows as DepartmentMemberRow[] | null) ?? []).map(
+    (row) => {
+      const activeUser = row.user_id ? usersById.get(row.user_id) : null;
+      const ghostMember = row.team_member_id ? teamMembersById.get(row.team_member_id) : null;
+      return {
+        ...row,
+        user: activeUser
+          ? { id: activeUser.user_id, full_name: activeUser.full_name ?? activeUser.email ?? "Unnamed" }
+          : null,
+        team_member: ghostMember
+          ? { id: ghostMember.id, member_name: ghostMember.member_name, job_title: ghostMember.job_title }
+          : null,
+      };
+    }
+  );
+
   const canManage = workspace.role === "owner" || workspace.role === "admin";
 
   return (
     <DepartmentDetailClient
       department={department as Department}
-      initialMembers={(departmentMembers as DepartmentMember[]) ?? []}
-      workspaceMembers={(members as WorkspaceTeamMember[]) ?? []}
-      directory={(directory as TeamMember[]) ?? []}
+      initialMembers={initialMembers}
+      workspaceMembers={workspaceMembers}
+      directory={teamDirectory}
       canManage={canManage}
     />
   );
