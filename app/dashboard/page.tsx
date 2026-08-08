@@ -2,6 +2,7 @@ import Link from "next/link";
 import { Users, Briefcase, FolderKanban, Receipt, ArrowUp, ArrowDown } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { hasModuleAccess } from "@/lib/permissions";
 import { AiInsightsCard } from "@/components/dashboard/AiInsightsCard";
 import { ContactRowMenu } from "@/components/dashboard/ContactRowMenu";
 import { DealsPipelineChart } from "@/components/dashboard/charts/DealsPipelineChart";
@@ -75,6 +76,20 @@ export default async function DashboardPage() {
     .maybeSingle();
 
   const workspace = user ? await getCurrentWorkspace(supabase, user.id) : null;
+
+  // Guarded inline instead of via requireModuleAccess() -- that helper
+  // redirects to /dashboard, which would loop forever on this exact page.
+  if (workspace && !hasModuleAccess(workspace.role, workspace.permissions, "dashboard")) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
+        <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Access denied</p>
+        <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
+          You don&apos;t have access to this page. Contact your workspace owner if you think this
+          is a mistake.
+        </p>
+      </div>
+    );
+  }
 
   let contactsCount = 0;
   let openDealsCount = 0;

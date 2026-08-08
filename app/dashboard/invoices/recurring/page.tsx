@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { RecurringBillingPageClient } from "@/components/invoices/recurring/RecurringBillingPageClient";
 import type { Contact, Product, RecurringProfile } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function RecurringBillingPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "invoices", "recurring_billing");
 
   const [{ data: profiles }, { data: contacts }, { data: products }] = workspace
     ? await Promise.all([

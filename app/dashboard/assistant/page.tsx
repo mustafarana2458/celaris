@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { AssistantPageClient, type ChatMessage } from "@/components/assistant/AssistantPageClient";
 
 type AiChatHistoryRow = {
@@ -21,6 +22,7 @@ export default async function AssistantPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "ai_assistant");
 
   let saveHistory = true;
   let initialMessages: ChatMessage[] = [];

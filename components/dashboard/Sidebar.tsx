@@ -1,8 +1,10 @@
 "use client";
 
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useWorkspace } from "@/components/workspace/WorkspaceContext";
+import { hasModuleAccess } from "@/lib/permissions";
 import { navLinks, getActiveHref, type NavGroup } from "./nav-links";
 import { NavIcon } from "./NavIcon";
 import { DevPanelModal } from "./DevPanelModal";
@@ -30,9 +32,31 @@ function ChevronIcon({ open }: { open: boolean }) {
 
 export function Sidebar({ className = "" }: { className?: string }) {
   const pathname = usePathname();
+  const workspace = useWorkspace();
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [devPanelOpen, setDevPanelOpen] = useState(false);
   const logoClicks = useRef<number[]>([]);
+
+  // Cosmetic mirror of the server-side route guards in lib/permissions.ts --
+  // hides modules/submodules a member's permissions explicitly turned off.
+  // Owners and members with no permissions set see everything, unchanged.
+  const visibleNavLinks = useMemo(
+    () =>
+      navLinks
+        .filter((item) => hasModuleAccess(workspace?.role, workspace?.permissions, item.moduleKey))
+        .map((item) => {
+          if (item.type !== "group") return item;
+          return {
+            ...item,
+            children: item.children.filter(
+              (child) =>
+                !child.submoduleKey ||
+                hasModuleAccess(workspace?.role, workspace?.permissions, item.moduleKey, child.submoduleKey)
+            ),
+          };
+        }),
+    [workspace?.role, workspace?.permissions]
+  );
 
   // Five rapid clicks on the logo opens the hidden developer panel; no
   // visible hint anywhere. Clicks 1-4 still navigate normally (a no-op if
@@ -86,7 +110,7 @@ export function Sidebar({ className = "" }: { className?: string }) {
         Celaris
       </Link>
 
-      {navLinks.map((item) => {
+      {visibleNavLinks.map((item) => {
         if (item.type === "group") {
           const groupActive = groupHasActiveChild(item);
           const isOpen = expandedGroup === item.label;

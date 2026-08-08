@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { SettingsPageClient } from "./SettingsPageClient";
 import type { UserProfile } from "@/lib/types";
 
@@ -26,6 +27,7 @@ export default async function SettingsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "settings");
 
   const [{ data: profile }, { data: workspaceRow }] = await Promise.all([
     supabase

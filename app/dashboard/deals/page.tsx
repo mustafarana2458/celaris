@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { DealsPageClient } from "@/components/deals/DealsPageClient";
 import type { Company, Contact, Deal, Pipeline, PipelineView, WorkspaceTeamMember } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function DealsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "deals");
 
   const [dealsRes, contactsRes, companiesRes, pipelinesRes, membersRes, preferenceRes] = workspace
     ? await Promise.all([

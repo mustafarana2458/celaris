@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { TemplatesPageClient } from "@/components/projects/templates/TemplatesPageClient";
 import type { ProjectTemplateRecord } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function ProjectTemplatesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "projects");
 
   const { data: templates, error } = workspace
     ? await supabase

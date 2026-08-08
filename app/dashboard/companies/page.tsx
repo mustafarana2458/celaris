@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { CompaniesPageClient } from "@/components/companies/CompaniesPageClient";
 import type { Company } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function CompaniesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "contacts");
 
   const { data: companies } = workspace
     ? await supabase

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { ContactsPageClient } from "@/components/contacts/ContactsPageClient";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types";
 import type { Company, Contact, Tag } from "@/lib/types";
@@ -16,6 +17,7 @@ export default async function ContactsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "contacts");
 
   const [{ data: contacts, count }, { data: companies }, { data: tags }] = workspace
     ? await Promise.all([

@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { listSegmentsWithCounts } from "@/lib/actions/segments";
 import { SegmentsPageClient } from "@/components/segments/SegmentsPageClient";
 import type { Segment } from "@/lib/segments";
@@ -17,6 +18,7 @@ export default async function SegmentsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "contacts");
 
   const [segmentsResult, { data: companies }, { data: tags }, { data: teamMembers }] = workspace
     ? await Promise.all([

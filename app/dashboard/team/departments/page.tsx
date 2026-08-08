@@ -1,6 +1,22 @@
+import { redirect } from "next/navigation";
+import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { PlaceholderPage } from "@/components/dashboard/PlaceholderPage";
 
-export default function DepartmentsPage() {
+export default async function DepartmentsPage() {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "team");
+
   return (
     <PlaceholderPage
       title="Departments"

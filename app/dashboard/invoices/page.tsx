@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { InvoicesPageClient } from "@/components/invoices/InvoicesPageClient";
 import type { Contact, Invoice, InvoiceSenderDetails, Product, Project } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function InvoicesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "invoices");
 
   const [{ data: invoices }, { data: contacts }, { data: projects }, { data: branding }, { data: products }] =
     workspace

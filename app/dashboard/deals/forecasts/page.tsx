@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { ForecastsPageClient } from "@/components/deals/forecasts/ForecastsPageClient";
 import type { Deal, Pipeline, SalesTarget, WorkspaceTeamMember } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function ForecastsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "deals");
 
   const [dealsRes, targetsRes, pipelinesRes, membersRes] = workspace
     ? await Promise.all([

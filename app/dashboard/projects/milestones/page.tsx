@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { MilestonesTimelineClient } from "@/components/projects/timeline/MilestonesTimelineClient";
 import type { Milestone, Project, WorkspaceTeamMember } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function MilestonesTimelinePage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "projects");
 
   const [projectsRes, milestonesRes, membersRes] = workspace
     ? await Promise.all([

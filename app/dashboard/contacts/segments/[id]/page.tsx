@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { previewSegmentContacts } from "@/lib/actions/segments";
 import { SegmentDetailClient } from "@/components/segments/SegmentDetailClient";
 import { DEFAULT_PAGE_SIZE } from "@/lib/types";
@@ -21,6 +22,7 @@ export default async function SegmentDetailPage({ params }: { params: { id: stri
   if (!workspace) {
     notFound();
   }
+  requireModuleAccess(workspace, "contacts");
 
   const { data: segment } = await supabase
     .from("segments")

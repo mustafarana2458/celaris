@@ -1,9 +1,11 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
+import type { WorkspacePermissions } from "./types";
 
 export type CurrentWorkspace = {
   id: string;
   name: string;
   role: string;
+  permissions: WorkspacePermissions;
 };
 
 export type WorkspaceSummary = {
@@ -14,6 +16,7 @@ export type WorkspaceSummary = {
 
 type MembershipRow = {
   role: string;
+  permissions: WorkspacePermissions | null;
   workspaces: { id: string; name: string } | null;
 };
 
@@ -30,13 +33,18 @@ export async function getCurrentWorkspace(
   if (userRow?.last_active_workspace_id) {
     const { data } = await supabase
       .from("workspace_members")
-      .select("role, workspaces(id, name)")
+      .select("role, permissions, workspaces(id, name)")
       .eq("user_id", userId)
       .eq("workspace_id", userRow.last_active_workspace_id)
       .maybeSingle<MembershipRow>();
 
     if (data?.workspaces) {
-      return { id: data.workspaces.id, name: data.workspaces.name, role: data.role };
+      return {
+        id: data.workspaces.id,
+        name: data.workspaces.name,
+        role: data.role,
+        permissions: data.permissions ?? {},
+      };
     }
     // Membership on the saved workspace no longer exists (removed from it) --
     // fall through to the default membership below.
@@ -44,7 +52,7 @@ export async function getCurrentWorkspace(
 
   const { data } = await supabase
     .from("workspace_members")
-    .select("role, workspaces(id, name)")
+    .select("role, permissions, workspaces(id, name)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle<MembershipRow>();
@@ -55,6 +63,7 @@ export async function getCurrentWorkspace(
     id: data.workspaces.id,
     name: data.workspaces.name,
     role: data.role,
+    permissions: data.permissions ?? {},
   };
 }
 

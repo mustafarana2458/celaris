@@ -1,6 +1,7 @@
 import { notFound, redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { ProjectDetailClient } from "@/components/projects/ProjectDetailClient";
 import type { Company, Deal, Project, WorkspaceTeamMember } from "@/lib/types";
 
@@ -22,6 +23,7 @@ export default async function ProjectDetailPage({
   if (!workspace) {
     notFound();
   }
+  requireModuleAccess(workspace, "projects");
 
   const [{ data: project }, { data: companies }, { data: deals }, { data: members }] = await Promise.all([
     supabase

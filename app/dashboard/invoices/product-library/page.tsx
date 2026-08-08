@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { ProductLibraryPageClient } from "@/components/invoices/productLibrary/ProductLibraryPageClient";
 import type { Product } from "@/lib/types";
 
@@ -15,6 +16,7 @@ export default async function ProductLibraryPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "invoices", "product_library");
 
   const { data: products } = workspace
     ? await supabase

@@ -16,23 +16,28 @@ export type NavLink = {
   label: string;
   icon: IconName;
   badge?: string;
+  moduleKey: string;
 };
+
+export type NavGroupChild = { href: string; label: string; submoduleKey?: string };
 
 export type NavGroup = {
   type: "group";
   label: string;
   icon: IconName;
-  children: { href: string; label: string }[];
+  moduleKey: string;
+  children: NavGroupChild[];
 };
 
 export type NavItem = NavLink | NavGroup;
 
 export const navLinks: NavItem[] = [
-  { type: "link", href: "/dashboard", label: "Dashboard", icon: "home" },
+  { type: "link", href: "/dashboard", label: "Dashboard", icon: "home", moduleKey: "dashboard" },
   {
     type: "group",
     label: "Contacts",
     icon: "users",
+    moduleKey: "contacts",
     children: [
       { href: "/dashboard/contacts", label: "People" },
       { href: "/dashboard/companies", label: "Companies" },
@@ -43,6 +48,7 @@ export const navLinks: NavItem[] = [
     type: "group",
     label: "Deals",
     icon: "trending",
+    moduleKey: "deals",
     children: [
       { href: "/dashboard/deals", label: "Pipelines" },
       { href: "/dashboard/deals/forecasts", label: "Forecasts" },
@@ -52,6 +58,7 @@ export const navLinks: NavItem[] = [
     type: "group",
     label: "Projects",
     icon: "folder",
+    moduleKey: "projects",
     children: [
       { href: "/dashboard/projects", label: "All Projects" },
       { href: "/dashboard/projects/templates", label: "Project Templates" },
@@ -62,6 +69,7 @@ export const navLinks: NavItem[] = [
     type: "group",
     label: "Tasks",
     icon: "check",
+    moduleKey: "tasks",
     children: [
       { href: "/dashboard/tasks", label: "My Tasks" },
       { href: "/dashboard/tasks/team-board", label: "Team Board" },
@@ -72,24 +80,26 @@ export const navLinks: NavItem[] = [
     type: "group",
     label: "Invoices",
     icon: "invoice",
+    moduleKey: "invoices",
     children: [
       { href: "/dashboard/invoices", label: "All Invoices" },
-      { href: "/dashboard/invoices/recurring", label: "Recurring Billing" },
-      { href: "/dashboard/invoices/product-library", label: "Product Library" },
+      { href: "/dashboard/invoices/recurring", label: "Recurring Billing", submoduleKey: "recurring_billing" },
+      { href: "/dashboard/invoices/product-library", label: "Product Library", submoduleKey: "product_library" },
     ],
   },
   {
     type: "group",
     label: "Team",
     icon: "team",
+    moduleKey: "team",
     children: [
       { href: "/dashboard/team", label: "Active Members" },
       { href: "/dashboard/team", label: "Pending Invites" },
       { href: "/dashboard/team/departments", label: "Departments" },
     ],
   },
-  { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant" },
-  { type: "link", href: "/dashboard/settings", label: "Settings", icon: "settings" },
+  { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant", moduleKey: "ai_assistant" },
+  { type: "link", href: "/dashboard/settings", label: "Settings", icon: "settings", moduleKey: "settings" },
 ];
 
 // A route "matches" a nav href if it's an exact match, or a proper

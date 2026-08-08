@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireModuleAccess } from "@/lib/permissions";
 import { TeamPageClient } from "@/components/team/TeamPageClient";
 import type { Invitation, TeamMember, WorkspacePermissions, WorkspaceTeamMember } from "@/lib/types";
 
@@ -17,6 +18,7 @@ export default async function TeamPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
+  requireModuleAccess(workspace, "team");
 
   const [{ data: workspaceMembers }, { data: memberPermissions }, { data: invitations }, { data: teamMembers }] =
     workspace
