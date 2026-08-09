@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { TeamPageClient } from "@/components/team/TeamPageClient";
-import type { Invitation, TeamMember, WorkspacePermissions, WorkspaceTeamMember } from "@/lib/types";
+import type { WorkspacePermissions, WorkspaceTeamMember } from "@/lib/types";
 
 type MemberPermissionsRow = { user_id: string; permissions: WorkspacePermissions | null };
 
@@ -20,29 +20,12 @@ export default async function TeamPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "team");
 
-  const [{ data: workspaceMembers }, { data: memberPermissions }, { data: invitations }, { data: teamMembers }] =
-    workspace
-      ? await Promise.all([
-          supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
-          supabase.from("workspace_members").select("user_id, permissions").eq("workspace_id", workspace.id),
-          supabase
-            .from("invitations")
-            .select("*")
-            .eq("workspace_id", workspace.id)
-            .eq("status", "pending")
-            .order("created_at", { ascending: false }),
-          supabase
-            .from("team_members")
-            .select("*")
-            .eq("workspace_id", workspace.id)
-            .order("created_at", { ascending: false }),
-        ])
-      : [
-          { data: [] as WorkspaceTeamMember[] },
-          { data: [] as MemberPermissionsRow[] },
-          { data: [] as Invitation[] },
-          { data: [] as TeamMember[] },
-        ];
+  const [{ data: workspaceMembers }, { data: memberPermissions }] = workspace
+    ? await Promise.all([
+        supabase.rpc("get_workspace_team", { p_workspace_id: workspace.id }),
+        supabase.from("workspace_members").select("user_id, permissions").eq("workspace_id", workspace.id),
+      ])
+    : [{ data: [] as WorkspaceTeamMember[] }, { data: [] as MemberPermissionsRow[] }];
 
   const permissionsByUser = new Map(
     ((memberPermissions as MemberPermissionsRow[] | null) ?? []).map((row) => [
@@ -59,10 +42,8 @@ export default async function TeamPage() {
   return (
     <TeamPageClient
       workspaceMembers={membersWithPermissions}
-      invitations={(invitations as Invitation[]) ?? []}
       currentUserId={user.id}
       currentUserRole={(workspace?.role as "owner" | "admin" | "member") ?? "member"}
-      initialTeamMembers={(teamMembers as TeamMember[]) ?? []}
     />
   );
 }

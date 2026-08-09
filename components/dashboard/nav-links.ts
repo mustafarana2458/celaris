@@ -94,7 +94,8 @@ export const navLinks: NavItem[] = [
     moduleKey: "team",
     children: [
       { href: "/dashboard/team", label: "Active Members" },
-      { href: "/dashboard/team", label: "Pending Invites" },
+      { href: "/dashboard/team/invites", label: "Pending Invites" },
+      { href: "/dashboard/team/directory", label: "Team Directory" },
       { href: "/dashboard/team/departments", label: "Departments" },
     ],
   },

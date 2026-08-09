@@ -74,7 +74,7 @@ export async function createInvitation(formData: FormData): Promise<TeamInviteAc
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/invites");
 
   const { data: inviterProfile } = await ctx.supabase
     .from("users")
@@ -120,7 +120,7 @@ export async function resendInvitation(id: string): Promise<TeamInviteActionResu
   if (error) return { error: error.message };
   if (!invitation) return { error: "This invite is no longer pending." };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/invites");
 
   const { data: inviterProfile } = await ctx.supabase
     .from("users")
@@ -161,7 +161,7 @@ export async function cancelInvitation(id: string): Promise<TeamInviteActionResu
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/invites");
   return {};
 }
 
@@ -250,5 +250,6 @@ export async function acceptInvitation(token: string): Promise<AcceptInvitationR
   if (error) return { error: error.message };
 
   revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/invites");
   return { workspaceId: data as string };
 }

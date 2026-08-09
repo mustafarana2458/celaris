@@ -57,7 +57,7 @@ export async function createTeamMember(formData: FormData): Promise<TeamActionRe
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/directory");
   return {};
 }
 
@@ -81,7 +81,7 @@ export async function updateTeamMember(
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/directory");
   return {};
 }
 
@@ -97,6 +97,6 @@ export async function deleteTeamMember(id: string): Promise<TeamActionResult> {
 
   if (error) return { error: error.message };
 
-  revalidatePath("/dashboard/team");
+  revalidatePath("/dashboard/team/directory");
   return {};
 }
