@@ -11,15 +11,36 @@ const currency = new Intl.NumberFormat("en-US", {
   maximumFractionDigits: 0,
 });
 
+export type WorkspaceSummaryVisibility = { contacts: boolean; deals: boolean; revenue: boolean };
+
+const FULLY_VISIBLE: WorkspaceSummaryVisibility = { contacts: true, deals: true, revenue: true };
+
 export type WorkspaceSummary = Awaited<ReturnType<typeof buildWorkspaceSummary>>;
 
-export async function buildWorkspaceSummary(supabase: SupabaseClient, workspaceId: string) {
+// `visibility` mirrors the dashboard's contacts_kpis/deals_kpis/revenue_kpis
+// gates (see app/dashboard/page.tsx) -- callers that feed this into an AI
+// prompt must pass the caller's actual permissions so a View-Only member's
+// revenue/deals/contacts figures never reach the model (and therefore never
+// reach the AI's text response). Defaults to fully open so existing callers
+// that haven't opted into gating yet (lib/actions/assistant.ts) are
+// unaffected.
+export async function buildWorkspaceSummary(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  visibility: WorkspaceSummaryVisibility = FULLY_VISIBLE
+) {
   const [contactsRes, dealsRes, projectsRes, tasksRes, invoicesRes] = await Promise.all([
-    supabase.from("contacts").select("type").eq("workspace_id", workspaceId),
-    supabase.from("deals").select("stage, value").eq("workspace_id", workspaceId),
+    visibility.contacts
+      ? supabase.from("contacts").select("type").eq("workspace_id", workspaceId)
+      : Promise.resolve({ data: [] as { type: string }[], error: null }),
+    visibility.deals
+      ? supabase.from("deals").select("stage, value").eq("workspace_id", workspaceId)
+      : Promise.resolve({ data: [] as { stage: string; value: number | null }[], error: null }),
     supabase.from("projects").select("status").eq("workspace_id", workspaceId),
     supabase.from("tasks").select("status, due_date").eq("workspace_id", workspaceId),
-    supabase.from("invoices").select("status, total").eq("workspace_id", workspaceId),
+    visibility.revenue
+      ? supabase.from("invoices").select("status, total").eq("workspace_id", workspaceId)
+      : Promise.resolve({ data: [] as { status: string; total: number }[], error: null }),
   ]);
 
   const contacts = (contactsRes.data ?? []) as { type: string }[];
@@ -88,41 +109,55 @@ export async function buildWorkspaceSummary(supabase: SupabaseClient, workspaceI
   }
 
   return {
-    contacts: { total: contacts.length, leads, customers },
-    deals: { total: deals.length, pipelineValue, byStage: dealsByStage },
+    contacts: visibility.contacts ? { total: contacts.length, leads, customers } : null,
+    deals: visibility.deals ? { total: deals.length, pipelineValue, byStage: dealsByStage } : null,
     projects: { total: projects.length, byStatus: projectsByStatus },
     tasks: { total: tasks.length, byStatus: tasksByStatus, overdueCount: overdueTaskCount },
-    invoices: {
-      total: invoices.length,
-      unpaidCount,
-      unpaidAmount,
-      overdueCount: overdueInvoiceCount,
-      overdueAmount: overdueInvoiceAmount,
-      paidCount,
-      paidAmount,
-    },
+    invoices: visibility.revenue
+      ? {
+          total: invoices.length,
+          unpaidCount,
+          unpaidAmount,
+          overdueCount: overdueInvoiceCount,
+          overdueAmount: overdueInvoiceAmount,
+          paidCount,
+          paidAmount,
+        }
+      : null,
   };
 }
 
 export function formatWorkspaceSummary(summary: WorkspaceSummary) {
-  const stageLine = DEAL_STAGES.map(
-    (s) =>
-      `${s}: ${summary.deals.byStage[s].count} (${currency.format(summary.deals.byStage[s].value)})`
-  ).join(", ");
-  const projectLine = PROJECT_STATUSES.map(
-    (s) => `${s}: ${summary.projects.byStatus[s]}`
-  ).join(", ");
+  const lines: string[] = [];
 
-  return [
-    `Contacts: ${summary.contacts.total} total (${summary.contacts.leads} leads, ${summary.contacts.customers} customers)`,
-    `Deals: ${summary.deals.total} total, open pipeline value ${currency.format(summary.deals.pipelineValue)}`,
-    `Deals by stage: ${stageLine}`,
-    `Projects by status: ${projectLine}`,
-    `Tasks: ${summary.tasks.byStatus.todo} to do, ${summary.tasks.byStatus.in_progress} in progress, ${summary.tasks.byStatus.done} done.`,
-    `Of the tasks that are not done, ${summary.tasks.overdueCount} are overdue (past their due date).`,
-    `Invoices: ${summary.invoices.total} total.`,
-    `Unpaid invoices: ${summary.invoices.unpaidCount}, totaling ${currency.format(summary.invoices.unpaidAmount)}.`,
-    `Overdue invoices: ${summary.invoices.overdueCount}, totaling ${currency.format(summary.invoices.overdueAmount)}.`,
-    `Paid invoices: ${summary.invoices.paidCount}, totaling ${currency.format(summary.invoices.paidAmount)}.`,
-  ].join("\n");
+  const { contacts, deals, projects, tasks, invoices } = summary;
+
+  if (contacts) {
+    lines.push(`Contacts: ${contacts.total} total (${contacts.leads} leads, ${contacts.customers} customers)`);
+  }
+
+  if (deals) {
+    const stageLine = DEAL_STAGES.map(
+      (s) => `${s}: ${deals.byStage[s].count} (${currency.format(deals.byStage[s].value)})`
+    ).join(", ");
+    lines.push(`Deals: ${deals.total} total, open pipeline value ${currency.format(deals.pipelineValue)}`);
+    lines.push(`Deals by stage: ${stageLine}`);
+  }
+
+  const projectLine = PROJECT_STATUSES.map((s) => `${s}: ${projects.byStatus[s]}`).join(", ");
+  lines.push(`Projects by status: ${projectLine}`);
+
+  lines.push(
+    `Tasks: ${tasks.byStatus.todo} to do, ${tasks.byStatus.in_progress} in progress, ${tasks.byStatus.done} done.`
+  );
+  lines.push(`Of the tasks that are not done, ${tasks.overdueCount} are overdue (past their due date).`);
+
+  if (invoices) {
+    lines.push(`Invoices: ${invoices.total} total.`);
+    lines.push(`Unpaid invoices: ${invoices.unpaidCount}, totaling ${currency.format(invoices.unpaidAmount)}.`);
+    lines.push(`Overdue invoices: ${invoices.overdueCount}, totaling ${currency.format(invoices.overdueAmount)}.`);
+    lines.push(`Paid invoices: ${invoices.paidCount}, totaling ${currency.format(invoices.paidAmount)}.`);
+  }
+
+  return lines.join("\n");
 }

@@ -77,6 +77,14 @@ export default async function DashboardPage() {
 
   const workspace = user ? await getCurrentWorkspace(supabase, user.id) : null;
 
+  // Per-widget KPI gates (Phase 2). hasModuleAccess() already treats a
+  // missing/owner/no-permissions case as open, so these default to true
+  // for owners, admins (permissions null/unset), and anyone without an
+  // explicit `enabled: false` on that dashboard sub.
+  const canSeeContactsKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "contacts_kpis");
+  const canSeeDealsKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "deals_kpis");
+  const canSeeRevenueKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "revenue_kpis");
+
   // Guarded inline instead of via requireModuleAccess() -- that helper
   // redirects to /dashboard, which would loop forever on this exact page.
   if (workspace && !hasModuleAccess(workspace.role, workspace.permissions, "dashboard")) {
@@ -121,31 +129,36 @@ export default async function DashboardPage() {
       leadsCountRes,
       customersCountRes,
     ] = await Promise.all([
-      supabase
-        .from("contacts")
-        .select("id, created_at")
-        .eq("workspace_id", workspace.id),
-      supabase
-        .from("deals")
-        .select("id, value, created_at")
-        .eq("workspace_id", workspace.id)
-        .not("stage", "in", "(won,lost)"),
+      canSeeContactsKpis
+        ? supabase.from("contacts").select("id, created_at").eq("workspace_id", workspace.id)
+        : Promise.resolve({ data: [] as { id: string; created_at: string }[], error: null }),
+      canSeeDealsKpis
+        ? supabase
+            .from("deals")
+            .select("id, value, created_at")
+            .eq("workspace_id", workspace.id)
+            .not("stage", "in", "(won,lost)")
+        : Promise.resolve({ data: [] as { id: string; value: number | null; created_at: string }[], error: null }),
       supabase
         .from("projects")
         .select("id, created_at")
         .eq("workspace_id", workspace.id)
         .eq("status", "active"),
-      supabase
-        .from("invoices")
-        .select("id, total, issued_at")
-        .eq("workspace_id", workspace.id)
-        .in("status", ["unpaid", "overdue"]),
-      supabase
-        .from("contacts")
-        .select("*")
-        .eq("workspace_id", workspace.id)
-        .order("created_at", { ascending: false })
-        .limit(5),
+      canSeeRevenueKpis
+        ? supabase
+            .from("invoices")
+            .select("id, total, issued_at")
+            .eq("workspace_id", workspace.id)
+            .in("status", ["unpaid", "overdue"])
+        : Promise.resolve({ data: [] as { id: string; total: number; issued_at: string }[], error: null }),
+      canSeeContactsKpis
+        ? supabase
+            .from("contacts")
+            .select("*")
+            .eq("workspace_id", workspace.id)
+            .order("created_at", { ascending: false })
+            .limit(5)
+        : Promise.resolve({ data: [] as Contact[], error: null }),
       supabase
         .from("tasks")
         .select("*")
@@ -154,22 +167,30 @@ export default async function DashboardPage() {
         .not("due_date", "is", null)
         .order("due_date", { ascending: true })
         .limit(5),
-      supabase.from("deals").select("stage, value").eq("workspace_id", workspace.id),
-      supabase
-        .from("invoices")
-        .select("issued_at, total")
-        .eq("workspace_id", workspace.id)
-        .eq("status", "paid"),
-      supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", workspace.id)
-        .eq("type", "lead"),
-      supabase
-        .from("contacts")
-        .select("id", { count: "exact", head: true })
-        .eq("workspace_id", workspace.id)
-        .eq("type", "customer"),
+      canSeeDealsKpis
+        ? supabase.from("deals").select("stage, value").eq("workspace_id", workspace.id)
+        : Promise.resolve({ data: [] as { stage: DealStage; value: number | null }[], error: null }),
+      canSeeRevenueKpis
+        ? supabase
+            .from("invoices")
+            .select("issued_at, total")
+            .eq("workspace_id", workspace.id)
+            .eq("status", "paid")
+        : Promise.resolve({ data: [] as { issued_at: string; total: number }[], error: null }),
+      canSeeContactsKpis
+        ? supabase
+            .from("contacts")
+            .select("id", { count: "exact", head: true })
+            .eq("workspace_id", workspace.id)
+            .eq("type", "lead")
+        : Promise.resolve({ count: 0, error: null }),
+      canSeeContactsKpis
+        ? supabase
+            .from("contacts")
+            .select("id", { count: "exact", head: true })
+            .eq("workspace_id", workspace.id)
+            .eq("type", "customer")
+        : Promise.resolve({ count: 0, error: null }),
     ]);
 
     const contactsRows = contactsCountRes.data ?? [];
@@ -211,6 +232,7 @@ export default async function DashboardPage() {
 
   const statCards = [
     {
+      visible: canSeeContactsKpis,
       label: "Contacts",
       value: String(contactsCount),
       href: "/dashboard/contacts",
@@ -220,6 +242,7 @@ export default async function DashboardPage() {
       trend: contactsTrend,
     },
     {
+      visible: canSeeDealsKpis,
       label: "Open deals",
       value: String(openDealsCount),
       sub: `${currency.format(pipelineValue)} pipeline`,
@@ -230,6 +253,7 @@ export default async function DashboardPage() {
       trend: dealsTrend,
     },
     {
+      visible: true,
       label: "Active projects",
       value: String(activeProjectsCount),
       href: "/dashboard/projects",
@@ -239,6 +263,7 @@ export default async function DashboardPage() {
       trend: projectsTrend,
     },
     {
+      visible: canSeeRevenueKpis,
       label: "Unpaid invoices",
       value: String(unpaidInvoicesCount),
       sub: currency.format(unpaidAmount),
@@ -248,7 +273,7 @@ export default async function DashboardPage() {
       iconColor: "text-orange-600 dark:text-orange-400",
       trend: invoicesTrend,
     },
-  ];
+  ].filter((card) => card.visible);
 
   return (
     <div className="flex flex-col gap-6">
@@ -292,57 +317,73 @@ export default async function DashboardPage() {
         ))}
       </div>
 
-      <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
-        <div className="lg:col-span-2">
-          <DealsPipelineChart data={dealsByStage} />
+      {(canSeeDealsKpis || canSeeContactsKpis || canSeeRevenueKpis) && (
+        <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
+          {canSeeDealsKpis && (
+            <div className={canSeeContactsKpis ? "lg:col-span-2" : "lg:col-span-3"}>
+              <DealsPipelineChart data={dealsByStage} />
+            </div>
+          )}
+          {canSeeContactsKpis && (
+            <div className={canSeeDealsKpis ? "" : "lg:col-span-3"}>
+              <LeadsVsCustomersChart data={{ leads: leadsCount, customers: customersCount }} />
+            </div>
+          )}
+          {canSeeRevenueKpis && (
+            <div className="lg:col-span-3">
+              <RevenueChart data={revenueByMonth} />
+            </div>
+          )}
         </div>
-        <LeadsVsCustomersChart data={{ leads: leadsCount, customers: customersCount }} />
-        <div className="lg:col-span-3">
-          <RevenueChart data={revenueByMonth} />
-        </div>
-      </div>
+      )}
 
       <AiInsightsCard />
 
       <div className="grid grid-cols-1 gap-4 lg:grid-cols-2">
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-          <div className="flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent contacts</h2>
-            <Link
-              href="/dashboard/contacts"
-              className="text-xs font-medium text-accent-hover hover:underline dark:text-accent"
-            >
-              View all
-            </Link>
-          </div>
-          <div className="mt-2 flex flex-col divide-y divide-slate-100 dark:divide-slate-700">
-            {recentContacts.length === 0 ? (
-              <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No contacts yet.</p>
-            ) : (
-              recentContacts.map((c) => (
-                <div key={c.id} className="flex items-center gap-3 py-3">
-                  <span
-                    className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${tagColor(c.name).dot}`}
-                  >
-                    {getInitials(c.name)}
-                  </span>
-                  <div className="min-w-0 flex-1">
-                    <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</p>
-                    <p className="truncate text-xs text-slate-500 dark:text-slate-400">
-                      {c.company || c.email || "—"}
-                    </p>
+        {canSeeContactsKpis && (
+          <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+            <div className="flex items-center justify-between">
+              <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Recent contacts</h2>
+              <Link
+                href="/dashboard/contacts"
+                className="text-xs font-medium text-accent-hover hover:underline dark:text-accent"
+              >
+                View all
+              </Link>
+            </div>
+            <div className="mt-2 flex flex-col divide-y divide-slate-100 dark:divide-slate-700">
+              {recentContacts.length === 0 ? (
+                <p className="py-4 text-sm text-slate-500 dark:text-slate-400">No contacts yet.</p>
+              ) : (
+                recentContacts.map((c) => (
+                  <div key={c.id} className="flex items-center gap-3 py-3">
+                    <span
+                      className={`flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-xs font-semibold text-white ${tagColor(c.name).dot}`}
+                    >
+                      {getInitials(c.name)}
+                    </span>
+                    <div className="min-w-0 flex-1">
+                      <p className="truncate text-sm font-medium text-slate-900 dark:text-slate-100">{c.name}</p>
+                      <p className="truncate text-xs text-slate-500 dark:text-slate-400">
+                        {c.company || c.email || "—"}
+                      </p>
+                    </div>
+                    <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
+                      {c.type}
+                    </span>
+                    <ContactRowMenu name={c.name} />
                   </div>
-                  <span className="shrink-0 rounded-full bg-slate-100 px-2 py-0.5 text-xs font-medium capitalize text-slate-600 dark:bg-slate-700 dark:text-slate-300">
-                    {c.type}
-                  </span>
-                  <ContactRowMenu name={c.name} />
-                </div>
-              ))
-            )}
+                ))
+              )}
+            </div>
           </div>
-        </div>
+        )}
 
-        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+        <div
+          className={`rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800 ${
+            canSeeContactsKpis ? "" : "lg:col-span-2"
+          }`}
+        >
           <div className="flex items-center justify-between">
             <h2 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Upcoming tasks</h2>
             <Link

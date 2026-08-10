@@ -45,11 +45,14 @@ export async function runListContacts(
 export async function runListDeals(
   supabase: SupabaseClient,
   workspaceId: string,
-  params: { stage?: DealStage | null }
+  params: { stage?: DealStage | null },
+  canSeeValue: boolean
 ): Promise<string> {
   let q = supabase
     .from("deals")
-    .select("title, value, stage, contacts(name)", { count: "exact" })
+    .select(canSeeValue ? "title, value, stage, contacts(name)" : "title, stage, contacts(name)", {
+      count: "exact",
+    })
     .eq("workspace_id", workspaceId)
     .order("created_at", { ascending: false })
     .limit(10);
@@ -61,16 +64,16 @@ export async function runListDeals(
 
   const deals = (data ?? []) as unknown as {
     title: string;
-    value: number | null;
+    value?: number | null;
     stage: string;
     contacts: { name: string } | null;
   }[];
   if (deals.length === 0) return "I couldn't find any matching deals.";
 
-  const lines = deals.map(
-    (d) =>
-      `- ${d.title} · ${d.stage} · ${d.value != null ? currency.format(d.value) : "no value set"}${d.contacts?.name ? ` · ${d.contacts.name}` : ""}`
-  );
+  const lines = deals.map((d) => {
+    const valueSegment = canSeeValue ? ` · ${d.value != null ? currency.format(d.value) : "no value set"}` : "";
+    return `- ${d.title} · ${d.stage}${valueSegment}${d.contacts?.name ? ` · ${d.contacts.name}` : ""}`;
+  });
   const total = count ?? deals.length;
   const more = total > deals.length ? `\n...and ${total - deals.length} more.` : "";
   return `Found ${total} matching deal${total === 1 ? "" : "s"}:\n${lines.join("\n")}${more}`;
@@ -100,7 +103,15 @@ export async function runUpcomingTasks(supabase: SupabaseClient, workspaceId: st
   return `Here are your upcoming tasks:\n${lines.join("\n")}`;
 }
 
-export async function runOverdueInvoices(supabase: SupabaseClient, workspaceId: string): Promise<string> {
+export async function runOverdueInvoices(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  canSeeAmounts: boolean
+): Promise<string> {
+  if (!canSeeAmounts) {
+    return "You don't have access to invoice/revenue data.";
+  }
+
   const today = new Date().toISOString().slice(0, 10);
   const { data, error } = await supabase
     .from("invoices")

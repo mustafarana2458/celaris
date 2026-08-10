@@ -3,6 +3,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, type CurrentWorkspace } from "@/lib/workspace";
+import { hasModuleAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
 import {
@@ -124,7 +125,16 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
   const ctx = await requireWorkspace();
   if (!ctx.ok) return { error: ctx.error };
 
-  const summary = await buildWorkspaceSummary(ctx.supabase, ctx.workspace.id);
+  // Same gates as the dashboard's KPI widgets -- a member who can't see
+  // revenue/deals/contacts figures on the dashboard shouldn't see them
+  // surface through the assistant's chat responses either.
+  const visibility = {
+    contacts: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "contacts_kpis"),
+    deals: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "deals_kpis"),
+    revenue: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "revenue_kpis"),
+  };
+
+  const summary = await buildWorkspaceSummary(ctx.supabase, ctx.workspace.id, visibility);
   const todayISO = new Date().toISOString().slice(0, 10);
   const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed);
 
@@ -157,9 +167,12 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
     }
 
     case "list_deals": {
-      const text = await runListDeals(ctx.supabase, ctx.workspace.id, {
-        stage: (params.stage as DealStage | null) ?? null,
-      });
+      const text = await runListDeals(
+        ctx.supabase,
+        ctx.workspace.id,
+        { stage: (params.stage as DealStage | null) ?? null },
+        visibility.deals
+      );
       return { kind: "answer", text, tool: "list_deals" };
     }
 
@@ -169,7 +182,7 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
     }
 
     case "overdue_invoices": {
-      const text = await runOverdueInvoices(ctx.supabase, ctx.workspace.id);
+      const text = await runOverdueInvoices(ctx.supabase, ctx.workspace.id, visibility.revenue);
       return { kind: "answer", text, tool: "overdue_invoices" };
     }
 

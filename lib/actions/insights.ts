@@ -2,6 +2,7 @@
 
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { hasModuleAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
 
@@ -36,7 +37,16 @@ export async function generateInsights(): Promise<InsightsResult> {
     return { error: "No workspace found for this account." };
   }
 
-  const summary = await buildWorkspaceSummary(supabase, workspace.id);
+  // Same gates as the dashboard's KPI widgets -- a member who can't see
+  // revenue/deals/contacts figures on the dashboard shouldn't see them
+  // surface through the AI's generated text either.
+  const visibility = {
+    contacts: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "contacts_kpis"),
+    deals: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "deals_kpis"),
+    revenue: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "revenue_kpis"),
+  };
+
+  const summary = await buildWorkspaceSummary(supabase, workspace.id, visibility);
   const prompt = buildInsightsPrompt(formatWorkspaceSummary(summary));
 
   const result = await callGroq(prompt);
