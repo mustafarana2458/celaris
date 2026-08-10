@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 
 export type TeamActionResult = { error?: string };
 
@@ -45,6 +46,9 @@ export async function createTeamMember(formData: FormData): Promise<TeamActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
+  if (permError) return permError;
+
   const fields = teamMemberFields(formData);
   if (!fields.member_name) {
     return { error: "Name is required." };
@@ -68,6 +72,9 @@ export async function updateTeamMember(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
+  if (permError) return permError;
+
   const fields = teamMemberFields(formData);
   if (!fields.member_name) {
     return { error: "Name is required." };
@@ -88,6 +95,9 @@ export async function updateTeamMember(
 export async function deleteTeamMember(id: string): Promise<TeamActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("team_members")

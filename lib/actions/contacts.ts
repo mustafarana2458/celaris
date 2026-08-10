@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import {
   DEFAULT_PAGE_SIZE,
   PAGE_SIZE_OPTIONS,
@@ -156,6 +157,9 @@ export async function createContact(formData: FormData): Promise<ContactActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "people");
+  if (permError) return permError;
+
   const fields = contactFields(formData);
   if (!fields.name) {
     return { error: "First name is required." };
@@ -186,6 +190,9 @@ export async function updateContact(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "people");
+  if (permError) return permError;
+
   const fields = contactFields(formData);
   if (!fields.name) {
     return { error: "First name is required." };
@@ -212,6 +219,9 @@ export async function updateContact(
 export async function deleteContact(id: string): Promise<ContactActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "contacts", "people");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("contacts")
@@ -302,6 +312,9 @@ export async function listContacts(
 export async function bulkDeleteContacts(ids: string[]): Promise<ContactActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "contacts", "people");
+  if (permError) return permError;
   if (ids.length === 0) return {};
 
   const { error } = await ctx.supabase
@@ -322,6 +335,9 @@ export async function bulkAddTagToContacts(
 ): Promise<ContactActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "contacts", "people");
+  if (permError) return permError;
 
   const name = tagName.trim();
   if (!name || ids.length === 0) return {};

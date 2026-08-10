@@ -21,11 +21,13 @@ export function ProjectCard({
   onView,
   onEdit,
   onDelete,
+  canEdit,
 }: {
   project: Project;
   onView: () => void;
   onEdit: () => void;
   onDelete: () => void;
+  canEdit: boolean;
 }) {
   const progress = getProjectProgress(project.milestones ?? [], project.tasks ?? []);
   const statusInfo = statusMap[project.status];
@@ -134,8 +136,12 @@ export function ProjectCard({
           ariaLabel="Project actions"
           actions={[
             { label: "View", onClick: onView, icon: Eye },
-            { label: "Edit", onClick: onEdit, icon: Pencil },
-            { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
+            ...(canEdit
+              ? [
+                  { label: "Edit", onClick: onEdit, icon: Pencil },
+                  { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
+                ]
+              : []),
           ]}
         />
       </div>

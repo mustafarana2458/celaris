@@ -5,6 +5,7 @@ import { Sparkles, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { ContactModal } from "./ContactModal";
 import { DeleteContactDialog } from "./DeleteContactDialog";
 import { AiFollowUpDrawer } from "./AiFollowUpDrawer";
@@ -49,6 +50,7 @@ export function ContactsPageClient({
   companies: Pick<Company, "id" | "name">[];
   tags: Pick<Tag, "id" | "name">[];
 }) {
+  const canEdit = useCanEdit("contacts", "people");
   const [contacts, setContacts] = useState(initialContacts);
   const [total, setTotal] = useState(initialTotal);
   const [isPending, startTransition] = useTransition();
@@ -247,7 +249,7 @@ export function ContactsPageClient({
             Manage the people you do business with.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add contact</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add contact</Button>}
       </div>
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
@@ -317,8 +319,8 @@ export function ContactsPageClient({
           tagSuggestions={tagSuggestions}
           onDelete={() => setBulkDeleteOpen(true)}
           onExport={handleExport}
-          onApplyTag={handleBulkAddTag}
-          pending={bulkPending}
+          onApplyTag={canEdit ? handleBulkAddTag : undefined}
+          pending={bulkPending || !canEdit}
           error={bulkError}
         />
       </div>
@@ -342,7 +344,7 @@ export function ContactsPageClient({
               ? "Try a different search or filter."
               : "Add your first contact to start building your CRM."}
           </p>
-          {!hasAnyQuery && (
+          {!hasAnyQuery && canEdit && (
             <Button onClick={openAdd} className="mt-1">
               + Add contact
             </Button>
@@ -450,18 +452,20 @@ export function ContactsPageClient({
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <RowActionsMenu
-                          ariaLabel={`Actions for ${c.name}`}
-                          actions={[
-                            { label: "Edit", icon: Pencil, onClick: () => openEdit(c) },
-                            {
-                              label: "Delete",
-                              icon: Trash2,
-                              destructive: true,
-                              onClick: () => setDeleting(c),
-                            },
-                          ]}
-                        />
+                        {canEdit && (
+                          <RowActionsMenu
+                            ariaLabel={`Actions for ${c.name}`}
+                            actions={[
+                              { label: "Edit", icon: Pencil, onClick: () => openEdit(c) },
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                destructive: true,
+                                onClick: () => setDeleting(c),
+                              },
+                            ]}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -30,15 +30,18 @@ export function DealCard({
   onEdit,
   onDelete,
   onDealUpdated,
+  canEdit,
 }: {
   deal: Deal;
   onEdit: () => void;
   onDelete: () => void;
   onDealUpdated: (patch: Partial<Deal> & { id: string }) => void;
+  canEdit: boolean;
 }) {
   const [expanded, setExpanded] = useState(false);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: deal.id,
+    disabled: !canEdit,
   });
 
   const companyName = deal.companies?.name ?? deal.contacts?.companies?.name ?? deal.contacts?.company;
@@ -54,9 +57,9 @@ export function DealCard({
       className="rounded-xl border border-slate-200 bg-white p-3 hover:border-slate-300 dark:border-slate-700 dark:bg-slate-800 dark:hover:border-slate-600"
     >
       <div
-        {...listeners}
-        {...attributes}
-        className="cursor-grab touch-none active:cursor-grabbing"
+        {...(canEdit ? listeners : {})}
+        {...(canEdit ? attributes : {})}
+        className={canEdit ? "cursor-grab touch-none active:cursor-grabbing" : ""}
       >
         <div className="flex items-start justify-between gap-2">
           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{deal.title}</p>
@@ -103,13 +106,15 @@ export function DealCard({
           <Sparkles className="h-3.5 w-3.5" />
           AI Summary
         </button>
-        <RowActionsMenu
-          ariaLabel="Deal actions"
-          actions={[
-            { label: "Edit", onClick: onEdit, icon: Pencil },
-            { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
-          ]}
-        />
+        {canEdit && (
+          <RowActionsMenu
+            ariaLabel="Deal actions"
+            actions={[
+              { label: "Edit", onClick: onEdit, icon: Pencil },
+              { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
+            ]}
+          />
+        )}
       </div>
 
       <div

@@ -5,7 +5,8 @@ import { useRouter } from "next/navigation";
 import { CheckCircle2, Pencil, Printer, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
-import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { RowActionsMenu, type RowAction } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { InvoiceModal } from "./InvoiceModal";
 import { DeleteInvoiceDialog } from "./DeleteInvoiceDialog";
 import { PrintInvoiceModal } from "./PrintInvoiceModal";
@@ -44,6 +45,7 @@ export function InvoicesPageClient({
   senderDetails: InvoiceSenderDetails | null;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("invoices", "all_invoices");
   const [statusFilter, setStatusFilter] = useState<"all" | InvoiceStatus>("all");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Invoice | null>(null);
@@ -123,7 +125,7 @@ export function InvoicesPageClient({
             Create and track payment on your invoices.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add invoice</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add invoice</Button>}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -180,7 +182,7 @@ export function InvoicesPageClient({
               ? "Add your first invoice to start tracking payments."
               : "Try a different status filter."}
           </p>
-          {initialInvoices.length === 0 && (
+          {initialInvoices.length === 0 && canEdit && (
             <Button onClick={openAdd} className="mt-1">
               + Add invoice
             </Button>
@@ -252,24 +254,28 @@ export function InvoicesPageClient({
                         <RowActionsMenu
                           ariaLabel={`Actions for ${invoice.invoice_number}`}
                           actions={[
-                            ...(invoice.status !== "paid"
+                            ...(invoice.status !== "paid" && canEdit
                               ? [
                                   {
                                     label: updatingId === invoice.id ? "Marking paid…" : "Mark paid",
                                     icon: CheckCircle2,
                                     onClick: () => markPaid(invoice),
-                                  },
+                                  } satisfies RowAction,
                                 ]
                               : []),
                             { label: "Print", icon: Printer, onClick: () => setPrinting(invoice) },
                             { label: "PDF", icon: Download, onClick: () => handleDownloadPdf(invoice) },
-                            { label: "Edit", icon: Pencil, onClick: () => openEdit(invoice) },
-                            {
-                              label: "Delete",
-                              icon: Trash2,
-                              destructive: true,
-                              onClick: () => setDeleting(invoice),
-                            },
+                            ...(canEdit
+                              ? [
+                                  { label: "Edit", icon: Pencil, onClick: () => openEdit(invoice) } satisfies RowAction,
+                                  {
+                                    label: "Delete",
+                                    icon: Trash2,
+                                    destructive: true,
+                                    onClick: () => setDeleting(invoice),
+                                  } satisfies RowAction,
+                                ]
+                              : []),
                           ]}
                         />
                       </div>

@@ -11,6 +11,7 @@ import { DealsTable } from "./DealsTable";
 import { PipelineSwitcher } from "./PipelineSwitcher";
 import { DealsTabs } from "./DealsTabs";
 import { AiSummarySheet } from "./AiSummarySheet";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { updateDealStage } from "@/lib/actions/deals";
 import { setPipelineView } from "@/lib/actions/userPreferences";
 import type {
@@ -59,6 +60,7 @@ export function DealsPageClient({
   loadError?: string | null;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("deals", "pipelines");
   const [deals, setDeals] = useState(initialDeals);
   const [pipelines, setPipelines] = useState(initialPipelines);
   const [selectedPipelineId, setSelectedPipelineId] = useState<string | null>(() =>
@@ -172,6 +174,7 @@ export function DealsPageClient({
             activePipelineId={selectedPipelineId}
             onSwitch={setSelectedPipelineId}
             onCreated={handlePipelineCreated}
+            canEdit={canEdit}
           />
           <div className="flex rounded-lg bg-slate-100 p-1 dark:bg-slate-700">
             {(["kanban", "list"] as PipelineView[]).map((mode) => (
@@ -189,7 +192,7 @@ export function DealsPageClient({
               </button>
             ))}
           </div>
-          <Button onClick={openAdd}>+ Add deal</Button>
+          {canEdit && <Button onClick={openAdd}>+ Add deal</Button>}
         </div>
       </div>
 
@@ -213,9 +216,11 @@ export function DealsPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first deal to start tracking your sales pipeline.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add deal
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add deal
+            </Button>
+          )}
         </div>
       ) : view === "kanban" ? (
         <DealsKanban
@@ -224,6 +229,7 @@ export function DealsPageClient({
           onEdit={openEdit}
           onDelete={setDeleting}
           onDealUpdated={handleDealUpdated}
+          canEdit={canEdit}
         />
       ) : (
         <DealsTable
@@ -231,6 +237,7 @@ export function DealsPageClient({
           onEdit={openEdit}
           onDelete={setDeleting}
           onOpenSummary={setSummaryDeal}
+          canEdit={canEdit}
         />
       )}
 

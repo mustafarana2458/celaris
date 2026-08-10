@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import { getProjectTemplate } from "@/lib/projectTemplates";
 import { parseAssigneeKey } from "@/lib/assignee";
 import type { ProjectHealth, ProjectStatus, ProjectTemplateStructure, TaskPriority } from "@/lib/types";
@@ -114,6 +115,9 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
+
   const fields = projectFields(formData);
   if (!fields.name) {
     return { error: "Name is required." };
@@ -177,6 +181,9 @@ export async function updateProject(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
+
   const fields = projectFields(formData);
   if (!fields.name) {
     return { error: "Name is required." };
@@ -200,6 +207,9 @@ export async function updateProject(
 export async function deleteProject(id: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("projects")
@@ -252,6 +262,9 @@ export async function addProjectAssignee(projectId: string, assignee: string): P
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
+
   const ref = parseAssigneeKey(assignee);
   if (!ref) return { error: "No member selected." };
 
@@ -272,6 +285,9 @@ export async function addProjectAssignee(projectId: string, assignee: string): P
 export async function removeProjectAssignee(id: string, projectId: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("project_assignees")
@@ -294,6 +310,9 @@ export async function addProjectDepartment(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase.from("project_departments").insert({
     project_id: projectId,
     workspace_id: ctx.workspace.id,
@@ -310,6 +329,9 @@ export async function addProjectDepartment(
 export async function removeProjectDepartment(id: string, projectId: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("project_departments")

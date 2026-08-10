@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
 import type { DealAiSummary, DealStage, DealSummaryActionResult } from "@/lib/types";
 
@@ -93,6 +94,9 @@ function parseSummaryResponse(text: string): DealAiSummary | null {
 export async function generateDealSummary(dealId: string): Promise<DealSummaryActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
 
   const { data: deal, error: dealError } = await ctx.supabase
     .from("deals")

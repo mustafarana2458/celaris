@@ -15,10 +15,12 @@ export function TemplateCard({
   template,
   onEdit,
   onDelete,
+  canEdit,
 }: {
   template: TemplateCardData;
   onEdit: () => void;
   onDelete: () => void;
+  canEdit: boolean;
 }) {
   const colors = tagColor(template.name);
 
@@ -40,7 +42,7 @@ export function TemplateCard({
               )}
             </div>
           </div>
-          {!template.isBuiltIn && (
+          {!template.isBuiltIn && canEdit && (
             <RowActionsMenu
               ariaLabel="Template actions"
               actions={[

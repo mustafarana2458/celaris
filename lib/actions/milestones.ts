@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 
 export type MilestoneActionResult = { error?: string };
 
@@ -64,6 +65,9 @@ export async function createMilestone(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
+  if (permError) return permError;
+
   const trimmed = title.trim();
   if (!trimmed) {
     return { error: "Milestone title is required." };
@@ -95,6 +99,9 @@ export async function toggleMilestone(id: string, isDone: boolean): Promise<Mile
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase
     .from("milestones")
     .update({ is_done: isDone })
@@ -111,6 +118,9 @@ export async function toggleMilestone(id: string, isDone: boolean): Promise<Mile
 export async function deleteMilestone(id: string): Promise<MilestoneActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("milestones")

@@ -11,6 +11,7 @@ import { NewProjectModal } from "./NewProjectModal";
 import { ProjectModal } from "./ProjectModal";
 import { DeleteProjectDialog } from "./DeleteProjectDialog";
 import { PROJECT_STATUSES } from "./statuses";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import type {
   Company,
   Deal,
@@ -43,6 +44,7 @@ export function ProjectsPageClient({
   loadError?: string | null;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("projects", "all_projects");
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<"all" | Project["status"]>("all");
   const [view, setView] = useState<ViewMode>("grid");
@@ -105,7 +107,7 @@ export function ProjectsPageClient({
               </button>
             ))}
           </div>
-          <Button onClick={() => setAddOpen(true)}>+ Add project</Button>
+          {canEdit && <Button onClick={() => setAddOpen(true)}>+ Add project</Button>}
         </div>
       </div>
 
@@ -163,7 +165,7 @@ export function ProjectsPageClient({
               ? "Add your first project to start organizing your work."
               : "Try a different search or filter."}
           </p>
-          {initialProjects.length === 0 && (
+          {initialProjects.length === 0 && canEdit && (
             <Button onClick={() => setAddOpen(true)} className="mt-1">
               + Add project
             </Button>
@@ -175,6 +177,7 @@ export function ProjectsPageClient({
           onView={(p) => router.push(`/dashboard/projects/${p.id}`)}
           onEdit={setEditing}
           onDelete={setDeleting}
+          canEdit={canEdit}
         />
       ) : (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
@@ -185,6 +188,7 @@ export function ProjectsPageClient({
               onView={() => router.push(`/dashboard/projects/${p.id}`)}
               onEdit={() => setEditing(p)}
               onDelete={() => setDeleting(p)}
+              canEdit={canEdit}
             />
           ))}
         </div>

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import type { CompanyIndustry, CompanySize } from "@/lib/types";
 
 export type CompanyActionResult = {
@@ -64,6 +65,9 @@ export async function createCompany(formData: FormData): Promise<CompanyActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "companies");
+  if (permError) return permError;
+
   const fields = companyFields(formData);
   if (!fields.name) {
     return { error: "Company name is required." };
@@ -89,6 +93,9 @@ export async function updateCompany(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "companies");
+  if (permError) return permError;
+
   const fields = companyFields(formData);
   if (!fields.name) {
     return { error: "Company name is required." };
@@ -111,6 +118,9 @@ export async function deleteCompany(id: string): Promise<CompanyActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "companies");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase
     .from("companies")
     .delete()
@@ -127,6 +137,9 @@ export async function deleteCompany(id: string): Promise<CompanyActionResult> {
 export async function bulkDeleteCompanies(ids: string[]): Promise<CompanyActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "contacts", "companies");
+  if (permError) return permError;
   if (ids.length === 0) return {};
 
   const { error } = await ctx.supabase

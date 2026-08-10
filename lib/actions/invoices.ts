@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import type { RecurringFrequency, InvoiceStatus } from "@/lib/types";
 
 export type InvoiceActionResult = { error?: string };
@@ -135,6 +136,9 @@ export async function createInvoice(formData: FormData): Promise<InvoiceActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "invoices", "all_invoices");
+  if (permError) return permError;
+
   const lineItems = parseLineItems(formData);
   const fields = invoiceFields(formData, lineItems);
   if (!fields.invoice_number) {
@@ -171,6 +175,9 @@ export async function updateInvoice(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "invoices", "all_invoices");
+  if (permError) return permError;
+
   const lineItems = parseLineItems(formData);
   const fields = invoiceFields(formData, lineItems);
   if (!fields.invoice_number) {
@@ -199,6 +206,9 @@ export async function updateInvoiceStatus(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "invoices", "all_invoices");
+  if (permError) return permError;
+
   if (!VALID_STATUSES.includes(status)) {
     return { error: "Invalid status." };
   }
@@ -218,6 +228,9 @@ export async function updateInvoiceStatus(
 export async function deleteInvoice(id: string): Promise<InvoiceActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "invoices", "all_invoices");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("invoices")

@@ -72,12 +72,14 @@ export function DealsKanban({
   onEdit,
   onDelete,
   onDealUpdated,
+  canEdit,
 }: {
   deals: Deal[];
   onStageChange: (deal: Deal, stage: DealStage) => void;
   onEdit: (deal: Deal) => void;
   onDelete: (deal: Deal) => void;
   onDealUpdated: (patch: Partial<Deal> & { id: string }) => void;
+  canEdit: boolean;
 }) {
   const [activeId, setActiveId] = useState<string | null>(null);
   const sensors = useSensors(
@@ -96,6 +98,7 @@ export function DealsKanban({
 
   function handleDragEnd(event: DragEndEvent) {
     setActiveId(null);
+    if (!canEdit) return;
     const { active, over } = event;
     if (!over) return;
 
@@ -131,6 +134,7 @@ export function DealsKanban({
                 onEdit={() => onEdit(deal)}
                 onDelete={() => onDelete(deal)}
                 onDealUpdated={onDealUpdated}
+                canEdit={canEdit}
               />
             ))}
           </KanbanColumn>

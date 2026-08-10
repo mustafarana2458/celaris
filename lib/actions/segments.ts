@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import { resolveSegmentContactIds, type Segment, type SegmentQueryLogic } from "@/lib/segments";
 import { DEFAULT_PAGE_SIZE, PAGE_SIZE_OPTIONS, type Contact } from "@/lib/types";
 
@@ -75,6 +76,9 @@ export async function createSegment(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "segments");
+  if (permError) return permError;
+
   if (!name.trim()) return { error: "Segment name is required." };
   const validationError = validateQueryLogic(queryLogic);
   if (validationError) return { error: validationError };
@@ -106,6 +110,9 @@ export async function updateSegment(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "contacts", "segments");
+  if (permError) return permError;
+
   if (!name.trim()) return { error: "Segment name is required." };
   const validationError = validateQueryLogic(queryLogic);
   if (validationError) return { error: validationError };
@@ -131,6 +138,9 @@ export async function updateSegment(
 export async function deleteSegment(id: string): Promise<SegmentActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "contacts", "segments");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("segments")

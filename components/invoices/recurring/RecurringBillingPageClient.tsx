@@ -6,6 +6,7 @@ import { CirclePause, CirclePlay, Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { setRecurringProfileStatus } from "@/lib/actions/recurringProfiles";
 import { RecurringProfileModal } from "./RecurringProfileModal";
 import { DeleteRecurringProfileDialog } from "./DeleteRecurringProfileDialog";
@@ -45,6 +46,7 @@ export function RecurringBillingPageClient({
   products: Pick<Product, "id" | "name" | "unit_price">[];
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("invoices", "recurring_billing");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<RecurringProfile | null>(null);
   const [deleting, setDeleting] = useState<RecurringProfile | null>(null);
@@ -99,7 +101,7 @@ export function RecurringBillingPageClient({
             Retainer profiles that generate invoices automatically on a schedule.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Create Recurring Profile</Button>
+        {canEdit && <Button onClick={openAdd}>+ Create Recurring Profile</Button>}
       </div>
 
       <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
@@ -124,9 +126,11 @@ export function RecurringBillingPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Create a retainer profile to stop billing the same client manually every month.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Create Recurring Profile
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Create Recurring Profile
+            </Button>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -180,28 +184,30 @@ export function RecurringBillingPageClient({
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <RowActionsMenu
-                          ariaLabel={`Actions for ${profile.profile_name}`}
-                          actions={[
-                            { label: "Edit", icon: Pencil, onClick: () => openEdit(profile) },
-                            {
-                              label:
-                                updatingId === profile.id
-                                  ? "Updating…"
-                                  : profile.status === "active"
-                                    ? "Pause"
-                                    : "Resume",
-                              icon: profile.status === "active" ? CirclePause : CirclePlay,
-                              onClick: () => toggleStatus(profile),
-                            },
-                            {
-                              label: "Delete",
-                              icon: Trash2,
-                              destructive: true,
-                              onClick: () => setDeleting(profile),
-                            },
-                          ]}
-                        />
+                        {canEdit && (
+                          <RowActionsMenu
+                            ariaLabel={`Actions for ${profile.profile_name}`}
+                            actions={[
+                              { label: "Edit", icon: Pencil, onClick: () => openEdit(profile) },
+                              {
+                                label:
+                                  updatingId === profile.id
+                                    ? "Updating…"
+                                    : profile.status === "active"
+                                      ? "Pause"
+                                      : "Resume",
+                                icon: profile.status === "active" ? CirclePause : CirclePlay,
+                                onClick: () => toggleStatus(profile),
+                              },
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                destructive: true,
+                                onClick: () => setDeleting(profile),
+                              },
+                            ]}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

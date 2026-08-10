@@ -25,11 +25,13 @@ export function ProjectsTable({
   onView,
   onEdit,
   onDelete,
+  canEdit,
 }: {
   projects: Project[];
   onView: (project: Project) => void;
   onEdit: (project: Project) => void;
   onDelete: (project: Project) => void;
+  canEdit: boolean;
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -91,8 +93,12 @@ export function ProjectsTable({
                       ariaLabel="Project actions"
                       actions={[
                         { label: "View", onClick: () => onView(project), icon: Eye },
-                        { label: "Edit", onClick: () => onEdit(project), icon: Pencil },
-                        { label: "Delete", onClick: () => onDelete(project), icon: Trash2, destructive: true },
+                        ...(canEdit
+                          ? [
+                              { label: "Edit", onClick: () => onEdit(project), icon: Pencil },
+                              { label: "Delete", onClick: () => onDelete(project), icon: Trash2, destructive: true },
+                            ]
+                          : []),
                       ]}
                     />
                   </div>

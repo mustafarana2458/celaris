@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import { createMilestone, deleteMilestone, toggleMilestone } from "@/lib/actions/milestones";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import type { Milestone } from "@/lib/types";
 
 function formatDate(value: string | null) {
@@ -21,6 +22,7 @@ export function MilestoneChecklist({
   milestones: Milestone[];
   onChanged: () => void;
 }) {
+  const canEdit = useCanEdit("projects", "milestones");
   const [items, setItems] = useState(milestones);
   const [newTitle, setNewTitle] = useState("");
   const [newDueDate, setNewDueDate] = useState("");
@@ -111,7 +113,7 @@ export function MilestoneChecklist({
             <input
               type="checkbox"
               checked={item.is_done}
-              disabled={busyId === item.id}
+              disabled={busyId === item.id || !canEdit}
               onChange={() => handleToggle(item)}
               className="h-4 w-4 shrink-0 rounded border-slate-300 text-accent focus:ring-accent/30 dark:border-slate-600"
             />
@@ -129,56 +131,60 @@ export function MilestoneChecklist({
                 {formatDate(item.due_date)}
               </span>
             )}
-            <button
-              type="button"
-              onClick={() => handleDelete(item)}
-              disabled={busyId === item.id}
-              aria-label="Remove milestone"
-              className="hidden shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 group-hover:block dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
-            >
-              <svg
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth={1.8}
-                strokeLinecap="round"
-                className="h-3.5 w-3.5"
+            {canEdit && (
+              <button
+                type="button"
+                onClick={() => handleDelete(item)}
+                disabled={busyId === item.id}
+                aria-label="Remove milestone"
+                className="hidden shrink-0 rounded p-1 text-slate-300 hover:bg-red-50 hover:text-red-500 group-hover:block dark:text-slate-500 dark:hover:bg-red-950/40 dark:hover:text-red-400"
               >
-                <path d="M6 6l12 12M18 6 6 18" />
-              </svg>
-            </button>
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth={1.8}
+                  strokeLinecap="round"
+                  className="h-3.5 w-3.5"
+                >
+                  <path d="M6 6l12 12M18 6 6 18" />
+                </svg>
+              </button>
+            )}
           </label>
         ))}
       </div>
 
-      <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-slate-700 sm:flex-row sm:items-center">
-        <input
-          value={newTitle}
-          onChange={(e) => setNewTitle(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter") {
-              e.preventDefault();
-              handleAdd();
-            }
-          }}
-          placeholder="Add milestone…"
-          className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-        />
-        <input
-          type="date"
-          value={newDueDate}
-          onChange={(e) => setNewDueDate(e.target.value)}
-          className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-        />
-        <button
-          type="button"
-          onClick={handleAdd}
-          disabled={adding || !newTitle.trim()}
-          className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
-        >
-          Add
-        </button>
-      </div>
+      {canEdit && (
+        <div className="mt-3 flex flex-col gap-2 border-t border-slate-100 pt-3 dark:border-slate-700 sm:flex-row sm:items-center">
+          <input
+            value={newTitle}
+            onChange={(e) => setNewTitle(e.target.value)}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") {
+                e.preventDefault();
+                handleAdd();
+              }
+            }}
+            placeholder="Add milestone…"
+            className="flex-1 rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          />
+          <input
+            type="date"
+            value={newDueDate}
+            onChange={(e) => setNewDueDate(e.target.value)}
+            className="rounded-lg border border-slate-200 px-3 py-2 text-sm text-slate-900 outline-none focus:border-accent dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+          />
+          <button
+            type="button"
+            onClick={handleAdd}
+            disabled={adding || !newTitle.trim()}
+            className="shrink-0 rounded-lg bg-accent px-3 py-2 text-sm font-medium text-white hover:bg-accent-hover disabled:opacity-50"
+          >
+            Add
+          </button>
+        </div>
+      )}
       {error && <p className="mt-2 text-xs text-red-600 dark:text-red-400">{error}</p>}
     </div>
   );

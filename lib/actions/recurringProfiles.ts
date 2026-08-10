@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import type { RecurringProfileFrequency, RecurringProfileStatus } from "@/lib/types";
 
 export type RecurringProfileActionResult = { error?: string };
@@ -92,6 +93,9 @@ export async function createRecurringProfile(formData: FormData): Promise<Recurr
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "invoices", "recurring_billing");
+  if (permError) return permError;
+
   const lineItems = parseLineItems(formData);
   const fields = profileFields(formData, lineItems);
 
@@ -123,6 +127,9 @@ export async function updateRecurringProfile(
 ): Promise<RecurringProfileActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "invoices", "recurring_billing");
+  if (permError) return permError;
 
   const lineItems = parseLineItems(formData);
   const fields = profileFields(formData, lineItems);
@@ -156,6 +163,9 @@ export async function setRecurringProfileStatus(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "invoices", "recurring_billing");
+  if (permError) return permError;
+
   if (!VALID_STATUSES.includes(status)) {
     return { error: "Invalid status." };
   }
@@ -175,6 +185,9 @@ export async function setRecurringProfileStatus(
 export async function deleteRecurringProfile(id: string): Promise<RecurringProfileActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "invoices", "recurring_billing");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("recurring_profiles")

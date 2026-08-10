@@ -6,6 +6,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { CompanyModal } from "./CompanyModal";
 import { DeleteCompanyDialog } from "./DeleteCompanyDialog";
 import { BulkActionBar } from "@/components/contacts/BulkActionBar";
@@ -23,6 +24,7 @@ export function CompaniesPageClient({
   initialCompanies: Company[];
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("contacts", "companies");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Company | null>(null);
   const [deleting, setDeleting] = useState<Company | null>(null);
@@ -124,7 +126,7 @@ export function CompaniesPageClient({
             The organizations your people belong to.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add company</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add company</Button>}
       </div>
 
       <div
@@ -135,7 +137,7 @@ export function CompaniesPageClient({
         <BulkActionBar
           count={selectedIds.size}
           onDelete={() => setBulkDeleteOpen(true)}
-          pending={bulkPending}
+          pending={bulkPending || !canEdit}
           error={bulkError}
         />
       </div>
@@ -149,9 +151,11 @@ export function CompaniesPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first company so you can link people to it.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add company
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add company
+            </Button>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -229,18 +233,20 @@ export function CompaniesPageClient({
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <RowActionsMenu
-                          ariaLabel={`Actions for ${company.name}`}
-                          actions={[
-                            { label: "Edit", icon: Pencil, onClick: () => openEdit(company) },
-                            {
-                              label: "Delete",
-                              icon: Trash2,
-                              destructive: true,
-                              onClick: () => setDeleting(company),
-                            },
-                          ]}
-                        />
+                        {canEdit && (
+                          <RowActionsMenu
+                            ariaLabel={`Actions for ${company.name}`}
+                            actions={[
+                              { label: "Edit", icon: Pencil, onClick: () => openEdit(company) },
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                destructive: true,
+                                onClick: () => setDeleting(company),
+                              },
+                            ]}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -6,6 +6,7 @@ import { Pencil, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
 import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { ProductModal } from "./ProductModal";
 import { DeleteProductDialog } from "./DeleteProductDialog";
 import type { Product } from "@/lib/types";
@@ -17,6 +18,7 @@ const currency = new Intl.NumberFormat("en-US", {
 
 export function ProductLibraryPageClient({ initialProducts }: { initialProducts: Product[] }) {
   const router = useRouter();
+  const canEdit = useCanEdit("invoices", "product_library");
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState<Product | null>(null);
   const [deleting, setDeleting] = useState<Product | null>(null);
@@ -55,7 +57,7 @@ export function ProductLibraryPageClient({ initialProducts }: { initialProducts:
             Reusable products and services you can drop straight into an invoice&apos;s line items.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add Product</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add Product</Button>}
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800 sm:max-w-xs">
@@ -74,9 +76,11 @@ export function ProductLibraryPageClient({ initialProducts }: { initialProducts:
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add a product or service to pick it straight into future invoices and recurring profiles.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add Product
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add Product
+            </Button>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -116,18 +120,20 @@ export function ProductLibraryPageClient({ initialProducts }: { initialProducts:
                     </td>
                     <td className="px-5 py-3">
                       <div className="flex justify-end">
-                        <RowActionsMenu
-                          ariaLabel={`Actions for ${product.name}`}
-                          actions={[
-                            { label: "Edit", icon: Pencil, onClick: () => openEdit(product) },
-                            {
-                              label: "Delete",
-                              icon: Trash2,
-                              destructive: true,
-                              onClick: () => setDeleting(product),
-                            },
-                          ]}
-                        />
+                        {canEdit && (
+                          <RowActionsMenu
+                            ariaLabel={`Actions for ${product.name}`}
+                            actions={[
+                              { label: "Edit", icon: Pencil, onClick: () => openEdit(product) },
+                              {
+                                label: "Delete",
+                                icon: Trash2,
+                                destructive: true,
+                                onClick: () => setDeleting(product),
+                              },
+                            ]}
+                          />
+                        )}
                       </div>
                     </td>
                   </tr>

@@ -6,7 +6,8 @@ import { useRouter } from "next/navigation";
 import { Eye, Pencil, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/Button";
 import { NavIcon } from "@/components/dashboard/NavIcon";
-import { RowActionsMenu } from "@/components/ui/RowActionsMenu";
+import { RowActionsMenu, type RowAction } from "@/components/ui/RowActionsMenu";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { SegmentModal } from "./SegmentModal";
 import { DeleteSegmentDialog } from "./DeleteSegmentDialog";
 import { getInitials } from "@/lib/avatar";
@@ -31,6 +32,7 @@ export function SegmentsPageClient({
   teamMembers: WorkspaceTeamMember[];
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("contacts", "segments");
   const [segments, setSegments] = useState(initialSegments);
   const [isPending, startTransition] = useTransition();
   const [loadError, setLoadError] = useState<string | null>(null);
@@ -116,7 +118,7 @@ export function SegmentsPageClient({
             Save filter rules once — segments stay up to date as your contacts change.
           </p>
         </div>
-        <Button onClick={openCreate}>+ Create Segment</Button>
+        {canEdit && <Button onClick={openCreate}>+ Create Segment</Button>}
       </div>
 
       {(loadError || exportError) && (
@@ -134,9 +136,11 @@ export function SegmentsPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Create a segment to automatically group contacts by rules like tags, type, or company.
           </p>
-          <Button onClick={openCreate} className="mt-1">
-            + Create Segment
-          </Button>
+          {canEdit && (
+            <Button onClick={openCreate} className="mt-1">
+              + Create Segment
+            </Button>
+          )}
         </div>
       ) : (
         <div
@@ -199,18 +203,24 @@ export function SegmentsPageClient({
                                 icon: Eye,
                                 onClick: () => router.push(`/dashboard/contacts/segments/${segment.id}`),
                               },
-                              { label: "Edit Rules", icon: Pencil, onClick: () => openEdit(segment) },
+                              ...(canEdit
+                                ? [{ label: "Edit Rules", icon: Pencil, onClick: () => openEdit(segment) } satisfies RowAction]
+                                : []),
                               {
                                 label: exportingId === segment.id ? "Exporting..." : "Export to CSV",
                                 icon: Download,
                                 onClick: () => handleExport(segment),
                               },
-                              {
-                                label: "Delete",
-                                icon: Trash2,
-                                destructive: true,
-                                onClick: () => setDeleting(segment),
-                              },
+                              ...(canEdit
+                                ? [
+                                    {
+                                      label: "Delete",
+                                      icon: Trash2,
+                                      destructive: true,
+                                      onClick: () => setDeleting(segment),
+                                    } satisfies RowAction,
+                                  ]
+                                : []),
                             ]}
                           />
                         </div>

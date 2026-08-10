@@ -9,10 +9,12 @@ import { RowActionsMenu, type RowAction } from "@/components/ui/RowActionsMenu";
 import { TeamMemberModal } from "./TeamMemberModal";
 import { DeleteTeamMemberDialog } from "./DeleteTeamMemberDialog";
 import { InviteMemberModal } from "./InviteMemberModal";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import type { TeamMember } from "@/lib/types";
 
 export function TeamDirectoryPageClient({ initialTeamMembers }: { initialTeamMembers: TeamMember[] }) {
   const router = useRouter();
+  const canEdit = useCanEdit("team", "team_directory");
 
   const [inviteOpen, setInviteOpen] = useState(false);
   const [inviteInitialEmail, setInviteInitialEmail] = useState<string | null>(null);
@@ -65,7 +67,7 @@ export function TeamDirectoryPageClient({ initialTeamMembers }: { initialTeamMem
             Keep a directory of your team, even before they have a login.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add team member</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add team member</Button>}
       </div>
 
       {initialTeamMembers.length === 0 ? (
@@ -78,9 +80,11 @@ export function TeamDirectoryPageClient({ initialTeamMembers }: { initialTeamMem
             Add people to your team directory to keep track of who&apos;s who, even before they
             have a login.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add team member
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add team member
+            </Button>
+          )}
         </div>
       ) : (
         <div className="overflow-hidden rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -103,13 +107,17 @@ export function TeamDirectoryPageClient({ initialTeamMembers }: { initialTeamMem
                       onClick: () => openConvert(member),
                       icon: UserPlus,
                     },
-                    { label: "Edit", onClick: () => openEdit(member), icon: Pencil },
-                    {
-                      label: "Delete",
-                      onClick: () => setDeleting(member),
-                      icon: Trash2,
-                      destructive: true,
-                    },
+                    ...(canEdit
+                      ? [
+                          { label: "Edit", onClick: () => openEdit(member), icon: Pencil } satisfies RowAction,
+                          {
+                            label: "Delete",
+                            onClick: () => setDeleting(member),
+                            icon: Trash2,
+                            destructive: true,
+                          } satisfies RowAction,
+                        ]
+                      : []),
                   ];
                   return (
                     <tr key={member.id} className="hover:bg-slate-50 dark:hover:bg-slate-700/50">

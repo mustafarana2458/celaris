@@ -409,6 +409,12 @@ export type TasksSubKey = "my_tasks" | "team_board" | "workload";
 export type InvoicesSubKey = "all_invoices" | "recurring_billing" | "product_library";
 export type TeamSubKey = "active_members" | "pending_invites" | "team_directory" | "departments";
 
+// The subset of modules that carry per-submodule View/Full access (as
+// opposed to dashboard's toggle-only widgets or ai_assistant/settings'
+// module-only enabled flag). Used to type write-enforcement helpers
+// generically across all six without losing per-module submodule-key safety.
+export type AccessModuleKey = "contacts" | "deals" | "projects" | "tasks" | "invoices" | "team";
+
 export type WorkspacePermissions = {
   version: 2;
   dashboard: ModuleWithToggleSubs<DashboardKpiKey>;

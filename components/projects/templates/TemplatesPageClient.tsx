@@ -8,6 +8,7 @@ import { TemplateCard, type TemplateCardData } from "./TemplateCard";
 import { TemplateBuilderModal } from "./TemplateBuilderModal";
 import { DeleteTemplateDialog } from "./DeleteTemplateDialog";
 import { PROJECT_TEMPLATES } from "@/lib/projectTemplates";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import type { ProjectTemplateRecord } from "@/lib/types";
 
 function formatDuration(days: number | null): string | null {
@@ -55,6 +56,7 @@ export function TemplatesPageClient({
   loadError?: string | null;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("projects", "project_templates");
   const [templates, setTemplates] = useState(initialTemplates);
   const [builderOpen, setBuilderOpen] = useState(false);
   const [editing, setEditing] = useState<ProjectTemplateRecord | null>(null);
@@ -108,7 +110,7 @@ export function TemplatesPageClient({
             Reusable milestone & task blueprints for new projects.
           </p>
         </div>
-        <Button onClick={openCreate}>+ Create Template</Button>
+        {canEdit && <Button onClick={openCreate}>+ Create Template</Button>}
       </div>
 
       {loadError && (
@@ -127,6 +129,7 @@ export function TemplatesPageClient({
               const template = dbById.get(card.id);
               if (template) setDeleting(template);
             }}
+            canEdit={canEdit}
           />
         ))}
       </div>

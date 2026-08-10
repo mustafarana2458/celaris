@@ -6,6 +6,7 @@ import { Button } from "@/components/ui/Button";
 import { ProjectsTabs } from "@/components/projects/ProjectsTabs";
 import { GanttTimeline } from "./GanttTimeline";
 import { AddMasterMilestoneModal } from "./AddMasterMilestoneModal";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import type { Milestone, Project, WorkspaceTeamMember } from "@/lib/types";
 
 const selectClass =
@@ -23,6 +24,7 @@ export function MilestonesTimelineClient({
   loadError?: string | null;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("projects", "milestones");
   const [selectedProjectId, setSelectedProjectId] = useState<string>("all");
   const [addOpen, setAddOpen] = useState(false);
 
@@ -72,7 +74,7 @@ export function MilestonesTimelineClient({
               </option>
             ))}
           </select>
-          <Button onClick={() => setAddOpen(true)}>+ Add Milestone</Button>
+          {canEdit && <Button onClick={() => setAddOpen(true)}>+ Add Milestone</Button>}
         </div>
       </div>
 
@@ -95,9 +97,11 @@ export function MilestonesTimelineClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first milestone to start building the roadmap.
           </p>
-          <Button onClick={() => setAddOpen(true)} className="mt-1">
-            + Add Milestone
-          </Button>
+          {canEdit && (
+            <Button onClick={() => setAddOpen(true)} className="mt-1">
+              + Add Milestone
+            </Button>
+          )}
         </div>
       ) : (
         <GanttTimeline rows={rows} />

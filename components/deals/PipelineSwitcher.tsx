@@ -21,11 +21,13 @@ export function PipelineSwitcher({
   activePipelineId,
   onSwitch,
   onCreated,
+  canEdit,
 }: {
   pipelines: Pipeline[];
   activePipelineId: string | null;
   onSwitch: (id: string) => void;
   onCreated: (pipeline: { id: string; name: string; is_default: boolean }) => void;
+  canEdit: boolean;
 }) {
   const [createOpen, setCreateOpen] = useState(false);
   const [creating, setCreating] = useState(false);
@@ -78,14 +80,18 @@ export function PipelineSwitcher({
               )}
             </DropdownMenuItem>
           ))}
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onSelect={() => setCreateOpen(true)}
-            className="text-accent-hover dark:text-accent"
-          >
-            <Plus className="h-4 w-4 shrink-0" />
-            New pipeline
-          </DropdownMenuItem>
+          {canEdit && (
+            <>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onSelect={() => setCreateOpen(true)}
+                className="text-accent-hover dark:text-accent"
+              >
+                <Plus className="h-4 w-4 shrink-0" />
+                New pipeline
+              </DropdownMenuItem>
+            </>
+          )}
         </DropdownMenuContent>
       </DropdownMenu>
 

@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 
 export type PipelineActionResult = {
   error?: string;
@@ -30,6 +31,9 @@ async function requireWorkspace() {
 export async function createPipeline(formData: FormData): Promise<PipelineActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) {

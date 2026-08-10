@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import { parseAssigneeKey } from "@/lib/assignee";
 import type { DealStage } from "@/lib/types";
 
@@ -67,6 +68,9 @@ export async function createDeal(formData: FormData): Promise<DealActionResult> 
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
+
   const fields = dealFields(formData);
   if (!fields.title) {
     return { error: "Title is required." };
@@ -92,6 +96,9 @@ export async function updateDeal(
 ): Promise<DealActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
 
   const fields = dealFields(formData);
   if (!fields.title) {
@@ -120,6 +127,9 @@ export async function updateDealStage(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
+
   if (!VALID_STAGES.includes(stage)) {
     return { error: "Invalid stage." };
   }
@@ -139,6 +149,9 @@ export async function updateDealStage(
 export async function deleteDeal(id: string): Promise<DealActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("deals")
@@ -191,6 +204,9 @@ export async function addDealAssignee(dealId: string, assignee: string): Promise
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
+
   const ref = parseAssigneeKey(assignee);
   if (!ref) return { error: "No member selected." };
 
@@ -211,6 +227,9 @@ export async function removeDealAssignee(id: string, dealId: string): Promise<De
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase
     .from("deal_assignees")
     .delete()
@@ -228,6 +247,9 @@ export async function addDealDepartment(dealId: string, departmentId: string): P
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase.from("deal_departments").insert({
     deal_id: dealId,
     workspace_id: ctx.workspace.id,
@@ -243,6 +265,9 @@ export async function addDealDepartment(dealId: string, departmentId: string): P
 export async function removeDealDepartment(id: string, dealId: string): Promise<DealActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("deal_departments")

@@ -23,11 +23,13 @@ export function DealsTable({
   onEdit,
   onDelete,
   onOpenSummary,
+  canEdit,
 }: {
   deals: Deal[];
   onEdit: (deal: Deal) => void;
   onDelete: (deal: Deal) => void;
   onOpenSummary: (deal: Deal) => void;
+  canEdit: boolean;
 }) {
   return (
     <div className="overflow-x-auto rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
@@ -82,13 +84,15 @@ export function DealsTable({
                 </td>
                 <td className="px-4 py-3">
                   <div className="flex justify-end">
-                    <RowActionsMenu
-                      ariaLabel="Deal actions"
-                      actions={[
-                        { label: "Edit", onClick: () => onEdit(deal), icon: Pencil },
-                        { label: "Delete", onClick: () => onDelete(deal), icon: Trash2, destructive: true },
-                      ]}
-                    />
+                    {canEdit && (
+                      <RowActionsMenu
+                        ariaLabel="Deal actions"
+                        actions={[
+                          { label: "Edit", onClick: () => onEdit(deal), icon: Pencil },
+                          { label: "Delete", onClick: () => onDelete(deal), icon: Trash2, destructive: true },
+                        ]}
+                      />
+                    )}
                   </div>
                 </td>
               </tr>

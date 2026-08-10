@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import type {
   ProjectTemplateActionResult,
   ProjectTemplateStructure,
@@ -81,6 +82,9 @@ export async function createProjectTemplate(formData: FormData): Promise<Project
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "projects", "project_templates");
+  if (permError) return permError;
+
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Template name is required." };
 
@@ -116,6 +120,9 @@ export async function createProjectTemplate(formData: FormData): Promise<Project
 export async function updateProjectTemplate(id: string, formData: FormData): Promise<ProjectTemplateActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "project_templates");
+  if (permError) return permError;
 
   const name = String(formData.get("name") ?? "").trim();
   if (!name) return { error: "Template name is required." };
@@ -153,6 +160,9 @@ export async function updateProjectTemplate(id: string, formData: FormData): Pro
 export async function deleteProjectTemplate(id: string): Promise<ProjectTemplateActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "projects", "project_templates");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("project_templates")

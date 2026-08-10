@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import type { CurrentWorkspace } from "./workspace";
 import type {
+  AccessModuleKey,
   ContactsSubKey,
   DashboardKpiKey,
   DealsSubKey,
@@ -18,13 +19,10 @@ import type {
 
 // Single source of truth for module/submodule visibility, used by both the
 // sidebar (cosmetic) and route guards (actual enforcement). Owners are
-// always exempt. Missing/empty permissions default to visible -- only an
-// explicit `enabled: false` hides something, so members with no permissions
-// set are unaffected.
-//
-// NOTE (Phase 1a): this only reads the v2 shape's `enabled` flags to stay
-// type-compatible with the new schema. It does not check `access`
-// (view/full) and there is no write-side enforcement yet -- that's Phase 1b.
+// always exempt. Runs everything through normalizePermissions() first so
+// missing/legacy/partial data always resolves to the same safe defaults
+// (enabled=true) used everywhere else -- only an explicit `enabled: false`
+// hides something.
 export function hasModuleAccess(
   role: string | null | undefined,
   permissions: WorkspacePermissions | null | undefined,
@@ -32,13 +30,14 @@ export function hasModuleAccess(
   submoduleKey?: string
 ): boolean {
   if (role === "owner") return true;
-  if (!permissions) return true;
 
-  const mod = (
-    permissions as unknown as Record<string, { enabled: boolean; subs?: Record<string, { enabled: boolean }> }>
-  )[moduleKey];
+  const normalized = normalizePermissions(permissions) as unknown as Record<
+    string,
+    { enabled: boolean; subs?: Record<string, { enabled: boolean }> }
+  >;
+  const mod = normalized[moduleKey];
   if (!mod) return true;
-  if (mod.enabled === false) return false;
+  if (!mod.enabled) return false;
   if (submoduleKey && mod.subs?.[submoduleKey]?.enabled === false) return false;
   return true;
 }
@@ -124,4 +123,50 @@ export function normalizePermissions(raw: unknown): WorkspacePermissions {
     ai_assistant: normSimpleModule(r.ai_assistant),
     settings: normSimpleModule(r.settings),
   };
+}
+
+type WriteAccessError = { error: string };
+
+// Server-side write gate (Phase 1b). Call at the top of every create/
+// update/delete action, right after requireWorkspace(). Owner and admin
+// always bypass (admin bypass is a deliberate Phase 1b choice -- the boss's
+// doc treats admin as full-access for now; revisit if that changes). A
+// disabled module, a disabled submodule, or a submodule set to "view" all
+// block the write with the same generic message so we don't leak which of
+// the three applies.
+export function requireFullAccess<K extends AccessModuleKey>(
+  workspace: CurrentWorkspace,
+  moduleKey: K,
+  submoduleKey: Extract<keyof WorkspacePermissions[K]["subs"], string>
+): WriteAccessError | null {
+  if (workspace.role === "owner" || workspace.role === "admin") return null;
+
+  const permissions = normalizePermissions(workspace.permissions);
+  const mod = permissions[moduleKey];
+  if (!mod.enabled) return { error: "You don't have access to this." };
+
+  const sub = (mod.subs as Record<string, SubPermission>)[submoduleKey];
+  if (!sub.enabled) return { error: "You don't have access to this." };
+  if (sub.access === "view") return { error: "You have view-only access to this." };
+  return null;
+}
+
+// Client/server-shared read of the same rule as requireFullAccess(), for
+// hiding Add/Edit/Delete controls in the UI. This is UX only -- the real
+// gate is requireFullAccess() in the server action itself.
+export function canEditModule<K extends AccessModuleKey>(
+  workspace: { role: string; permissions: WorkspacePermissions | null } | null | undefined,
+  moduleKey: K,
+  submoduleKey: Extract<keyof WorkspacePermissions[K]["subs"], string>
+): boolean {
+  if (!workspace) return true;
+  if (workspace.role === "owner" || workspace.role === "admin") return true;
+
+  const permissions = normalizePermissions(workspace.permissions);
+  const mod = permissions[moduleKey];
+  if (!mod.enabled) return false;
+
+  const sub = (mod.subs as Record<string, SubPermission>)[submoduleKey];
+  if (!sub.enabled) return false;
+  return sub.access !== "view";
 }
