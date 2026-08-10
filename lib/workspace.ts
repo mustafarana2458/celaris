@@ -5,7 +5,7 @@ export type CurrentWorkspace = {
   id: string;
   name: string;
   role: string;
-  permissions: WorkspacePermissions;
+  permissions: WorkspacePermissions | null;
 };
 
 export type WorkspaceSummary = {
@@ -43,7 +43,7 @@ export async function getCurrentWorkspace(
         id: data.workspaces.id,
         name: data.workspaces.name,
         role: data.role,
-        permissions: data.permissions ?? {},
+        permissions: data.permissions ?? null,
       };
     }
     // Membership on the saved workspace no longer exists (removed from it) --
@@ -63,7 +63,7 @@ export async function getCurrentWorkspace(
     id: data.workspaces.id,
     name: data.workspaces.name,
     role: data.role,
-    permissions: data.permissions ?? {},
+    permissions: data.permissions ?? null,
   };
 }
 

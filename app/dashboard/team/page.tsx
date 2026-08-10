@@ -30,13 +30,13 @@ export default async function TeamPage() {
   const permissionsByUser = new Map(
     ((memberPermissions as MemberPermissionsRow[] | null) ?? []).map((row) => [
       row.user_id,
-      row.permissions ?? {},
+      row.permissions ?? null,
     ])
   );
 
   const membersWithPermissions = ((workspaceMembers as WorkspaceTeamMember[] | null) ?? []).map((m) => ({
     ...m,
-    permissions: permissionsByUser.get(m.user_id) ?? {},
+    permissions: permissionsByUser.get(m.user_id) ?? null,
   }));
 
   return (

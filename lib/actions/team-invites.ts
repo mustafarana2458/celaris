@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { normalizePermissions } from "@/lib/permissions";
 import { sendInviteEmail } from "@/lib/email";
 import type { InvitationRole, WorkspacePermissions } from "@/lib/types";
 
@@ -224,9 +225,12 @@ export async function updateMemberPermissions(
   const permError = requireOwner(ctx.workspace.role);
   if (permError) return permError;
 
+  // Re-normalize server-side rather than trusting the client payload as-is --
+  // guarantees the stored column always holds a complete, well-formed v2
+  // object even if the drawer ever sends a partial/stale shape.
   const { error } = await ctx.supabase
     .from("workspace_members")
-    .update({ permissions })
+    .update({ permissions: normalizePermissions(permissions) })
     .eq("workspace_id", ctx.workspace.id)
     .eq("user_id", targetUserId);
 

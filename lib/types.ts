@@ -389,9 +389,37 @@ export type WorkspaceMemberRow = {
 
 export type WorkspaceRole = "owner" | "admin" | "member";
 
+// v2 permissions shape. Every module page is represented as a submodule (the
+// module's own "main" page included), so access lives at the sub level for
+// modules that have subs -- there's no separate module-level access field to
+// keep in sync with it. `enabled` at the module level is the master
+// show/hide switch for the whole group (including its subs).
+export type PermissionAccess = "view" | "full";
+export type SubPermission = { enabled: boolean; access: PermissionAccess };
+export type ToggleSubPermission = { enabled: boolean };
+export type ModuleWithAccessSubs<K extends string> = { enabled: boolean; subs: Record<K, SubPermission> };
+export type ModuleWithToggleSubs<K extends string> = { enabled: boolean; subs: Record<K, ToggleSubPermission> };
+export type SimpleModule = { enabled: boolean };
+
+export type DashboardKpiKey = "contacts_kpis" | "deals_kpis" | "revenue_kpis";
+export type ContactsSubKey = "people" | "companies" | "segments";
+export type DealsSubKey = "pipelines" | "forecasts";
+export type ProjectsSubKey = "all_projects" | "project_templates" | "milestones";
+export type TasksSubKey = "my_tasks" | "team_board" | "workload";
+export type InvoicesSubKey = "all_invoices" | "recurring_billing" | "product_library";
+export type TeamSubKey = "active_members" | "pending_invites" | "team_directory" | "departments";
+
 export type WorkspacePermissions = {
-  modules?: Record<string, boolean>;
-  submodules?: Record<string, Record<string, boolean>>;
+  version: 2;
+  dashboard: ModuleWithToggleSubs<DashboardKpiKey>;
+  contacts: ModuleWithAccessSubs<ContactsSubKey>;
+  deals: ModuleWithAccessSubs<DealsSubKey>;
+  projects: ModuleWithAccessSubs<ProjectsSubKey>;
+  tasks: ModuleWithAccessSubs<TasksSubKey>;
+  invoices: ModuleWithAccessSubs<InvoicesSubKey>;
+  team: ModuleWithAccessSubs<TeamSubKey>;
+  ai_assistant: SimpleModule;
+  settings: SimpleModule;
 };
 
 export type WorkspaceTeamMember = {
@@ -400,7 +428,7 @@ export type WorkspaceTeamMember = {
   full_name: string | null;
   role: WorkspaceRole;
   joined_at: string | null;
-  permissions?: WorkspacePermissions;
+  permissions?: WorkspacePermissions | null;
 };
 
 export type InvitationStatus = "pending" | "accepted" | "cancelled";
