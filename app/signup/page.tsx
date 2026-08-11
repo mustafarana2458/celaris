@@ -51,7 +51,7 @@ export default async function SignupPage({
           Already have an account?{" "}
           <Link
             href={invite ? `/login?token=${encodeURIComponent(invite.token)}` : "/login"}
-            className="font-medium text-blue-600 hover:text-blue-700"
+            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
           >
             Sign in
           </Link>

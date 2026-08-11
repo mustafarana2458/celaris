@@ -3,8 +3,8 @@
 import { useState, useTransition } from "react";
 import Link from "next/link";
 import { logIn } from "@/lib/actions/auth";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { AuthButton } from "@/components/auth/AuthButton";
+import { AuthInput } from "@/components/auth/AuthInput";
 
 export function LoginForm() {
   const [error, setError] = useState<string | null>(null);
@@ -22,7 +22,7 @@ export function LoginForm() {
 
   return (
     <form action={handleSubmit} className="flex flex-col gap-4">
-      <Input
+      <AuthInput
         label="Email"
         name="email"
         type="email"
@@ -30,7 +30,7 @@ export function LoginForm() {
         placeholder="you@company.com"
         required
       />
-      <Input
+      <AuthInput
         label="Password"
         name="password"
         type="password"
@@ -40,22 +40,22 @@ export function LoginForm() {
       />
 
       {error && (
-        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700">
+        <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
           {error}
         </div>
       )}
 
-      <Button type="submit" loading={isPending} className="mt-2 w-full">
+      <AuthButton type="submit" loading={isPending} className="mt-2 w-full">
         Sign in
-      </Button>
+      </AuthButton>
 
-      <p className="text-center text-xs text-slate-500">
+      <p className="text-center text-xs text-gray-500 dark:text-neutral-400">
         By continuing, you agree to our{" "}
-        <Link href="/terms" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/terms" className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
           Terms
         </Link>{" "}
         and{" "}
-        <Link href="/privacy" className="font-medium text-blue-600 hover:text-blue-700">
+        <Link href="/privacy" className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300">
           Privacy Policy
         </Link>
         .

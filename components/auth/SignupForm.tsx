@@ -1,13 +1,14 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import HCaptcha from "@hcaptcha/react-hcaptcha";
 import { createBrowserClient } from "@supabase/ssr";
-import { Button } from "@/components/ui/Button";
-import { Input } from "@/components/ui/Input";
+import { AuthButton } from "@/components/auth/AuthButton";
+import { AuthInput } from "@/components/auth/AuthInput";
 import { completeSignupProvisioning } from "@/lib/actions/auth";
 import { clearInactivityState, writeLastActivity } from "@/lib/inactivity";
+import { useTheme } from "@/hooks/useTheme";
 
 export type SignupInvite = { token: string; email: string; workspaceName: string };
 
@@ -17,6 +18,14 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
   const [needsConfirmation, setNeedsConfirmation] = useState(false);
   const router = useRouter();
+  const { isDark } = useTheme();
+
+  // hCaptcha only reads its `theme` prop at mount, so a live toggle needs a
+  // remount (via `key`) to actually repaint the widget -- which also
+  // invalidates whatever token was already captured, so that's cleared too.
+  useEffect(() => {
+    setCaptchaToken(null);
+  }, [isDark]);
 
   const supabase = createBrowserClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
@@ -87,7 +96,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
 
   if (needsConfirmation) {
     return (
-      <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700">
+      <div className="rounded-lg bg-emerald-50 p-4 text-sm text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
         Account created. Please check your email to confirm your address before logging in.
       </div>
     );
@@ -96,12 +105,12 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
   return (
     <form onSubmit={handleSubmit} className="space-y-4">
       {errorMessage && (
-        <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md">
+        <div className="p-3 text-sm text-red-500 bg-red-50 rounded-md dark:bg-red-500/10 dark:text-red-400">
           {errorMessage}
         </div>
       )}
 
-      <Input
+      <AuthInput
         id="fullName"
         name="fullName"
         type="text"
@@ -111,7 +120,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
       />
 
       {!invite && (
-        <Input
+        <AuthInput
           id="businessName"
           name="businessName"
           type="text"
@@ -120,7 +129,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         />
       )}
 
-      <Input
+      <AuthInput
         id="email"
         name="email"
         type="email"
@@ -131,7 +140,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         required
       />
 
-      <Input
+      <AuthInput
         id="password"
         name="password"
         type="password"
@@ -141,15 +150,17 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
 
       <div className="flex justify-center my-4">
         <HCaptcha
+          key={isDark ? "dark" : "light"}
           sitekey={process.env.NEXT_PUBLIC_HCAPTCHA_SITE_KEY!}
+          theme={isDark ? "dark" : "light"}
           onVerify={(token) => setCaptchaToken(token)}
           onExpire={() => setCaptchaToken(null)}
         />
       </div>
 
-      <Button type="submit" className="w-full" disabled={loading}>
+      <AuthButton type="submit" className="w-full" loading={loading}>
         {loading ? "Creating account..." : "Create account"}
-      </Button>
+      </AuthButton>
     </form>
   );
 }
