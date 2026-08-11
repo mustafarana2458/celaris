@@ -11,16 +11,16 @@ const SERVICES = ["Web Application", "API", "Database", "Email Delivery"];
 export default function StatusPage() {
   return (
     <LegalPageLayout title="System Status" lastUpdated="August 11, 2026">
-      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4">
+      <div className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-5 py-4 dark:border-emerald-500/20 dark:bg-emerald-500/10">
         <span className="h-2.5 w-2.5 shrink-0 rounded-full bg-emerald-500" />
-        <p className="text-sm font-medium text-emerald-800">All systems operational</p>
+        <p className="text-sm font-medium text-emerald-800 dark:text-emerald-400">All systems operational</p>
       </div>
 
-      <div className="flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white">
+      <div className="flex flex-col divide-y divide-slate-200 rounded-xl border border-slate-200 bg-white dark:divide-neutral-800 dark:border-neutral-800 dark:bg-neutral-900">
         {SERVICES.map((service) => (
           <div key={service} className="flex items-center justify-between px-5 py-4">
-            <span className="text-sm text-slate-700">{service}</span>
-            <span className="flex items-center gap-2 text-sm font-medium text-emerald-600">
+            <span className="text-sm text-slate-700 dark:text-slate-300">{service}</span>
+            <span className="flex items-center gap-2 text-sm font-medium text-emerald-600 dark:text-emerald-400">
               <span className="h-1.5 w-1.5 rounded-full bg-emerald-500" />
               Operational
             </span>
@@ -28,7 +28,7 @@ export default function StatusPage() {
         ))}
       </div>
 
-      <p className="text-sm text-slate-500">
+      <p className="text-sm text-slate-500 dark:text-slate-400">
         This page reflects current status only. Historical uptime and incident reports will
         appear here once our monitoring is connected.
       </p>

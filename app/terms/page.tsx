@@ -154,7 +154,7 @@ export default function TermsPage() {
       <LegalSection title="10. Contact">
         <p>
           If you have questions about these Terms, please contact us at{" "}
-          <a href="mailto:legal@celaris.com" className="text-blue-600 hover:underline">
+          <a href="mailto:legal@celaris.com" className="text-blue-600 hover:underline dark:text-blue-400">
             legal@celaris.com
           </a>
           .

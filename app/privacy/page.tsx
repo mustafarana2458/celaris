@@ -15,20 +15,20 @@ export default function PrivacyPage() {
         <p>We collect the following types of information:</p>
         <ul className="list-disc space-y-1 pl-5">
           <li>
-            <span className="font-medium text-slate-800">Account information</span> — your name,
+            <span className="font-medium text-slate-800 dark:text-slate-200">Account information</span> — your name,
             business name, email address, phone number, and password, provided when you sign up.
           </li>
           <li>
-            <span className="font-medium text-slate-800">Customer Data</span> — the contacts,
+            <span className="font-medium text-slate-800 dark:text-slate-200">Customer Data</span> — the contacts,
             deals, projects, tasks, invoices, and other business records you create or upload
             while using the Service.
           </li>
           <li>
-            <span className="font-medium text-slate-800">Usage data</span> — information about
+            <span className="font-medium text-slate-800 dark:text-slate-200">Usage data</span> — information about
             how you interact with the Service, such as pages visited and features used.
           </li>
           <li>
-            <span className="font-medium text-slate-800">Device and log data</span> — IP
+            <span className="font-medium text-slate-800 dark:text-slate-200">Device and log data</span> — IP
             address, browser type, and similar technical information collected automatically.
           </li>
         </ul>
@@ -143,7 +143,7 @@ export default function PrivacyPage() {
         <p>
           If you have questions about this Privacy Policy or how we handle your data, please
           contact us at{" "}
-          <a href="mailto:privacy@celaris.com" className="text-blue-600 hover:underline">
+          <a href="mailto:privacy@celaris.com" className="text-blue-600 hover:underline dark:text-blue-400">
             privacy@celaris.com
           </a>
           .

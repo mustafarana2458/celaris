@@ -47,7 +47,10 @@ export default function SecurityPage() {
       <LegalSection title="Responsible disclosure">
         <p>
           If you believe you&apos;ve found a security vulnerability in Celaris, please email{" "}
-          <a href="mailto:hello@celaris.cloud" className="font-medium text-blue-600 hover:text-blue-700">
+          <a
+            href="mailto:hello@celaris.cloud"
+            className="font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+          >
             hello@celaris.cloud
           </a>{" "}
           with details. We ask that you give us a reasonable window to investigate and address
