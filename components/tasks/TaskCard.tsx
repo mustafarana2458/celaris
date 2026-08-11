@@ -31,6 +31,7 @@ function isOverdue(value: string | null, status: TaskStatus) {
 export function TaskCard({
   task,
   moving,
+  canEdit,
   onEdit,
   onDelete,
   onBreakdown,
@@ -38,6 +39,7 @@ export function TaskCard({
 }: {
   task: Task;
   moving: boolean;
+  canEdit: boolean;
   onEdit: () => void;
   onDelete: () => void;
   onBreakdown: () => void;
@@ -47,6 +49,7 @@ export function TaskCard({
   const assignee = taskAssigneeDisplay(task);
   const { attributes, listeners, setNodeRef, transform, isDragging } = useDraggable({
     id: task.id,
+    disabled: !canEdit,
   });
 
   return (
@@ -60,20 +63,22 @@ export function TaskCard({
     >
       {/* Kept outside the drag-listener region below so a click here never gets
           swallowed as a drag start. */}
-      <div className="absolute right-2 top-2 z-10">
-        <RowActionsMenu
-          ariaLabel="Task actions"
-          actions={[
-            { label: "Edit", onClick: onEdit, icon: Pencil },
-            { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
-          ]}
-        />
-      </div>
+      {canEdit && (
+        <div className="absolute right-2 top-2 z-10">
+          <RowActionsMenu
+            ariaLabel="Task actions"
+            actions={[
+              { label: "Edit", onClick: onEdit, icon: Pencil },
+              { label: "Delete", onClick: onDelete, icon: Trash2, destructive: true },
+            ]}
+          />
+        </div>
+      )}
 
       <div
         {...listeners}
         {...attributes}
-        className="cursor-grab touch-none active:cursor-grabbing"
+        className={canEdit ? "cursor-grab touch-none active:cursor-grabbing" : ""}
       >
         <div className="flex items-start justify-between gap-2 pr-6">
           <p className="text-sm font-medium text-slate-900 dark:text-slate-100">{task.title}</p>
@@ -95,17 +100,24 @@ export function TaskCard({
         )}
       </div>
 
-      <TaskChecklist taskId={task.id} subtasks={task.subtasks ?? []} onChanged={onChecklistChanged} />
+      <TaskChecklist
+        taskId={task.id}
+        subtasks={task.subtasks ?? []}
+        canEdit={canEdit}
+        onChanged={onChecklistChanged}
+      />
 
       <div className="mt-3 flex items-center justify-between gap-2">
-        <button
-          onClick={onBreakdown}
-          title="AI Breakdown"
-          aria-label="AI Breakdown"
-          className="rounded-lg px-1.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
-        >
-          <span aria-hidden>✨</span>
-        </button>
+        {canEdit && (
+          <button
+            onClick={onBreakdown}
+            title="AI Breakdown"
+            aria-label="AI Breakdown"
+            className="rounded-lg px-1.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
+          >
+            <span aria-hidden>✨</span>
+          </button>
+        )}
         {assignee && (
           <span
             title={`Assigned to ${assignee.name}${assignee.isExternal ? " (External)" : ""}`}

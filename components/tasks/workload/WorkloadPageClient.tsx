@@ -4,6 +4,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { ChevronLeft, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/Button";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { TaskModal, type NewTaskPrefill } from "../TaskModal";
 import { getInitials } from "@/lib/avatar";
 import { tagColor } from "@/lib/tagColors";
@@ -29,6 +30,7 @@ export function WorkloadPageClient({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("tasks", "my_tasks");
   const [tasks, setTasks] = useState(initialTasks);
   const [windowStart, setWindowStart] = useState(() => startOfWeek(new Date()));
   const [modalOpen, setModalOpen] = useState(false);
@@ -195,7 +197,7 @@ export function WorkloadPageClient({
               <ChevronRight className="h-4 w-4" />
             </button>
           </div>
-          <Button onClick={() => openAdd()}>+ Add task</Button>
+          {canEdit && <Button onClick={() => openAdd()}>+ Add task</Button>}
         </div>
       </div>
 
@@ -245,9 +247,11 @@ export function WorkloadPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add a task or click a cell below once your team has work scheduled.
           </p>
-          <Button onClick={() => openAdd()} className="mt-1">
-            + Add task
-          </Button>
+          {canEdit && (
+            <Button onClick={() => openAdd()} className="mt-1">
+              + Add task
+            </Button>
+          )}
         </div>
       ) : (
         <WorkloadGrid

@@ -61,6 +61,7 @@ function KanbanColumn({
 export function TasksKanban({
   tasks,
   movingId,
+  canEdit,
   onStatusChange,
   onEdit,
   onDelete,
@@ -69,6 +70,7 @@ export function TasksKanban({
 }: {
   tasks: Task[];
   movingId: string | null;
+  canEdit: boolean;
   onStatusChange: (task: Task, status: TaskStatus) => void;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
@@ -125,6 +127,7 @@ export function TasksKanban({
                 key={task.id}
                 task={task}
                 moving={movingId === task.id}
+                canEdit={canEdit}
                 onEdit={() => onEdit(task)}
                 onDelete={() => onDelete(task)}
                 onBreakdown={() => onBreakdown(task)}

@@ -27,7 +27,7 @@ export default async function ProjectsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "projects");
+  requireModuleAccess(workspace, "projects", "all_projects");
 
   const [projectsRes, companiesRes, dealsRes, membersRes, templatesRes, directoryRes, departmentsRes] =
     workspace

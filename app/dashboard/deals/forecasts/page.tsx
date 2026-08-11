@@ -16,7 +16,7 @@ export default async function ForecastsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "deals");
+  requireModuleAccess(workspace, "deals", "forecasts");
 
   const [dealsRes, targetsRes, pipelinesRes, membersRes] = workspace
     ? await Promise.all([
@@ -53,7 +53,6 @@ export default async function ForecastsPage() {
       initialTargets={(targetsRes.data as SalesTarget[]) ?? []}
       pipelines={(pipelinesRes.data as Pipeline[]) ?? []}
       members={(membersRes.data as WorkspaceTeamMember[]) ?? []}
-      currentRole={workspace?.role ?? "member"}
       loadError={loadError}
     />
   );

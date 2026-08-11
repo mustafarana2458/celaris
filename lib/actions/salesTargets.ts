@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import type { SalesTargetActionResult } from "@/lib/types";
 
 async function requireWorkspace() {
@@ -23,18 +24,11 @@ async function requireWorkspace() {
   return { supabase, workspace, userId: user.id } as const;
 }
 
-function requireOwnerOrAdmin(role: string): SalesTargetActionResult | null {
-  if (role !== "owner" && role !== "admin") {
-    return { error: "Only owners and admins can manage sales targets." };
-  }
-  return null;
-}
-
 export async function createSalesTarget(formData: FormData): Promise<SalesTargetActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
-  const permError = requireOwnerOrAdmin(ctx.workspace.role);
+  const permError = requireFullAccess(ctx.workspace, "deals", "forecasts");
   if (permError) return permError;
 
   const periodLabel = String(formData.get("period_label") ?? "").trim();
@@ -83,7 +77,7 @@ export async function deleteSalesTarget(id: string): Promise<SalesTargetActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
-  const permError = requireOwnerOrAdmin(ctx.workspace.role);
+  const permError = requireFullAccess(ctx.workspace, "deals", "forecasts");
   if (permError) return permError;
 
   const { error } = await ctx.supabase

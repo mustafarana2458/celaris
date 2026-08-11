@@ -39,9 +39,9 @@ export const navLinks: NavItem[] = [
     icon: "users",
     moduleKey: "contacts",
     children: [
-      { href: "/dashboard/contacts", label: "People" },
-      { href: "/dashboard/companies", label: "Companies" },
-      { href: "/dashboard/contacts/segments", label: "Segments" },
+      { href: "/dashboard/contacts", label: "People", submoduleKey: "people" },
+      { href: "/dashboard/companies", label: "Companies", submoduleKey: "companies" },
+      { href: "/dashboard/contacts/segments", label: "Segments", submoduleKey: "segments" },
     ],
   },
   {
@@ -50,8 +50,8 @@ export const navLinks: NavItem[] = [
     icon: "trending",
     moduleKey: "deals",
     children: [
-      { href: "/dashboard/deals", label: "Pipelines" },
-      { href: "/dashboard/deals/forecasts", label: "Forecasts" },
+      { href: "/dashboard/deals", label: "Pipelines", submoduleKey: "pipelines" },
+      { href: "/dashboard/deals/forecasts", label: "Forecasts", submoduleKey: "forecasts" },
     ],
   },
   {
@@ -60,9 +60,9 @@ export const navLinks: NavItem[] = [
     icon: "folder",
     moduleKey: "projects",
     children: [
-      { href: "/dashboard/projects", label: "All Projects" },
-      { href: "/dashboard/projects/templates", label: "Project Templates" },
-      { href: "/dashboard/projects/milestones", label: "Milestones & Timeline" },
+      { href: "/dashboard/projects", label: "All Projects", submoduleKey: "all_projects" },
+      { href: "/dashboard/projects/templates", label: "Project Templates", submoduleKey: "project_templates" },
+      { href: "/dashboard/projects/milestones", label: "Milestones & Timeline", submoduleKey: "milestones" },
     ],
   },
   {
@@ -71,9 +71,9 @@ export const navLinks: NavItem[] = [
     icon: "check",
     moduleKey: "tasks",
     children: [
-      { href: "/dashboard/tasks", label: "My Tasks" },
-      { href: "/dashboard/tasks/team-board", label: "Team Board" },
-      { href: "/dashboard/tasks/workload", label: "Workload" },
+      { href: "/dashboard/tasks", label: "My Tasks", submoduleKey: "my_tasks" },
+      { href: "/dashboard/tasks/team-board", label: "Team Board", submoduleKey: "team_board" },
+      { href: "/dashboard/tasks/workload", label: "Workload", submoduleKey: "workload" },
     ],
   },
   {
@@ -82,7 +82,7 @@ export const navLinks: NavItem[] = [
     icon: "invoice",
     moduleKey: "invoices",
     children: [
-      { href: "/dashboard/invoices", label: "All Invoices" },
+      { href: "/dashboard/invoices", label: "All Invoices", submoduleKey: "all_invoices" },
       { href: "/dashboard/invoices/recurring", label: "Recurring Billing", submoduleKey: "recurring_billing" },
       { href: "/dashboard/invoices/product-library", label: "Product Library", submoduleKey: "product_library" },
     ],
@@ -93,10 +93,10 @@ export const navLinks: NavItem[] = [
     icon: "team",
     moduleKey: "team",
     children: [
-      { href: "/dashboard/team", label: "Active Members" },
-      { href: "/dashboard/team/invites", label: "Pending Invites" },
-      { href: "/dashboard/team/directory", label: "Team Directory" },
-      { href: "/dashboard/team/departments", label: "Departments" },
+      { href: "/dashboard/team", label: "Active Members", submoduleKey: "active_members" },
+      { href: "/dashboard/team/invites", label: "Pending Invites", submoduleKey: "pending_invites" },
+      { href: "/dashboard/team/directory", label: "Team Directory", submoduleKey: "team_directory" },
+      { href: "/dashboard/team/departments", label: "Departments", submoduleKey: "departments" },
     ],
   },
   { type: "link", href: "/dashboard/assistant", label: "AI Assistant", icon: "assistant", moduleKey: "ai_assistant" },

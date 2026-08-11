@@ -16,7 +16,7 @@ export default async function TeamInvitesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "team");
+  requireModuleAccess(workspace, "team", "pending_invites");
 
   const { data: invitations } = workspace
     ? await supabase

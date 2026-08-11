@@ -18,7 +18,7 @@ export default async function TeamPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "team");
+  requireModuleAccess(workspace, "team", "active_members");
 
   const [{ data: workspaceMembers }, { data: memberPermissions }] = workspace
     ? await Promise.all([

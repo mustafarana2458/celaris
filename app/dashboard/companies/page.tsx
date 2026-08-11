@@ -16,7 +16,7 @@ export default async function CompaniesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "contacts");
+  requireModuleAccess(workspace, "contacts", "companies");
 
   const { data: companies } = workspace
     ? await supabase

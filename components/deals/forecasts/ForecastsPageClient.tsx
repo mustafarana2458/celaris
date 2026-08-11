@@ -2,6 +2,7 @@
 
 import { useMemo, useState } from "react";
 import { Button } from "@/components/ui/Button";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { DealsTabs } from "@/components/deals/DealsTabs";
 import { RevenueProjectionChart } from "./RevenueProjectionChart";
 import { GoalProgressBar } from "./GoalProgressBar";
@@ -17,21 +18,19 @@ export function ForecastsPageClient({
   initialTargets,
   pipelines,
   members,
-  currentRole,
   loadError,
 }: {
   deals: Deal[];
   initialTargets: SalesTarget[];
   pipelines: Pipeline[];
   members: WorkspaceTeamMember[];
-  currentRole: string;
   loadError?: string | null;
 }) {
   const [targets, setTargets] = useState(initialTargets);
   const [periodType, setPeriodType] = useState<ForecastPeriodType>("quarter");
   const [modalOpen, setModalOpen] = useState(false);
 
-  const canManage = currentRole === "owner" || currentRole === "admin";
+  const canManage = useCanEdit("deals", "forecasts");
   const current = useMemo(() => currentBucket(periodType), [periodType]);
 
   const chartData = useMemo(() => {

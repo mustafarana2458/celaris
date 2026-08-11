@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 
 export type SubtaskActionResult = { error?: string };
 
@@ -58,6 +59,9 @@ export async function createSubtask(taskId: string, title: string): Promise<Subt
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
+
   const trimmed = title.trim();
   if (!trimmed) {
     return { error: "Sub-task title is required." };
@@ -88,6 +92,9 @@ export async function createSubtasksBulk(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
+
   const cleaned = titles.map((t) => t.trim()).filter(Boolean);
   if (cleaned.length === 0) {
     return { error: "No sub-task titles to add." };
@@ -117,6 +124,9 @@ export async function toggleSubtask(id: string, isDone: boolean): Promise<Subtas
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase
     .from("subtasks")
     .update({ is_done: isDone })
@@ -132,6 +142,9 @@ export async function toggleSubtask(id: string, isDone: boolean): Promise<Subtas
 export async function deleteSubtask(id: string): Promise<SubtaskActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("subtasks")

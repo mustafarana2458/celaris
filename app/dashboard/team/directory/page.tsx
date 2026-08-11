@@ -16,7 +16,7 @@ export default async function TeamDirectoryPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "team");
+  requireModuleAccess(workspace, "team", "team_directory");
 
   const { data: teamMembers } = workspace
     ? await supabase

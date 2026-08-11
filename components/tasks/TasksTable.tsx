@@ -17,11 +17,13 @@ function formatDate(value: string | null) {
 
 export function TasksTable({
   tasks,
+  canEdit,
   onEdit,
   onDelete,
   onBreakdown,
 }: {
   tasks: Task[];
+  canEdit: boolean;
   onEdit: (task: Task) => void;
   onDelete: (task: Task) => void;
   onBreakdown: (task: Task) => void;
@@ -88,24 +90,26 @@ export function TasksTable({
                   )}
                 </td>
                 <td className="px-4 py-3">
-                  <div className="flex items-center justify-end gap-1">
-                    <button
-                      type="button"
-                      onClick={() => onBreakdown(task)}
-                      title="AI Breakdown"
-                      aria-label="AI Breakdown"
-                      className="rounded-lg px-1.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
-                    >
-                      <Sparkles className="h-3.5 w-3.5" />
-                    </button>
-                    <RowActionsMenu
-                      ariaLabel="Task actions"
-                      actions={[
-                        { label: "Edit", onClick: () => onEdit(task), icon: Pencil },
-                        { label: "Delete", onClick: () => onDelete(task), icon: Trash2, destructive: true },
-                      ]}
-                    />
-                  </div>
+                  {canEdit && (
+                    <div className="flex items-center justify-end gap-1">
+                      <button
+                        type="button"
+                        onClick={() => onBreakdown(task)}
+                        title="AI Breakdown"
+                        aria-label="AI Breakdown"
+                        className="rounded-lg px-1.5 py-1 text-xs font-medium text-purple-600 hover:bg-purple-50 dark:text-purple-400 dark:hover:bg-purple-950/40"
+                      >
+                        <Sparkles className="h-3.5 w-3.5" />
+                      </button>
+                      <RowActionsMenu
+                        ariaLabel="Task actions"
+                        actions={[
+                          { label: "Edit", onClick: () => onEdit(task), icon: Pencil },
+                          { label: "Delete", onClick: () => onDelete(task), icon: Trash2, destructive: true },
+                        ]}
+                      />
+                    </div>
+                  )}
                 </td>
               </tr>
             );

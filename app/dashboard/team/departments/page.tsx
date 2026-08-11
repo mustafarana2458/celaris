@@ -16,7 +16,7 @@ export default async function DepartmentsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "team");
+  requireModuleAccess(workspace, "team", "departments");
 
   const [{ data: departments }, { data: memberRows }] = workspace
     ? await Promise.all([

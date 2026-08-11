@@ -18,7 +18,7 @@ export default async function SegmentsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "contacts");
+  requireModuleAccess(workspace, "contacts", "segments");
 
   const [segmentsResult, { data: companies }, { data: tags }, { data: teamMembers }] = workspace
     ? await Promise.all([

@@ -16,7 +16,7 @@ export default async function InvoicesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "invoices");
+  requireModuleAccess(workspace, "invoices", "all_invoices");
 
   const [{ data: invoices }, { data: contacts }, { data: projects }, { data: branding }, { data: products }] =
     workspace

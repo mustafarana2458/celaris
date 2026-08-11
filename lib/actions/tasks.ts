@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireFullAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
 
@@ -80,6 +81,9 @@ export async function createTask(formData: FormData): Promise<TaskActionResult> 
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
+
   const fields = taskFields(formData);
   if (!fields.title) {
     return { error: "Title is required." };
@@ -102,6 +106,9 @@ export async function updateTask(
 ): Promise<TaskActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
 
   const fields = taskFields(formData);
   if (!fields.title) {
@@ -126,6 +133,9 @@ export async function updateTaskStatus(
 ): Promise<TaskActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
 
   if (!VALID_STATUSES.includes(status)) {
     return { error: "Invalid status." };
@@ -155,6 +165,9 @@ export async function updateTaskSchedule(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
+
   const { error } = await ctx.supabase
     .from("tasks")
     .update({
@@ -175,6 +188,9 @@ export async function updateTaskSchedule(
 export async function deleteTask(id: string): Promise<TaskActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const permError = requireFullAccess(ctx.workspace, "tasks", "my_tasks");
+  if (permError) return permError;
 
   const { error } = await ctx.supabase
     .from("tasks")

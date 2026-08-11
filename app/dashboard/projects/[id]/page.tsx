@@ -23,7 +23,7 @@ export default async function ProjectDetailPage({
   if (!workspace) {
     notFound();
   }
-  requireModuleAccess(workspace, "projects");
+  requireModuleAccess(workspace, "projects", "all_projects");
 
   const [
     { data: project },

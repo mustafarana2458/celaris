@@ -19,7 +19,7 @@ export default async function WorkloadPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "tasks");
+  requireModuleAccess(workspace, "tasks", "workload");
 
   const [{ data: tasks }, { data: projects }, { data: members }, { data: directory }] = workspace
     ? await Promise.all([

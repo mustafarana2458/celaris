@@ -4,6 +4,7 @@ import { useMemo, useState, useTransition } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { AssigneeCombobox } from "./AssigneeCombobox";
 import { RichTextEditor } from "./RichTextEditor";
 import { createTask, updateTask } from "@/lib/actions/tasks";
@@ -48,6 +49,7 @@ export function TaskModal({
   const [error, setError] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const isEdit = !!task;
+  const canEdit = useCanEdit("tasks", "my_tasks");
 
   const currentUser = useMemo(
     () => members.find((m) => m.user_id === currentUserId) ?? null,
@@ -94,86 +96,96 @@ export function TaskModal({
           </div>
         )}
 
-        <Input label="Title" name="title" defaultValue={task?.title} required />
-
-        <RichTextEditor label="Description" name="description" defaultValue={task?.description} />
-
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Project
-            </label>
-            <select
-              id="project_id"
-              name="project_id"
-              defaultValue={task?.project_id ?? ""}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-            >
-              <option value="">No project linked</option>
-              {projects.map((p) => (
-                <option key={p.id} value={p.id}>
-                  {p.name}
-                </option>
-              ))}
-            </select>
+        {!canEdit && (
+          <div className="rounded-lg bg-slate-50 p-3 text-sm text-slate-600 dark:bg-slate-700/50 dark:text-slate-300">
+            You have view-only access to tasks.
           </div>
-          <AssigneeCombobox
-            members={members}
-            directory={directory}
-            defaultAssigneeKey={defaultAssigneeKey}
-            defaultAssigneeName={defaultAssigneeName}
-          />
-        </div>
+        )}
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Status
-            </label>
-            <select
-              id="status"
-              name="status"
-              defaultValue={task?.status ?? "todo"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-            >
-              {TASK_STATUSES.map((s) => (
-                <option key={s.value} value={s.value}>
-                  {s.label}
-                </option>
-              ))}
-            </select>
-          </div>
-          <div className="flex flex-col gap-1.5">
-            <label htmlFor="priority" className="text-sm font-medium text-slate-700 dark:text-slate-300">
-              Priority
-            </label>
-            <select
-              id="priority"
-              name="priority"
-              defaultValue={task?.priority ?? "medium"}
-              className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
-            >
-              {TASK_PRIORITIES.map((p) => (
-                <option key={p.value} value={p.value}>
-                  {p.label}
-                </option>
-              ))}
-            </select>
-          </div>
-        </div>
+        <fieldset disabled={!canEdit} className="contents">
+          <Input label="Title" name="title" defaultValue={task?.title} required />
 
-        <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
-          <Input label="Start date" name="start_date" type="date" defaultValue={defaultStartDate} />
-          <Input label="Due date" name="due_date" type="date" defaultValue={defaultDueDate} />
-        </div>
+          <RichTextEditor label="Description" name="description" defaultValue={task?.description} />
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="project_id" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Project
+              </label>
+              <select
+                id="project_id"
+                name="project_id"
+                defaultValue={task?.project_id ?? ""}
+                className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              >
+                <option value="">No project linked</option>
+                {projects.map((p) => (
+                  <option key={p.id} value={p.id}>
+                    {p.name}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <AssigneeCombobox
+              members={members}
+              directory={directory}
+              defaultAssigneeKey={defaultAssigneeKey}
+              defaultAssigneeName={defaultAssigneeName}
+            />
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="status" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Status
+              </label>
+              <select
+                id="status"
+                name="status"
+                defaultValue={task?.status ?? "todo"}
+                className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              >
+                {TASK_STATUSES.map((s) => (
+                  <option key={s.value} value={s.value}>
+                    {s.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label htmlFor="priority" className="text-sm font-medium text-slate-700 dark:text-slate-300">
+                Priority
+              </label>
+              <select
+                id="priority"
+                name="priority"
+                defaultValue={task?.priority ?? "medium"}
+                className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
+              >
+                {TASK_PRIORITIES.map((p) => (
+                  <option key={p.value} value={p.value}>
+                    {p.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+            <Input label="Start date" name="start_date" type="date" defaultValue={defaultStartDate} />
+            <Input label="Due date" name="due_date" type="date" defaultValue={defaultDueDate} />
+          </div>
+        </fieldset>
 
         <div className="mt-2 flex justify-end gap-3">
           <Button type="button" variant="secondary" onClick={onClose}>
-            Cancel
+            {canEdit ? "Cancel" : "Close"}
           </Button>
-          <Button type="submit" loading={isPending}>
-            {isEdit ? "Save changes" : "Add task"}
-          </Button>
+          {canEdit && (
+            <Button type="submit" loading={isPending}>
+              {isEdit ? "Save changes" : "Add task"}
+            </Button>
+          )}
         </div>
       </form>
     </Modal>

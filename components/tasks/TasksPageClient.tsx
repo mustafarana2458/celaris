@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { TaskModal } from "./TaskModal";
 import { DeleteTaskDialog } from "./DeleteTaskDialog";
 import { TasksKanban } from "./TasksKanban";
@@ -25,6 +26,7 @@ export function TasksPageClient({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("tasks", "my_tasks");
   const [tasks, setTasks] = useState(initialTasks);
   const [view, setView] = useState<TaskView>("kanban");
   const [modalOpen, setModalOpen] = useState(false);
@@ -105,7 +107,7 @@ export function TasksPageClient({
               </button>
             ))}
           </div>
-          <Button onClick={openAdd}>+ Add task</Button>
+          {canEdit && <Button onClick={openAdd}>+ Add task</Button>}
         </div>
       </div>
 
@@ -121,14 +123,17 @@ export function TasksPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add your first task to start tracking what needs to get done.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add task
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add task
+            </Button>
+          )}
         </div>
       ) : view === "kanban" ? (
         <TasksKanban
           tasks={tasks}
           movingId={movingId}
+          canEdit={canEdit}
           onStatusChange={handleStatusChange}
           onEdit={openEdit}
           onDelete={setDeleting}
@@ -138,6 +143,7 @@ export function TasksPageClient({
       ) : (
         <TasksTable
           tasks={tasks}
+          canEdit={canEdit}
           onEdit={openEdit}
           onDelete={setDeleting}
           onBreakdown={setBreakingDown}

@@ -3,6 +3,7 @@
 import { useEffect, useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { useCanEdit } from "@/components/workspace/WorkspaceContext";
 import { TaskModal } from "../TaskModal";
 import { DeleteTaskDialog } from "../DeleteTaskDialog";
 import { TasksKanban } from "../TasksKanban";
@@ -28,6 +29,7 @@ export function TeamBoardPageClient({
   currentUserId: string;
 }) {
   const router = useRouter();
+  const canEdit = useCanEdit("tasks", "my_tasks");
   const [tasks, setTasks] = useState(initialTasks);
   const [filters, setFilters] = useState<TeamBoardFilterState>(EMPTY_FILTERS);
   const [modalOpen, setModalOpen] = useState(false);
@@ -107,7 +109,7 @@ export function TeamBoardPageClient({
             workspace.
           </p>
         </div>
-        <Button onClick={openAdd}>+ Add task</Button>
+        {canEdit && <Button onClick={openAdd}>+ Add task</Button>}
       </div>
 
       <TeamBoardFilters
@@ -130,9 +132,11 @@ export function TeamBoardPageClient({
           <p className="max-w-sm text-sm text-slate-500 dark:text-slate-400">
             Add the first task for your team to start filling up the board.
           </p>
-          <Button onClick={openAdd} className="mt-1">
-            + Add task
-          </Button>
+          {canEdit && (
+            <Button onClick={openAdd} className="mt-1">
+              + Add task
+            </Button>
+          )}
         </div>
       ) : filteredTasks.length === 0 ? (
         <div className="flex flex-col items-center justify-center gap-2 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
@@ -149,6 +153,7 @@ export function TeamBoardPageClient({
         <TasksKanban
           tasks={filteredTasks}
           movingId={movingId}
+          canEdit={canEdit}
           onStatusChange={handleStatusChange}
           onEdit={openEdit}
           onDelete={setDeleting}

@@ -16,7 +16,7 @@ export default async function ProjectTemplatesPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "projects");
+  requireModuleAccess(workspace, "projects", "project_templates");
 
   const { data: templates, error } = workspace
     ? await supabase

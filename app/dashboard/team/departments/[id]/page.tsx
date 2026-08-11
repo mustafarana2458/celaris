@@ -28,7 +28,7 @@ export default async function DepartmentDetailPage({ params }: { params: { id: s
   if (!workspace) {
     notFound();
   }
-  requireModuleAccess(workspace, "team");
+  requireModuleAccess(workspace, "team", "departments");
 
   const [{ data: department }, { data: departmentMemberRows, error: membersError }, { data: members }, { data: directory }] =
     await Promise.all([

@@ -22,7 +22,7 @@ export default async function SegmentDetailPage({ params }: { params: { id: stri
   if (!workspace) {
     notFound();
   }
-  requireModuleAccess(workspace, "contacts");
+  requireModuleAccess(workspace, "contacts", "segments");
 
   const { data: segment } = await supabase
     .from("segments")

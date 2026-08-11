@@ -17,7 +17,7 @@ export default async function ContactsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "contacts");
+  requireModuleAccess(workspace, "contacts", "people");
 
   const [{ data: contacts, count }, { data: companies }, { data: tags }] = workspace
     ? await Promise.all([

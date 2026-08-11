@@ -16,7 +16,7 @@ export default async function MilestonesTimelinePage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "projects");
+  requireModuleAccess(workspace, "projects", "milestones");
 
   const [projectsRes, milestonesRes, membersRes] = workspace
     ? await Promise.all([

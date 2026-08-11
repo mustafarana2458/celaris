@@ -25,7 +25,7 @@ export default async function DealsPage() {
   }
 
   const workspace = await getCurrentWorkspace(supabase, user.id);
-  requireModuleAccess(workspace, "deals");
+  requireModuleAccess(workspace, "deals", "pipelines");
 
   const [
     dealsRes,
