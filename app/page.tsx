@@ -4,7 +4,8 @@ import type { IconName } from "@/components/dashboard/nav-links";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 import { redirect } from "next/navigation";
-import { ThemeToggle } from "@/components/ThemeToggle";
+import { SiteHeader } from "@/components/marketing/SiteHeader";
+import { DashboardMockup } from "@/components/marketing/DashboardMockup";
 
 const features: { title: string; description: string; icon: IconName }[] = [
   {
@@ -77,36 +78,7 @@ export default async function Home() {
       </div>
 
       {/* Navbar */}
-      <header className="sticky top-0 z-50 border-b border-slate-200/50 bg-white/80 backdrop-blur-xl dark:border-white/[0.06] dark:bg-[#030014]/80">
-        <div className="mx-auto flex max-w-7xl items-center justify-between px-6 py-4">
-          <div className="flex items-center gap-2">
-            <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
-            <img
-              src="/celaris-logo-white.png"
-              alt="Celaris"
-              className="hidden h-8 w-8 rounded-lg dark:block"
-            />
-            <span className="text-lg font-semibold tracking-tight dark:text-white">
-              Celaris
-            </span>
-          </div>
-          <div className="flex items-center gap-3">
-            <ThemeToggle />
-            <Link
-              href="/login"
-              className="rounded-lg px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-100 dark:text-slate-300 dark:hover:bg-white/5 dark:hover:text-white"
-            >
-              Sign in
-            </Link>
-            <Link
-              href="/signup"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-medium text-white shadow-md transition-all hover:bg-blue-500 dark:bg-white dark:text-slate-900 dark:hover:bg-slate-100"
-            >
-              Get started
-            </Link>
-          </div>
-        </div>
-      </header>
+      <SiteHeader />
 
       <main className="mx-auto max-w-7xl px-6 pb-24 pt-20 text-center">
         {/* Hero */}
@@ -126,7 +98,11 @@ export default async function Home() {
             brings it all together so you can focus on growth, not on switching
             tabs.
           </p>
-          <div className="mt-10 flex flex-wrap items-center justify-center gap-4">
+          <div className="relative mt-10 flex flex-wrap items-center justify-center gap-4">
+            <div
+              aria-hidden="true"
+              className="pointer-events-none absolute left-1/2 top-1/2 -z-10 hidden h-56 w-56 -translate-x-1/2 -translate-y-1/2 rounded-full bg-blue-500/20 blur-3xl dark:block"
+            />
             <Link
               href="/signup"
               className="group relative inline-flex items-center justify-center overflow-hidden rounded-xl bg-blue-600 px-8 py-3.5 text-sm font-semibold text-white shadow-lg shadow-blue-600/25 transition-all hover:scale-105 hover:shadow-blue-600/40 dark:shadow-blue-600/25"
@@ -143,47 +119,15 @@ export default async function Home() {
           </div>
         </div>
 
-        {/* Dashboard preview mockup - hidden from screen readers for accessibility */}
-        <div className="relative mx-auto mt-24 max-w-5xl" aria-hidden="true">
-          <div className="relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-1 shadow-xl dark:border-white/10 dark:bg-gradient-to-b dark:from-slate-900 dark:to-slate-950 dark:shadow-black/30">
-            <div className="rounded-xl bg-slate-50 p-4 dark:bg-slate-950">
-              <div className="flex items-center gap-2 border-b border-slate-200 pb-3 dark:border-white/5">
-                <div className="h-3 w-3 rounded-full bg-red-500/70" />
-                <div className="h-3 w-3 rounded-full bg-yellow-500/70" />
-                <div className="h-3 w-3 rounded-full bg-green-500/70" />
-              </div>
-              <div className="mt-4 grid grid-cols-3 gap-3">
-                <div className="col-span-2 space-y-3">
-                  <div className="h-4 w-3/4 rounded-full bg-slate-200 dark:bg-white/5" />
-                  <div className="h-4 w-1/2 rounded-full bg-slate-200 dark:bg-white/5" />
-                  <div className="h-4 w-5/6 rounded-full bg-slate-200 dark:bg-white/5" />
-                </div>
-                <div className="space-y-3">
-                  <div className="h-8 w-full rounded-lg bg-blue-100 dark:bg-blue-500/10" />
-                  <div className="h-8 w-full rounded-lg bg-blue-100 dark:bg-blue-500/10" />
-                  <div className="h-8 w-full rounded-lg bg-blue-100 dark:bg-blue-500/10" />
-                </div>
-              </div>
-              <div className="mt-6 grid grid-cols-4 gap-3">
-                {[1, 2, 3, 4].map((i) => (
-                  <div
-                    key={i}
-                    className="h-20 rounded-lg bg-gradient-to-b from-slate-100 to-transparent dark:from-white/5 dark:to-transparent"
-                  />
-                ))}
-              </div>
-            </div>
-            <div className="pointer-events-none absolute inset-0 rounded-2xl ring-1 ring-inset ring-slate-100 dark:ring-white/10" />
-          </div>
-          <div className="absolute -inset-4 -z-10 rounded-2xl bg-gradient-to-r from-blue-200 via-blue-100 to-transparent opacity-20 blur-2xl dark:from-blue-600/20 dark:via-blue-500/20 dark:to-purple-500/20 dark:opacity-30" />
-        </div>
+        {/* Dashboard preview mockup */}
+        <DashboardMockup />
 
         {/* Feature cards */}
         <div className="mt-24 grid grid-cols-1 gap-6 text-left sm:grid-cols-2 lg:grid-cols-4">
           {features.map((feature) => (
             <div
               key={feature.title}
-              className="group relative overflow-hidden rounded-2xl border border-slate-200 bg-white p-6 shadow-sm backdrop-blur-sm transition-all duration-300 hover:-translate-y-1 hover:border-blue-200 hover:shadow-lg dark:border-white/10 dark:bg-white/5 dark:hover:border-blue-500/30 dark:hover:bg-white/10 dark:hover:shadow-lg dark:hover:shadow-blue-500/10"
+              className="group relative overflow-hidden rounded-2xl border border-gray-100 bg-white p-6 shadow-sm transition-all duration-300 hover:-translate-y-1 hover:shadow-md dark:border-neutral-800 dark:bg-neutral-900 dark:hover:border-blue-500/50 dark:hover:shadow-lg dark:hover:shadow-blue-500/10"
             >
               <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-gradient-to-br from-blue-600 to-blue-500 text-white shadow-lg shadow-blue-600/25 transition-transform group-hover:scale-110">
                 <NavIcon name={feature.icon} className="h-6 w-6" />
