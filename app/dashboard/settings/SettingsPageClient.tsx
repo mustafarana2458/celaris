@@ -51,13 +51,16 @@ function TabIcon({ id, ...props }: { id: TabId } & SVGProps<SVGSVGElement>) {
   );
 }
 
-const TABS: { id: TabId; label: string; soon?: boolean }[] = [
+// `ownerOnly` tabs (Module Preferences, Integrations, Billing) are hidden
+// from admins/members entirely -- not just visually gated once open, since
+// none of them have a working non-owner path today anyway.
+const ALL_TABS: { id: TabId; label: string; soon?: boolean; ownerOnly?: boolean }[] = [
   { id: "profile", label: "Profile & Account" },
   { id: "workspace", label: "Workspace & Branding" },
   { id: "appearance", label: "Appearance" },
-  { id: "modules", label: "Module Preferences", soon: true },
-  { id: "integrations", label: "Integrations", soon: true },
-  { id: "billing", label: "Billing", soon: true },
+  { id: "modules", label: "Module Preferences", soon: true, ownerOnly: true },
+  { id: "integrations", label: "Integrations", soon: true, ownerOnly: true },
+  { id: "billing", label: "Billing", soon: true, ownerOnly: true },
   { id: "about", label: "About & Legal", soon: true },
 ];
 
@@ -72,9 +75,12 @@ export function SettingsPageClient({
   workspace: CurrentWorkspace | null;
   workspaceBranding: WorkspaceBranding | null;
 }) {
+  const isOwner = workspace?.role === "owner";
+  const tabs = ALL_TABS.filter((tab) => isOwner || !tab.ownerOnly);
+
   const searchParams = useSearchParams();
   const requestedTab = searchParams.get("tab");
-  const initialTab = TABS.some((tab) => tab.id === requestedTab) ? (requestedTab as TabId) : "profile";
+  const initialTab = tabs.some((tab) => tab.id === requestedTab) ? (requestedTab as TabId) : "profile";
   const [activeTab, setActiveTab] = useState<TabId>(initialTab);
 
   return (
@@ -88,7 +94,7 @@ export function SettingsPageClient({
 
       <div className="flex flex-col gap-6 md:flex-row md:items-start">
         <nav className="flex gap-1 overflow-x-auto md:w-64 md:shrink-0 md:flex-col md:overflow-visible">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const isActive = tab.id === activeTab;
             return (
               <button

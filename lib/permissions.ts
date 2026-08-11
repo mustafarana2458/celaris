@@ -170,3 +170,51 @@ export function canEditModule<K extends AccessModuleKey>(
   if (!sub.enabled) return false;
   return sub.access !== "view";
 }
+
+const FULL: SubPermission = { enabled: true, access: "full" };
+const OFF: SubPermission = { enabled: false, access: "full" };
+
+// Role-based default permission baselines (Phase 3), applied once to a
+// brand new membership -- see acceptInvitation() in
+// lib/actions/team-invites.ts. Owners never get a stored baseline; they
+// bypass every check via role alone.
+export const MEMBER_DEFAULT_PERMISSIONS: WorkspacePermissions = {
+  version: 2,
+  dashboard: {
+    enabled: true,
+    subs: { contacts_kpis: { enabled: true }, deals_kpis: { enabled: true }, revenue_kpis: { enabled: false } },
+  },
+  contacts: { enabled: true, subs: { people: FULL, companies: FULL, segments: FULL } },
+  deals: { enabled: true, subs: { pipelines: FULL, forecasts: FULL } },
+  projects: { enabled: true, subs: { all_projects: FULL, project_templates: FULL, milestones: FULL } },
+  tasks: { enabled: true, subs: { my_tasks: FULL, team_board: OFF, workload: OFF } },
+  invoices: { enabled: false, subs: { all_invoices: OFF, recurring_billing: OFF, product_library: OFF } },
+  team: { enabled: false, subs: { active_members: OFF, pending_invites: OFF, team_directory: OFF, departments: OFF } },
+  ai_assistant: { enabled: true },
+  settings: { enabled: true },
+};
+
+export const ADMIN_DEFAULT_PERMISSIONS: WorkspacePermissions = {
+  version: 2,
+  dashboard: {
+    enabled: true,
+    subs: { contacts_kpis: { enabled: true }, deals_kpis: { enabled: true }, revenue_kpis: { enabled: true } },
+  },
+  contacts: { enabled: true, subs: { people: FULL, companies: FULL, segments: FULL } },
+  deals: { enabled: true, subs: { pipelines: FULL, forecasts: FULL } },
+  projects: { enabled: true, subs: { all_projects: FULL, project_templates: FULL, milestones: FULL } },
+  tasks: { enabled: true, subs: { my_tasks: FULL, team_board: FULL, workload: FULL } },
+  invoices: { enabled: true, subs: { all_invoices: FULL, recurring_billing: FULL, product_library: FULL } },
+  team: { enabled: true, subs: { active_members: FULL, pending_invites: FULL, team_directory: FULL, departments: FULL } },
+  ai_assistant: { enabled: true },
+  settings: { enabled: true },
+};
+
+// Returns the default permission baseline for a newly-added member, or
+// null for "owner" (and any unrecognized role) -- owners bypass every
+// check via role alone and never need a stored baseline.
+export function getDefaultPermissions(role: string): WorkspacePermissions | null {
+  if (role === "admin") return ADMIN_DEFAULT_PERMISSIONS;
+  if (role === "member") return MEMBER_DEFAULT_PERMISSIONS;
+  return null;
+}

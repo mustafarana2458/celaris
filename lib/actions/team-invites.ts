@@ -3,7 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
-import { normalizePermissions } from "@/lib/permissions";
+import { getDefaultPermissions, normalizePermissions } from "@/lib/permissions";
 import { sendInviteEmail } from "@/lib/email";
 import type { InvitationRole, WorkspacePermissions } from "@/lib/types";
 
@@ -253,7 +253,32 @@ export async function acceptInvitation(token: string): Promise<AcceptInvitationR
   const { data, error } = await supabase.rpc("accept_invitation", { p_token: token });
   if (error) return { error: error.message };
 
+  const workspaceId = data as string;
+
+  // Apply the role-based default permission baseline (Phase 3) to the
+  // membership row the RPC just created. Only touches it when permissions
+  // is still unset -- never overwrites an existing grant, and owners
+  // (unreachable here since invitations are admin/member only) get no
+  // stored baseline at all.
+  const { data: memberRow } = await supabase
+    .from("workspace_members")
+    .select("role, permissions")
+    .eq("workspace_id", workspaceId)
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (memberRow && !memberRow.permissions) {
+    const baseline = getDefaultPermissions(memberRow.role);
+    if (baseline) {
+      await supabase
+        .from("workspace_members")
+        .update({ permissions: baseline })
+        .eq("workspace_id", workspaceId)
+        .eq("user_id", user.id);
+    }
+  }
+
   revalidatePath("/dashboard/team");
   revalidatePath("/dashboard/team/invites");
-  return { workspaceId: data as string };
+  return { workspaceId };
 }
