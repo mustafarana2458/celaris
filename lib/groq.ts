@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 
-const GROQ_MODEL = "llama-3.3-70b-versatile";
+const GROQ_MODEL = "openai/gpt-oss-120b";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MISTRAL_MODEL = "mistral-small-2603";
 const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
@@ -13,7 +13,7 @@ const MODE_CACHE_MS = 5000;
 export type GroqMessage = { role: "system" | "user" | "assistant"; content: string };
 export type GroqResult = { text?: string; error?: string };
 export type GroqOptions = { temperature?: number };
-export type AiProviderMode = "auto" | "groq" | "mistral";
+export type AiProviderMode = "auto" | "auto2" | "groq" | "mistral";
 
 type Attempt =
   | { kind: "response"; response: Response }
@@ -174,7 +174,7 @@ export async function fetchModeFromDb(supabase: SupabaseClient): Promise<AiProvi
     .maybeSingle();
 
   const value = (data as { value?: string } | null)?.value;
-  return value === "groq" || value === "mistral" ? value : "auto";
+  return value === "groq" || value === "mistral" || value === "auto2" ? value : "auto";
 }
 
 let cachedMode: AiProviderMode = "auto";
@@ -218,6 +218,18 @@ export async function callGroq(
   if (mode === "mistral") {
     const result = await tryMistral(messages, options, format);
     return result ?? { error: "AI is currently unavailable. Please try again in a bit." };
+  }
+
+  if (mode === "auto2") {
+    // Reverse of "auto" -- Mistral first, Groq as the fallback.
+    const mistralResult = await tryMistral(messages, options, format);
+    if (mistralResult) return mistralResult;
+
+    console.error(`[AI] Falling back to Groq (${GROQ_MODEL}) after Mistral failure.`);
+    const groqResult = await tryGroq(messages, options, format);
+    if (groqResult) return groqResult;
+
+    return { error: "AI is currently unavailable. Please try again in a bit." };
   }
 
   // "auto" (default) -- unchanged from the original Groq-first, Mistral-

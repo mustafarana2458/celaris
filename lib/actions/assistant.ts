@@ -4,7 +4,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, type CurrentWorkspace } from "@/lib/workspace";
 import { hasModuleAccess } from "@/lib/permissions";
-import { callGroq } from "@/lib/groq";
+import { callGroq, type GroqMessage } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
 import {
   executeCreateContact,
@@ -93,7 +93,7 @@ function parseIntent(text: string): RawIntent | null {
 
 type WorkspaceCtx =
   | { ok: false; error: string }
-  | { ok: true; supabase: SupabaseClient; workspace: CurrentWorkspace };
+  | { ok: true; supabase: SupabaseClient; workspace: CurrentWorkspace; userId: string };
 
 async function requireWorkspace(): Promise<WorkspaceCtx> {
   const supabase = await createClient();
@@ -110,7 +110,41 @@ async function requireWorkspace(): Promise<WorkspaceCtx> {
     return { ok: false, error: "No workspace found for this account." };
   }
 
-  return { ok: true, supabase, workspace };
+  return { ok: true, supabase, workspace, userId: user.id };
+}
+
+// Last N turns only, to keep the prompt within a reasonable token budget --
+// this is prior conversation, not the current question.
+const HISTORY_LIMIT = 20;
+
+// Only returns prior turns when the user has Save Chat History on -- when
+// it's off, nothing was ever persisted so there's nothing to load, same as
+// the page-load behavior in app/dashboard/assistant/page.tsx.
+async function loadConversationHistory(
+  supabase: SupabaseClient,
+  userId: string,
+  workspaceId: string
+): Promise<GroqMessage[]> {
+  const { data: preference } = await supabase
+    .from("user_preferences")
+    .select("save_ai_history")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .maybeSingle<{ save_ai_history: boolean | null }>();
+
+  const saveHistory = preference?.save_ai_history ?? true;
+  if (!saveHistory) return [];
+
+  const { data: history } = await supabase
+    .from("ai_chat_history")
+    .select("role, content, created_at")
+    .eq("user_id", userId)
+    .eq("workspace_id", workspaceId)
+    .order("created_at", { ascending: false })
+    .limit(HISTORY_LIMIT);
+
+  const rows = (history as { role: "user" | "assistant"; content: string }[] | null) ?? [];
+  return rows.reverse().map((row) => ({ role: row.role, content: row.content }));
 }
 
 export async function askAssistant(question: string): Promise<AssistantActionResult> {
@@ -138,7 +172,10 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
   const todayISO = new Date().toISOString().slice(0, 10);
   const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed);
 
-  const result = await callGroq(prompt, { temperature: 0 }, "json");
+  const history = await loadConversationHistory(ctx.supabase, ctx.userId, ctx.workspace.id);
+  const messages: GroqMessage[] = [...history, { role: "user", content: prompt }];
+
+  const result = await callGroq(messages, { temperature: 0 }, "json");
   if (result.error || !result.text) {
     return { error: result.error ?? "The AI didn't return a response. Please try again." };
   }

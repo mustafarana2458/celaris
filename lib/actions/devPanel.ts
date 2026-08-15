@@ -11,7 +11,7 @@ export type DevPanelModeResult = { ok: boolean; mode?: AiProviderMode; error?: s
 // check failed, or the PIN env var isn't even configured -- nothing about
 // *why* access was denied should leak to the caller.
 const ACCESS_DENIED = "Access denied.";
-const VALID_MODES: AiProviderMode[] = ["auto", "groq", "mistral"];
+const VALID_MODES: AiProviderMode[] = ["auto", "auto2", "groq", "mistral"];
 
 async function requireDevAccess(pin: string) {
   const expectedPin = process.env.DEV_PANEL_PIN;

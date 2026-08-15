@@ -7,8 +7,9 @@ import { getAiProviderMode, setAiProviderMode, verifyDevPanelPin } from "@/lib/a
 import type { AiProviderMode } from "@/lib/groq";
 
 const MODE_OPTIONS: { value: AiProviderMode; label: string; description: string }[] = [
-  { value: "auto", label: "Auto", description: "Groq first, falls back to Mistral automatically." },
-  { value: "groq", label: "Force Groq", description: "Always use Groq. No fallback." },
+  { value: "auto", label: "Auto", description: "Groq (GPT OSS 120B) first, falls back to Mistral automatically." },
+  { value: "auto2", label: "Auto 2", description: "Mistral first, falls back to Groq (GPT OSS 120B) automatically." },
+  { value: "groq", label: "Groq (GPT OSS 120B)", description: "Always use Groq (GPT OSS 120B). No fallback." },
   { value: "mistral", label: "Force Mistral", description: "Always use Mistral. No fallback." },
 ];
 
