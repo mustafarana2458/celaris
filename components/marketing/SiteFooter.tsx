@@ -11,6 +11,7 @@ const PRODUCT_LINKS = [
 
 const RESOURCES_LINKS = [
   { label: "Help Center", href: "/resources" },
+  { label: "FAQ", href: "/faq" },
   { label: "System Status", href: "/status" },
 ];
 

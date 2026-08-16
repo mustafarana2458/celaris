@@ -3,8 +3,9 @@ const APP_VERSION = "Version 1.0.4 - Build 2026.08";
 const LEGAL_LINKS = [
   { label: "Terms of Service", href: "/terms" },
   { label: "Privacy Policy", href: "/privacy" },
-  { label: "Data Processing Agreement", href: "#" },
-  { label: "Cookie Policy", href: "#" },
+  { label: "Data Processing Agreement", href: "/dpa" },
+  { label: "Cookie Policy", href: "/cookie-policy" },
+  { label: "FAQ", href: "/faq" },
 ];
 
 export function AboutTab() {
