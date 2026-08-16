@@ -13,6 +13,18 @@ type Module = {
 
 const MODULES: Module[] = [
   {
+    id: "dashboard",
+    label: "Dashboard",
+    tagline: "Overview",
+    description:
+      "A real-time snapshot of your business the moment you log in — revenue, deal velocity, and project health rolled into one view.",
+    bullets: [
+      "KPI cards — revenue, deals, projects, and invoices at a glance",
+      "Activity trends — visualize performance over time with built-in charts",
+      "Quick actions — jump straight into whatever needs your attention",
+    ],
+  },
+  {
     id: "contacts",
     label: "Contacts",
     tagline: "CRM",
@@ -49,6 +61,18 @@ const MODULES: Module[] = [
     ],
   },
   {
+    id: "tasks",
+    label: "Tasks",
+    tagline: "Execution",
+    description:
+      "Keep every task visible — your own list, your team's board, and workload balance across the whole department.",
+    bullets: [
+      "My Tasks — a personal, prioritized list synced across every module",
+      "Team Board — a kanban view of what everyone is working on",
+      "Workload — spot overloaded teammates before deadlines slip",
+    ],
+  },
+  {
     id: "invoices",
     label: "Invoices",
     tagline: "Billing",
@@ -70,6 +94,18 @@ const MODULES: Module[] = [
       "Role-based defaults — owner, admin, and member baselines out of the box",
       "Departments — group teammates the way your org actually works",
       "Granular permissions — per-module, per-sub-feature access control",
+    ],
+  },
+  {
+    id: "assistant",
+    label: "AI Assistant",
+    tagline: "AI",
+    description:
+      "A conversational assistant that understands your workspace — ask questions, get summaries, and let it take action through function calling.",
+    bullets: [
+      "Natural-language chat — query contacts, deals, and invoices in plain English",
+      "Function calling — the assistant can create, update, and look up records for you",
+      "Persistent memory — conversations pick up context across sessions",
     ],
   },
 ];

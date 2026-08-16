@@ -1,6 +1,14 @@
 import { ReactNode } from "react";
 
-export type ModuleId = "contacts" | "deals" | "projects" | "invoices" | "team";
+export type ModuleId =
+  | "dashboard"
+  | "contacts"
+  | "deals"
+  | "projects"
+  | "tasks"
+  | "invoices"
+  | "team"
+  | "assistant";
 
 // Shared window-chrome frame -- same visual language as DashboardMockup /
 // AuthShowcase. High-fidelity CSS placeholder; swap the body for a real
@@ -14,6 +22,36 @@ function MockupFrame({ children }: { children: ReactNode }) {
         <span className="h-2.5 w-2.5 rounded-full bg-green-400/70" />
       </div>
       <div className="p-4">{children}</div>
+    </div>
+  );
+}
+
+function DashboardMockupBody() {
+  const kpis = [
+    { color: "bg-blue-500/70" },
+    { color: "bg-emerald-500/70" },
+    { color: "bg-purple-500/70" },
+    { color: "bg-amber-500/70" },
+  ];
+  const bars = [35, 55, 40, 70, 50, 85, 60, 75];
+  return (
+    <div className="space-y-3">
+      <div className="grid grid-cols-4 gap-2">
+        {kpis.map((kpi, i) => (
+          <div
+            key={i}
+            className="rounded-lg border border-gray-100 bg-gray-50 p-2 dark:border-neutral-800 dark:bg-neutral-800/60"
+          >
+            <div className="h-1.5 w-8 rounded bg-gray-300 dark:bg-neutral-600" />
+            <div className={`mt-1.5 h-2.5 w-10 rounded ${kpi.color}`} />
+          </div>
+        ))}
+      </div>
+      <div className="flex h-20 items-end gap-1.5 rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-800/60">
+        {bars.map((h, i) => (
+          <div key={i} className="flex-1 rounded-t bg-blue-500/70" style={{ height: `${h}%` }} />
+        ))}
+      </div>
     </div>
   );
 }
@@ -170,12 +208,72 @@ function TeamMockup() {
   );
 }
 
+function TasksMockup() {
+  const tasks = [
+    { done: true, w: "w-3/4" },
+    { done: false, w: "w-1/2" },
+    { done: false, w: "w-2/3" },
+    { done: true, w: "w-1/3" },
+  ];
+  return (
+    <div className="space-y-2">
+      {tasks.map((t, i) => (
+        <div
+          key={i}
+          className="flex items-center gap-3 rounded-lg border border-gray-100 bg-gray-50 p-3 dark:border-neutral-800 dark:bg-neutral-800/60"
+        >
+          <span
+            className={`flex h-4 w-4 shrink-0 items-center justify-center rounded ${
+              t.done ? "bg-emerald-500/70" : "border border-gray-300 dark:border-neutral-600"
+            }`}
+          >
+            {t.done && (
+              <svg viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth={2.5} className="h-2.5 w-2.5">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" />
+              </svg>
+            )}
+          </span>
+          <div className={`h-2 ${t.w} rounded bg-gray-300 dark:bg-neutral-600`} />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function AssistantMockup() {
+  const messages: { from: "user" | "ai"; w: string }[] = [
+    { from: "user", w: "w-2/3" },
+    { from: "ai", w: "w-full" },
+    { from: "user", w: "w-1/2" },
+  ];
+  return (
+    <div className="space-y-2.5">
+      {messages.map((m, i) => (
+        <div key={i} className={`flex ${m.from === "user" ? "justify-end" : "justify-start"}`}>
+          <div
+            className={`h-6 ${m.w} max-w-[80%] rounded-2xl ${
+              m.from === "user" ? "bg-blue-500/70" : "bg-gray-100 dark:bg-neutral-800"
+            }`}
+          />
+        </div>
+      ))}
+      <div className="flex items-center gap-2 rounded-lg border border-gray-100 bg-gray-50 p-2.5 dark:border-neutral-800 dark:bg-neutral-800/60">
+        <div className="h-2 flex-1 rounded bg-gray-200 dark:bg-neutral-700" />
+        <span className="h-5 w-5 shrink-0 rounded bg-blue-500/70" />
+      </div>
+    </div>
+  );
+}
+
 const BODIES: Record<ModuleId, () => ReactNode> = {
+  dashboard: DashboardMockupBody,
   contacts: ContactsMockup,
   deals: DealsMockup,
   projects: ProjectsMockup,
+  tasks: TasksMockup,
   invoices: InvoicesMockup,
   team: TeamMockup,
+  assistant: AssistantMockup,
 };
 
 export function ModuleMockup({ variant }: { variant: ModuleId }) {
