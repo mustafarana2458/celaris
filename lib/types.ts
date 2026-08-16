@@ -429,6 +429,19 @@ export type WorkspacePermissions = {
   settings: SimpleModule;
 };
 
+// Workspace-level module master switch (Settings > Module Preferences),
+// stored raw in workspaces.module_preferences (jsonb, default '{}'). A
+// separate, simpler layer from WorkspacePermissions above -- no "settings"
+// or "dashboard" keys (those are exempt, see lib/permissions.ts), no
+// per-submodule view/full access, just enabled/disabled. Missing keys mean
+// enabled -- see normalizeModulePreferences() in lib/permissions.ts for the
+// single place that fills in the defaults.
+export type ModulePreferencesModule = { enabled?: boolean; subs?: Record<string, boolean> };
+export type ModulePreferences = { modules?: Record<string, ModulePreferencesModule> };
+export type NormalizedModulePreferences = {
+  modules: Record<string, { enabled: boolean; subs: Record<string, boolean> }>;
+};
+
 export type WorkspaceTeamMember = {
   user_id: string;
   email: string | null;

@@ -41,9 +41,27 @@ export async function generateInsights(): Promise<InsightsResult> {
   // revenue/deals/contacts figures on the dashboard shouldn't see them
   // surface through the AI's generated text either.
   const visibility = {
-    contacts: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "contacts_kpis"),
-    deals: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "deals_kpis"),
-    revenue: hasModuleAccess(workspace.role, workspace.permissions, "dashboard", "revenue_kpis"),
+    contacts: hasModuleAccess(
+      workspace.role,
+      workspace.permissions,
+      "dashboard",
+      "contacts_kpis",
+      workspace.modulePreferences
+    ),
+    deals: hasModuleAccess(
+      workspace.role,
+      workspace.permissions,
+      "dashboard",
+      "deals_kpis",
+      workspace.modulePreferences
+    ),
+    revenue: hasModuleAccess(
+      workspace.role,
+      workspace.permissions,
+      "dashboard",
+      "revenue_kpis",
+      workspace.modulePreferences
+    ),
   };
 
   const summary = await buildWorkspaceSummary(supabase, workspace.id, visibility);

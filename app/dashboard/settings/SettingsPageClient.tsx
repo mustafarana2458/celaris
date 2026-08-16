@@ -10,6 +10,7 @@ import { WorkspaceTab } from "./tabs/WorkspaceTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { ComingSoonTab } from "./tabs/ComingSoonTab";
 import { AboutTab } from "./tabs/AboutTab";
+import { ModulePreferencesTab } from "./tabs/ModulePreferencesTab";
 
 type TabId =
   | "profile"
@@ -52,14 +53,15 @@ function TabIcon({ id, ...props }: { id: TabId } & SVGProps<SVGSVGElement>) {
   );
 }
 
-// `ownerOnly` tabs (Module Preferences, Integrations, Billing) are hidden
-// from admins/members entirely -- not just visually gated once open, since
-// none of them have a working non-owner path today anyway.
+// `ownerOnly` tabs are hidden from admins/members entirely -- not just
+// visually gated once open. Module Preferences enforces this the same way
+// (updateModulePreferences() re-checks role === "owner" server-side);
+// Integrations/Billing are still coming soon.
 const ALL_TABS: { id: TabId; label: string; soon?: boolean; ownerOnly?: boolean }[] = [
   { id: "profile", label: "Profile & Account" },
   { id: "workspace", label: "Workspace & Branding" },
   { id: "appearance", label: "Appearance" },
-  { id: "modules", label: "Module Preferences", soon: true, ownerOnly: true },
+  { id: "modules", label: "Module Preferences", ownerOnly: true },
   { id: "integrations", label: "Integrations", soon: true, ownerOnly: true },
   { id: "billing", label: "Billing", soon: true, ownerOnly: true },
   { id: "about", label: "About & Legal" },
@@ -130,12 +132,7 @@ export function SettingsPageClient({
             <WorkspaceTab workspace={workspace} branding={workspaceBranding} />
           )}
           {activeTab === "appearance" && <AppearanceTab />}
-          {activeTab === "modules" && (
-            <ComingSoonTab
-              title="Module Preferences"
-              description="Enable or disable CRM modules like Deals, Projects, and Invoices per workspace."
-            />
-          )}
+          {activeTab === "modules" && <ModulePreferencesTab workspace={workspace} />}
           {activeTab === "integrations" && (
             <ComingSoonTab
               title="Integrations"

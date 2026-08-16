@@ -3,6 +3,7 @@
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
+import { normalizeModulePreferences } from "@/lib/permissions";
 
 export type SettingsActionResult = { error?: string };
 
@@ -128,6 +129,30 @@ export async function updateWorkspaceLogoUrl(logoUrl: string): Promise<SettingsA
     .eq("id", ctx.workspace.id);
 
   if (logoError) return { error: logoError.message };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function updateModulePreferences(raw: unknown): Promise<SettingsActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  if (ctx.workspace.role !== "owner") {
+    return { error: "Only the workspace owner can update these settings." };
+  }
+
+  // Re-normalize server-side rather than trusting the client payload as-is
+  // (same reasoning as updateMemberPermissions) -- this is also what keeps
+  // "dashboard"/"settings" structurally impossible to disable, since
+  // normalizeModulePreferences() only ever writes the toggleable module keys.
+  const { error } = await ctx.supabase
+    .from("workspaces")
+    .update({ module_preferences: normalizeModulePreferences(raw) })
+    .eq("id", ctx.workspace.id);
+
+  if (error) return { error: error.message };
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");

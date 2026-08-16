@@ -81,13 +81,34 @@ export default async function DashboardPage() {
   // missing/owner/no-permissions case as open, so these default to true
   // for owners, admins (permissions null/unset), and anyone without an
   // explicit `enabled: false` on that dashboard sub.
-  const canSeeContactsKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "contacts_kpis");
-  const canSeeDealsKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "deals_kpis");
-  const canSeeRevenueKpis = hasModuleAccess(workspace?.role, workspace?.permissions, "dashboard", "revenue_kpis");
+  const canSeeContactsKpis = hasModuleAccess(
+    workspace?.role,
+    workspace?.permissions,
+    "dashboard",
+    "contacts_kpis",
+    workspace?.modulePreferences
+  );
+  const canSeeDealsKpis = hasModuleAccess(
+    workspace?.role,
+    workspace?.permissions,
+    "dashboard",
+    "deals_kpis",
+    workspace?.modulePreferences
+  );
+  const canSeeRevenueKpis = hasModuleAccess(
+    workspace?.role,
+    workspace?.permissions,
+    "dashboard",
+    "revenue_kpis",
+    workspace?.modulePreferences
+  );
 
   // Guarded inline instead of via requireModuleAccess() -- that helper
   // redirects to /dashboard, which would loop forever on this exact page.
-  if (workspace && !hasModuleAccess(workspace.role, workspace.permissions, "dashboard")) {
+  if (
+    workspace &&
+    !hasModuleAccess(workspace.role, workspace.permissions, "dashboard", undefined, workspace.modulePreferences)
+  ) {
     return (
       <div className="flex flex-col items-center justify-center gap-3 rounded-2xl border border-dashed border-slate-300 bg-white p-16 text-center dark:border-slate-600 dark:bg-slate-800">
         <p className="text-sm font-medium text-slate-700 dark:text-slate-300">Access denied</p>

@@ -43,7 +43,9 @@ export function Sidebar({ className = "" }: { className?: string }) {
   const visibleNavLinks = useMemo(
     () =>
       navLinks
-        .filter((item) => hasModuleAccess(workspace?.role, workspace?.permissions, item.moduleKey))
+        .filter((item) =>
+          hasModuleAccess(workspace?.role, workspace?.permissions, item.moduleKey, undefined, workspace?.modulePreferences)
+        )
         .map((item) => {
           if (item.type !== "group") return item;
           return {
@@ -51,11 +53,17 @@ export function Sidebar({ className = "" }: { className?: string }) {
             children: item.children.filter(
               (child) =>
                 !child.submoduleKey ||
-                hasModuleAccess(workspace?.role, workspace?.permissions, item.moduleKey, child.submoduleKey)
+                hasModuleAccess(
+                  workspace?.role,
+                  workspace?.permissions,
+                  item.moduleKey,
+                  child.submoduleKey,
+                  workspace?.modulePreferences
+                )
             ),
           };
         }),
-    [workspace?.role, workspace?.permissions]
+    [workspace?.role, workspace?.permissions, workspace?.modulePreferences]
   );
 
   // Five rapid clicks on the logo opens the hidden developer panel; no

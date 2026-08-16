@@ -6,8 +6,10 @@ import type {
   DashboardKpiKey,
   DealsSubKey,
   InvoicesSubKey,
+  ModulePreferences,
   ModuleWithAccessSubs,
   ModuleWithToggleSubs,
+  NormalizedModulePreferences,
   ProjectsSubKey,
   SimpleModule,
   SubPermission,
@@ -18,17 +20,23 @@ import type {
 } from "./types";
 
 // Single source of truth for module/submodule visibility, used by both the
-// sidebar (cosmetic) and route guards (actual enforcement). Owners are
-// always exempt. Runs everything through normalizePermissions() first so
-// missing/legacy/partial data always resolves to the same safe defaults
-// (enabled=true) used everywhere else -- only an explicit `enabled: false`
-// hides something.
+// sidebar (cosmetic) and route guards (actual enforcement). Two independent
+// layers, both must allow: workspace-level (modulePreferences, a workspace
+// config -- does this module exist here at all, no owner bypass) checked
+// first, then member-level (permissions, a per-user grant -- owners always
+// exempt) exactly as before. Runs everything through normalizePermissions()/
+// normalizeModulePreferences() first so missing/legacy/partial data always
+// resolves to the same safe defaults (enabled=true) -- only an explicit
+// `enabled: false` (or sub `false`) hides something.
 export function hasModuleAccess(
   role: string | null | undefined,
   permissions: WorkspacePermissions | null | undefined,
   moduleKey: string,
-  submoduleKey?: string
+  submoduleKey?: string,
+  modulePreferences?: ModulePreferences | null
 ): boolean {
+  if (!hasWorkspaceModuleAccess(modulePreferences, moduleKey, submoduleKey)) return false;
+
   if (role === "owner") return true;
 
   const normalized = normalizePermissions(permissions) as unknown as Record<
@@ -52,7 +60,9 @@ export function requireModuleAccess(
   submoduleKey?: string
 ) {
   if (!workspace) return;
-  if (!hasModuleAccess(workspace.role, workspace.permissions, moduleKey, submoduleKey)) {
+  if (
+    !hasModuleAccess(workspace.role, workspace.permissions, moduleKey, submoduleKey, workspace.modulePreferences)
+  ) {
     redirect("/dashboard");
   }
 }
@@ -123,6 +133,63 @@ export function normalizePermissions(raw: unknown): WorkspacePermissions {
     ai_assistant: normSimpleModule(r.ai_assistant),
     settings: normSimpleModule(r.settings),
   };
+}
+
+// Module keys that Module Preferences can toggle -- "dashboard" and
+// "settings" are deliberately absent so they can never be turned off
+// (Settings must stay reachable or an owner could lock the workspace out of
+// the screen that controls this; dashboard is core). Reuses the same
+// submodule key lists as normalizePermissions() above so the two schemas
+// can't drift apart.
+export const TOGGLEABLE_MODULE_SUB_KEYS: Record<string, readonly string[]> = {
+  contacts: CONTACTS_SUBS,
+  deals: DEALS_SUBS,
+  projects: PROJECTS_SUBS,
+  tasks: TASKS_SUBS,
+  invoices: INVOICES_SUBS,
+  team: TEAM_SUBS,
+  ai_assistant: [],
+};
+
+// Same shape of defaulting as normalizePermissions(): missing/malformed
+// input, or a module/sub key that was never explicitly set to `false`, all
+// resolve to enabled=true so a workspace created before this feature (or
+// one that's never touched a given module) is unaffected.
+export function normalizeModulePreferences(raw: unknown): NormalizedModulePreferences {
+  const r = (raw && typeof raw === "object" ? raw : {}) as { modules?: unknown };
+  const modulesRaw = (r.modules && typeof r.modules === "object" ? r.modules : {}) as Record<string, unknown>;
+
+  const modules: NormalizedModulePreferences["modules"] = {};
+  for (const key of Object.keys(TOGGLEABLE_MODULE_SUB_KEYS)) {
+    const modRaw = (modulesRaw[key] && typeof modulesRaw[key] === "object" ? modulesRaw[key] : {}) as {
+      enabled?: unknown;
+      subs?: unknown;
+    };
+    const subsRaw = (modRaw.subs && typeof modRaw.subs === "object" ? modRaw.subs : {}) as Record<string, unknown>;
+    const subs: Record<string, boolean> = {};
+    for (const subKey of TOGGLEABLE_MODULE_SUB_KEYS[key]) {
+      subs[subKey] = subsRaw[subKey] !== false;
+    }
+    modules[key] = { enabled: modRaw.enabled !== false, subs };
+  }
+  return { modules };
+}
+
+// The workspace-level half of hasModuleAccess(). "dashboard"/"settings" (or
+// any key outside TOGGLEABLE_MODULE_SUB_KEYS) are never present in the
+// normalized map, so they always fall through to `!mod` => true -- exempt
+// by construction, not a special case here.
+export function hasWorkspaceModuleAccess(
+  modulePreferences: ModulePreferences | null | undefined,
+  moduleKey: string,
+  submoduleKey?: string
+): boolean {
+  const normalized = normalizeModulePreferences(modulePreferences);
+  const mod = normalized.modules[moduleKey];
+  if (!mod) return true;
+  if (!mod.enabled) return false;
+  if (submoduleKey && mod.subs[submoduleKey] === false) return false;
+  return true;
 }
 
 type WriteAccessError = { error: string };

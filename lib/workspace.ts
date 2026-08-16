@@ -1,5 +1,5 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
-import type { WorkspacePermissions } from "./types";
+import type { ModulePreferences, WorkspacePermissions } from "./types";
 
 export type CurrentWorkspace = {
   id: string;
@@ -7,6 +7,7 @@ export type CurrentWorkspace = {
   role: string;
   permissions: WorkspacePermissions | null;
   logoUrl: string | null;
+  modulePreferences: ModulePreferences | null;
 };
 
 export type WorkspaceSummary = {
@@ -19,7 +20,12 @@ export type WorkspaceSummary = {
 type MembershipRow = {
   role: string;
   permissions: WorkspacePermissions | null;
-  workspaces: { id: string; name: string; logo_url: string | null } | null;
+  workspaces: {
+    id: string;
+    name: string;
+    logo_url: string | null;
+    module_preferences: ModulePreferences | null;
+  } | null;
 };
 
 export async function getCurrentWorkspace(
@@ -35,7 +41,7 @@ export async function getCurrentWorkspace(
   if (userRow?.last_active_workspace_id) {
     const { data } = await supabase
       .from("workspace_members")
-      .select("role, permissions, workspaces(id, name, logo_url)")
+      .select("role, permissions, workspaces(id, name, logo_url, module_preferences)")
       .eq("user_id", userId)
       .eq("workspace_id", userRow.last_active_workspace_id)
       .maybeSingle<MembershipRow>();
@@ -47,6 +53,7 @@ export async function getCurrentWorkspace(
         role: data.role,
         permissions: data.permissions ?? null,
         logoUrl: data.workspaces.logo_url ?? null,
+        modulePreferences: data.workspaces.module_preferences ?? null,
       };
     }
     // Membership on the saved workspace no longer exists (removed from it) --
@@ -55,7 +62,7 @@ export async function getCurrentWorkspace(
 
   const { data } = await supabase
     .from("workspace_members")
-    .select("role, permissions, workspaces(id, name, logo_url)")
+    .select("role, permissions, workspaces(id, name, logo_url, module_preferences)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle<MembershipRow>();
@@ -68,6 +75,7 @@ export async function getCurrentWorkspace(
     role: data.role,
     permissions: data.permissions ?? null,
     logoUrl: data.workspaces.logo_url ?? null,
+    modulePreferences: data.workspaces.module_preferences ?? null,
   };
 }
 

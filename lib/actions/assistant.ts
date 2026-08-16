@@ -163,9 +163,27 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
   // revenue/deals/contacts figures on the dashboard shouldn't see them
   // surface through the assistant's chat responses either.
   const visibility = {
-    contacts: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "contacts_kpis"),
-    deals: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "deals_kpis"),
-    revenue: hasModuleAccess(ctx.workspace.role, ctx.workspace.permissions, "dashboard", "revenue_kpis"),
+    contacts: hasModuleAccess(
+      ctx.workspace.role,
+      ctx.workspace.permissions,
+      "dashboard",
+      "contacts_kpis",
+      ctx.workspace.modulePreferences
+    ),
+    deals: hasModuleAccess(
+      ctx.workspace.role,
+      ctx.workspace.permissions,
+      "dashboard",
+      "deals_kpis",
+      ctx.workspace.modulePreferences
+    ),
+    revenue: hasModuleAccess(
+      ctx.workspace.role,
+      ctx.workspace.permissions,
+      "dashboard",
+      "revenue_kpis",
+      ctx.workspace.modulePreferences
+    ),
   };
 
   const summary = await buildWorkspaceSummary(ctx.supabase, ctx.workspace.id, visibility);
