@@ -8,9 +8,10 @@ import type { WorkspaceBranding } from "./page";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { WorkspaceTab } from "./tabs/WorkspaceTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
-import { ComingSoonTab } from "./tabs/ComingSoonTab";
 import { AboutTab } from "./tabs/AboutTab";
 import { ModulePreferencesTab } from "./tabs/ModulePreferencesTab";
+import { IntegrationsTab } from "./tabs/IntegrationsTab";
+import { BillingTab } from "./tabs/BillingTab";
 
 type TabId =
   | "profile"
@@ -54,16 +55,17 @@ function TabIcon({ id, ...props }: { id: TabId } & SVGProps<SVGSVGElement>) {
 }
 
 // `ownerOnly` tabs are hidden from admins/members entirely -- not just
-// visually gated once open. Module Preferences enforces this the same way
-// (updateModulePreferences() re-checks role === "owner" server-side);
-// Integrations/Billing are still coming soon.
+// visually gated once open. Module Preferences/Integrations/Billing all
+// enforce this the same way server-side too (each action re-checks
+// role === "owner", or in Integrations/Billing's case has no real backend
+// yet to even gate -- ownerOnly here is the only real gate for now).
 const ALL_TABS: { id: TabId; label: string; soon?: boolean; ownerOnly?: boolean }[] = [
   { id: "profile", label: "Profile & Account" },
   { id: "workspace", label: "Workspace & Branding" },
   { id: "appearance", label: "Appearance" },
   { id: "modules", label: "Module Preferences", ownerOnly: true },
-  { id: "integrations", label: "Integrations", soon: true, ownerOnly: true },
-  { id: "billing", label: "Billing", soon: true, ownerOnly: true },
+  { id: "integrations", label: "Integrations", ownerOnly: true },
+  { id: "billing", label: "Billing", ownerOnly: true },
   { id: "about", label: "About & Legal" },
 ];
 
@@ -133,18 +135,8 @@ export function SettingsPageClient({
           )}
           {activeTab === "appearance" && <AppearanceTab />}
           {activeTab === "modules" && <ModulePreferencesTab workspace={workspace} />}
-          {activeTab === "integrations" && (
-            <ComingSoonTab
-              title="Integrations"
-              description="Connect email, calendar, and third-party tools to your workspace."
-            />
-          )}
-          {activeTab === "billing" && (
-            <ComingSoonTab
-              title="Billing"
-              description="Manage your subscription plan, payment method, and invoices."
-            />
-          )}
+          {activeTab === "integrations" && <IntegrationsTab />}
+          {activeTab === "billing" && <BillingTab />}
           {activeTab === "about" && <AboutTab />}
         </div>
       </div>
