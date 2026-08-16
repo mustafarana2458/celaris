@@ -80,10 +80,10 @@ export function AppearanceTab() {
                 key={option.value}
                 type="button"
                 onClick={() => setMode(option.value)}
-                className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-colors ${
+                className={`flex flex-col gap-3 rounded-xl border p-4 text-left transition-all duration-200 ${
                   isActive
-                    ? "border-accent ring-2 ring-accent/20"
-                    : "border-slate-200 hover:border-slate-300 dark:border-slate-700 dark:hover:border-slate-600"
+                    ? "border-blue-500 ring-2 ring-blue-500/20"
+                    : "border-gray-200 hover:border-gray-300 dark:border-neutral-800 dark:hover:border-neutral-700"
                 }`}
               >
                 <ThemePreview mode={option.value} />
@@ -92,7 +92,7 @@ export function AppearanceTab() {
                     {option.label}
                   </span>
                   {isActive && (
-                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-accent">
+                    <span className="flex h-4 w-4 items-center justify-center rounded-full bg-blue-500">
                       <svg
                         viewBox="0 0 24 24"
                         fill="none"
@@ -130,7 +130,7 @@ export function AppearanceTab() {
                 type="button"
                 onClick={() => selectAccent(option.value)}
                 aria-label={`Select accent color ${option.label}`}
-                className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform ${
+                className={`flex h-10 w-10 items-center justify-center rounded-full transition-transform duration-200 hover:scale-110 ${
                   isActive
                     ? "scale-110 ring-2 ring-offset-2 ring-slate-400 dark:ring-offset-slate-800"
                     : ""

@@ -11,26 +11,27 @@ export function ChangePasswordCard() {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
+  const canSubmit =
+    newPassword.length >= MIN_LENGTH && confirmPassword.length > 0 && newPassword === confirmPassword;
 
-  async function handleSubmit(formData: FormData) {
+  async function handleSubmit() {
     setError(null);
     setSuccess(false);
 
-    const password = String(formData.get("new_password") ?? "");
-    const confirmPassword = String(formData.get("confirm_password") ?? "");
-
-    if (password.length < MIN_LENGTH) {
+    if (newPassword.length < MIN_LENGTH) {
       setError(`Password must be at least ${MIN_LENGTH} characters.`);
       return;
     }
-    if (password !== confirmPassword) {
+    if (newPassword !== confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     setIsSaving(true);
     const supabase = createClient();
-    const { error: updateError } = await supabase.auth.updateUser({ password });
+    const { error: updateError } = await supabase.auth.updateUser({ password: newPassword });
     setIsSaving(false);
 
     if (updateError) {
@@ -39,7 +40,8 @@ export function ChangePasswordCard() {
     }
 
     setSuccess(true);
-    (document.getElementById("change-password-form") as HTMLFormElement | null)?.reset();
+    setNewPassword("");
+    setConfirmPassword("");
   }
 
   return (
@@ -70,6 +72,8 @@ export function ChangePasswordCard() {
           name="new_password"
           type="password"
           autoComplete="new-password"
+          value={newPassword}
+          onChange={(e) => setNewPassword(e.target.value)}
           required
         />
         <Input
@@ -77,11 +81,13 @@ export function ChangePasswordCard() {
           name="confirm_password"
           type="password"
           autoComplete="new-password"
+          value={confirmPassword}
+          onChange={(e) => setConfirmPassword(e.target.value)}
           required
         />
 
         <div className="mt-2 flex justify-end">
-          <Button type="submit" loading={isSaving}>
+          <Button type="submit" loading={isSaving} disabled={!canSubmit || isSaving}>
             Update password
           </Button>
         </div>

@@ -9,6 +9,7 @@ import { ProfileTab } from "./tabs/ProfileTab";
 import { WorkspaceTab } from "./tabs/WorkspaceTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
 import { ComingSoonTab } from "./tabs/ComingSoonTab";
+import { AboutTab } from "./tabs/AboutTab";
 
 type TabId =
   | "profile"
@@ -61,7 +62,7 @@ const ALL_TABS: { id: TabId; label: string; soon?: boolean; ownerOnly?: boolean 
   { id: "modules", label: "Module Preferences", soon: true, ownerOnly: true },
   { id: "integrations", label: "Integrations", soon: true, ownerOnly: true },
   { id: "billing", label: "Billing", soon: true, ownerOnly: true },
-  { id: "about", label: "About & Legal", soon: true },
+  { id: "about", label: "About & Legal" },
 ];
 
 export function SettingsPageClient({
@@ -147,12 +148,7 @@ export function SettingsPageClient({
               description="Manage your subscription plan, payment method, and invoices."
             />
           )}
-          {activeTab === "about" && (
-            <ComingSoonTab
-              title="About & Legal"
-              description="App version, terms, privacy policy, and support links."
-            />
-          )}
+          {activeTab === "about" && <AboutTab />}
         </div>
       </div>
     </div>

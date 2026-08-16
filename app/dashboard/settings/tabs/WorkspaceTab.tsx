@@ -27,6 +27,30 @@ export function WorkspaceTab({
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const initialForm = {
+    name: branding?.name ?? workspace?.name ?? "",
+    support_email: branding?.support_email ?? "",
+    tax_number: branding?.tax_number ?? "",
+    phone: branding?.phone ?? "",
+    currency: branding?.currency ?? "USD",
+    address: branding?.address ?? "",
+    payment_instructions: branding?.payment_instructions ?? "",
+  };
+  const [form, setForm] = useState(initialForm);
+  const [saved, setSaved] = useState(initialForm);
+  const isDirty =
+    form.name !== saved.name ||
+    form.support_email !== saved.support_email ||
+    form.tax_number !== saved.tax_number ||
+    form.phone !== saved.phone ||
+    form.currency !== saved.currency ||
+    form.address !== saved.address ||
+    form.payment_instructions !== saved.payment_instructions;
+
+  function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
+    setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
   function handleSubmit(formData: FormData) {
     setError(null);
     setSuccess(false);
@@ -36,6 +60,7 @@ export function WorkspaceTab({
         setError(result.error);
         return;
       }
+      setSaved(form);
       setSuccess(true);
     });
   }
@@ -120,7 +145,8 @@ export function WorkspaceTab({
           <Input
             label="Workspace / Company Name"
             name="name"
-            defaultValue={branding?.name ?? workspace.name}
+            value={form.name}
+            onChange={(e) => updateField("name", e.target.value)}
             required
           />
 
@@ -128,20 +154,23 @@ export function WorkspaceTab({
             label="Support / Billing Email"
             name="support_email"
             type="email"
-            defaultValue={branding?.support_email ?? ""}
+            value={form.support_email}
+            onChange={(e) => updateField("support_email", e.target.value)}
           />
 
           <Input
             label="Tax / Registration Number"
             name="tax_number"
-            defaultValue={branding?.tax_number ?? ""}
+            value={form.tax_number}
+            onChange={(e) => updateField("tax_number", e.target.value)}
           />
 
           <Input
             label="Phone"
             name="phone"
             type="tel"
-            defaultValue={branding?.phone ?? ""}
+            value={form.phone}
+            onChange={(e) => updateField("phone", e.target.value)}
           />
 
           <div className="flex flex-col gap-1.5">
@@ -154,7 +183,8 @@ export function WorkspaceTab({
             <select
               id="currency"
               name="currency"
-              defaultValue={branding?.currency ?? "USD"}
+              value={form.currency}
+              onChange={(e) => updateField("currency", e.target.value)}
               className="rounded-lg border border-slate-200 px-3.5 py-2.5 text-sm text-slate-900 outline-none transition-shadow focus:border-accent focus:ring-2 focus:ring-accent/20 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-100"
             >
               {CURRENCIES.map((c) => (
@@ -169,7 +199,8 @@ export function WorkspaceTab({
             label="Business Address"
             name="address"
             rows={3}
-            defaultValue={branding?.address ?? ""}
+            value={form.address}
+            onChange={(e) => updateField("address", e.target.value)}
           />
 
           <Textarea
@@ -177,14 +208,15 @@ export function WorkspaceTab({
             name="payment_instructions"
             rows={3}
             placeholder="e.g. Bank transfer to IBAN ... / We accept card payments via the link below."
-            defaultValue={branding?.payment_instructions ?? ""}
+            value={form.payment_instructions}
+            onChange={(e) => updateField("payment_instructions", e.target.value)}
           />
           <p className="-mt-2 text-xs text-slate-400 dark:text-slate-500">
             Shown at the bottom of every printed invoice and PDF.
           </p>
 
           <div className="mt-2 flex justify-end">
-            <Button type="submit" loading={isPending}>
+            <Button type="submit" loading={isPending} disabled={!isDirty || isPending}>
               Save changes
             </Button>
           </div>

@@ -23,6 +23,12 @@ export function ProfileTab({
   const [success, setSuccess] = useState(false);
   const [isPending, startTransition] = useTransition();
 
+  const [fullName, setFullName] = useState(profile?.full_name ?? "");
+  const [phone, setPhone] = useState(profile?.phone ?? "");
+  const [savedFullName, setSavedFullName] = useState(profile?.full_name ?? "");
+  const [savedPhone, setSavedPhone] = useState(profile?.phone ?? "");
+  const isDirty = fullName !== savedFullName || phone !== savedPhone;
+
   function handleSubmit(formData: FormData) {
     setError(null);
     setSuccess(false);
@@ -32,6 +38,8 @@ export function ProfileTab({
         setError(result.error);
         return;
       }
+      setSavedFullName(fullName);
+      setSavedPhone(phone);
       setSuccess(true);
     });
   }
@@ -83,16 +91,22 @@ export function ProfileTab({
           <Input
             label="Full Name"
             name="full_name"
-            defaultValue={profile?.full_name ?? ""}
+            value={fullName}
+            onChange={(e) => setFullName(e.target.value)}
             required
           />
 
-          <Input label="Phone" name="phone" defaultValue={profile?.phone ?? ""} />
+          <Input
+            label="Phone"
+            name="phone"
+            value={phone}
+            onChange={(e) => setPhone(e.target.value)}
+          />
 
           <Input label="Email" name="email" value={email} readOnly disabled />
 
           <div className="mt-2 flex justify-end">
-            <Button type="submit" loading={isPending}>
+            <Button type="submit" loading={isPending} disabled={!isDirty || isPending}>
               Save changes
             </Button>
           </div>
