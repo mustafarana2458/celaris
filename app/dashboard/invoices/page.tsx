@@ -40,7 +40,7 @@ export default async function InvoicesPage() {
             .order("name", { ascending: true }),
           supabase
             .from("workspaces")
-            .select("name, address, tax_number, support_email, phone, payment_instructions")
+            .select("name, address, tax_number, support_email, phone, payment_instructions, logo_url")
             .eq("id", workspace.id)
             .maybeSingle<InvoiceSenderDetails>(),
           supabase

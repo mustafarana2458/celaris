@@ -35,7 +35,9 @@ export default async function DashboardLayout({
       <DashboardShell
         fullName={profile?.full_name || user.email || "there"}
         avatarUrl={profile?.avatar_url ?? null}
-        activeWorkspace={workspace ? { id: workspace.id, name: workspace.name } : null}
+        activeWorkspace={
+          workspace ? { id: workspace.id, name: workspace.name, logoUrl: workspace.logoUrl } : null
+        }
         workspaces={workspaces}
       >
         {children}

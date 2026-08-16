@@ -102,8 +102,8 @@ export function InvoicesPageClient({
     }
   }
 
-  function handleDownloadPdf(invoice: Invoice) {
-    downloadInvoicePdf(
+  async function handleDownloadPdf(invoice: Invoice) {
+    await downloadInvoicePdf(
       invoice,
       senderDetails ?? {
         name: "",
@@ -112,6 +112,7 @@ export function InvoicesPageClient({
         support_email: null,
         phone: null,
         payment_instructions: null,
+        logo_url: null,
       }
     );
   }

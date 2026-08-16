@@ -366,6 +366,7 @@ export type InvoiceSenderDetails = {
   support_email: string | null;
   phone: string | null;
   payment_instructions: string | null;
+  logo_url: string | null;
 };
 
 export type TeamRole = "owner" | "admin" | "member";

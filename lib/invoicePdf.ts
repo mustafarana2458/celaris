@@ -39,17 +39,84 @@ function readAccentColor(): [number, number, number] {
   return fallback;
 }
 
-export function downloadInvoicePdf(invoice: Invoice, sender: InvoiceSenderDetails) {
+type LoadedLogo = { dataUrl: string; format: "PNG" | "JPEG"; width: number; height: number };
+
+function loadHtmlImage(src: string): Promise<HTMLImageElement> {
+  return new Promise((resolve, reject) => {
+    const img = new Image();
+    img.onload = () => resolve(img);
+    img.onerror = () => reject(new Error("Image failed to load"));
+    img.src = src;
+  });
+}
+
+function blobToDataUrl(blob: Blob): Promise<string> {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result as string);
+    reader.onerror = () => reject(reader.error);
+    reader.readAsDataURL(blob);
+  });
+}
+
+// jsPDF's addImage only accepts raster formats (PNG/JPEG) -- SVG logos are
+// rasterized onto a canvas first. Any failure here (fetch, CORS, decode)
+// just means the PDF falls back to the text-only header instead of throwing.
+async function loadLogo(url: string): Promise<LoadedLogo | null> {
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const blob = await res.blob();
+    const isSvg = blob.type.includes("svg") || url.toLowerCase().endsWith(".svg");
+
+    if (isSvg) {
+      const objectUrl = URL.createObjectURL(blob);
+      try {
+        const img = await loadHtmlImage(objectUrl);
+        const size = 200;
+        const canvas = document.createElement("canvas");
+        canvas.width = size;
+        canvas.height = size;
+        const ctx = canvas.getContext("2d");
+        if (!ctx) return null;
+        ctx.drawImage(img, 0, 0, size, size);
+        return { dataUrl: canvas.toDataURL("image/png"), format: "PNG", width: size, height: size };
+      } finally {
+        URL.revokeObjectURL(objectUrl);
+      }
+    }
+
+    const dataUrl = await blobToDataUrl(blob);
+    const img = await loadHtmlImage(dataUrl);
+    const format = blob.type.includes("png") ? "PNG" : "JPEG";
+    return { dataUrl, format, width: img.naturalWidth || 1, height: img.naturalHeight || 1 };
+  } catch {
+    return null;
+  }
+}
+
+export async function downloadInvoicePdf(invoice: Invoice, sender: InvoiceSenderDetails) {
   const doc = new jsPDF({ unit: "pt", format: "a4" });
   const accent = readAccentColor();
   const marginX = 40;
   const rightEdge = 555;
   let y = 50;
 
+  const logo = sender.logo_url ? await loadLogo(sender.logo_url) : null;
+  let contentX = marginX;
+  if (logo) {
+    const boxSize = 40;
+    const scale = Math.min(boxSize / logo.width, boxSize / logo.height);
+    const w = logo.width * scale;
+    const h = logo.height * scale;
+    doc.addImage(logo.dataUrl, logo.format, marginX, y - 16, w, h);
+    contentX = marginX + boxSize + 12;
+  }
+
   doc.setFont("helvetica", "bold");
   doc.setFontSize(18);
   doc.setTextColor(...accent);
-  doc.text(sender.name || "Invoice", marginX, y);
+  doc.text(sender.name || "Invoice", contentX, y);
 
   doc.setFont("helvetica", "normal");
   doc.setFontSize(9);
@@ -57,24 +124,24 @@ export function downloadInvoicePdf(invoice: Invoice, sender: InvoiceSenderDetail
   let senderY = y + 15;
   if (sender.address) {
     for (const line of sender.address.split("\n")) {
-      doc.text(line, marginX, senderY);
+      doc.text(line, contentX, senderY);
       senderY += 12;
     }
   }
   if (sender.tax_number) {
-    doc.text(`Tax ID: ${sender.tax_number}`, marginX, senderY);
+    doc.text(`Tax ID: ${sender.tax_number}`, contentX, senderY);
     senderY += 12;
   }
   const contactLine = [sender.support_email, sender.phone].filter(Boolean).join("  ·  ");
   if (contactLine) {
-    doc.text(contactLine, marginX, senderY);
+    doc.text(contactLine, contentX, senderY);
     senderY += 12;
   }
 
   doc.setFontSize(10);
   doc.setTextColor(100, 116, 139);
   senderY += 4;
-  doc.text(`Invoice ${invoice.invoice_number}`, marginX, senderY);
+  doc.text(`Invoice ${invoice.invoice_number}`, contentX, senderY);
 
   doc.setFontSize(9);
   doc.setTextColor(15, 23, 42);

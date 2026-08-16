@@ -103,20 +103,30 @@ export function PrintInvoiceModal({
 
         <div className="print-invoice w-full rounded-2xl bg-white p-8 shadow-sm">
           <div className="flex items-start justify-between border-b border-slate-200 pb-6">
-            <div>
-              <p className="text-lg font-semibold text-slate-900">{senderDetails?.name}</p>
-              {senderDetails?.address && (
-                <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{senderDetails.address}</p>
+            <div className="flex items-start gap-3">
+              {senderDetails?.logo_url && (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={senderDetails.logo_url}
+                  alt=""
+                  className="h-12 w-12 shrink-0 rounded-lg object-contain"
+                />
               )}
-              {senderDetails?.tax_number && (
-                <p className="mt-1 text-xs text-slate-500">Tax ID: {senderDetails.tax_number}</p>
-              )}
-              {(senderDetails?.support_email || senderDetails?.phone) && (
-                <p className="mt-1 text-xs text-slate-500">
-                  {[senderDetails?.support_email, senderDetails?.phone].filter(Boolean).join(" · ")}
-                </p>
-              )}
-              <p className="mt-2 text-sm text-slate-500">Invoice {invoice.invoice_number}</p>
+              <div>
+                <p className="text-lg font-semibold text-slate-900">{senderDetails?.name}</p>
+                {senderDetails?.address && (
+                  <p className="mt-1 whitespace-pre-line text-xs text-slate-500">{senderDetails.address}</p>
+                )}
+                {senderDetails?.tax_number && (
+                  <p className="mt-1 text-xs text-slate-500">Tax ID: {senderDetails.tax_number}</p>
+                )}
+                {(senderDetails?.support_email || senderDetails?.phone) && (
+                  <p className="mt-1 text-xs text-slate-500">
+                    {[senderDetails?.support_email, senderDetails?.phone].filter(Boolean).join(" · ")}
+                  </p>
+                )}
+                <p className="mt-2 text-sm text-slate-500">Invoice {invoice.invoice_number}</p>
+              </div>
             </div>
             {statusInfo && (
               <span

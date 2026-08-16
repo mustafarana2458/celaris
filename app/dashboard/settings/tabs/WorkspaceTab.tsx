@@ -4,7 +4,9 @@ import { useState, useTransition } from "react";
 import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Button } from "@/components/ui/Button";
-import { updateWorkspaceBranding } from "@/lib/actions/settings";
+import { updateWorkspaceBranding, updateWorkspaceLogoUrl } from "@/lib/actions/settings";
+import { createClient } from "@/lib/supabase/client";
+import { validateImageFile, fileExtension } from "@/lib/upload";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { WorkspaceBranding } from "../page";
 
@@ -14,6 +16,9 @@ const CURRENCIES = [
   { value: "PKR", label: "PKR ₨" },
   { value: "GBP", label: "GBP £" },
 ];
+
+const LOGO_TYPES = ["image/png", "image/jpeg", "image/svg+xml"];
+const LOGO_MAX_MB = 5;
 
 export function WorkspaceTab({
   workspace,
@@ -49,6 +54,73 @@ export function WorkspaceTab({
 
   function updateField<K extends keyof typeof form>(key: K, value: (typeof form)[K]) {
     setForm((prev) => ({ ...prev, [key]: value }));
+  }
+
+  const [logoUrl, setLogoUrl] = useState(branding?.logo_url ?? null);
+  const [logoPreview, setLogoPreview] = useState<string | null>(null);
+  const [uploadingLogo, setUploadingLogo] = useState(false);
+  const [logoError, setLogoError] = useState<string | null>(null);
+  const [isDraggingLogo, setIsDraggingLogo] = useState(false);
+  const displayLogoUrl = logoPreview ?? logoUrl;
+
+  async function handleLogoFile(file: File) {
+    const validationError = validateImageFile(file, {
+      allowedTypes: LOGO_TYPES,
+      maxSizeMb: LOGO_MAX_MB,
+    });
+    if (validationError) {
+      setLogoError(validationError);
+      return;
+    }
+
+    setLogoError(null);
+    const objectUrl = URL.createObjectURL(file);
+    setLogoPreview(objectUrl);
+    setUploadingLogo(true);
+
+    const supabase = createClient();
+    const path = `${workspace?.id}/${Date.now()}.${fileExtension(file)}`;
+    const { error: uploadError } = await supabase.storage.from("logos").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type,
+    });
+
+    if (uploadError) {
+      setUploadingLogo(false);
+      setLogoError(uploadError.message);
+      URL.revokeObjectURL(objectUrl);
+      setLogoPreview(null);
+      return;
+    }
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("logos").getPublicUrl(path);
+    const result = await updateWorkspaceLogoUrl(publicUrl);
+    setUploadingLogo(false);
+    URL.revokeObjectURL(objectUrl);
+    setLogoPreview(null);
+
+    if (result.error) {
+      setLogoError(result.error);
+      return;
+    }
+
+    setLogoUrl(publicUrl);
+  }
+
+  function handleLogoInputChange(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (file) void handleLogoFile(file);
+  }
+
+  function handleLogoDrop(e: React.DragEvent<HTMLLabelElement>) {
+    e.preventDefault();
+    setIsDraggingLogo(false);
+    const file = e.dataTransfer.files?.[0];
+    if (file) void handleLogoFile(file);
   }
 
   function handleSubmit(formData: FormData) {
@@ -229,35 +301,61 @@ export function WorkspaceTab({
           Upload a logo to show on invoices and across your workspace.
         </p>
 
-        {/*
-          TODO: wire this drop-zone to real file upload + Supabase Storage
-          (e.g. a "workspace-logos" bucket) and persist the resulting URL to
-          workspaces.logo_url. Not implemented yet — UI only.
-        */}
         <label
           htmlFor="logo-upload"
-          className="mt-6 flex cursor-not-allowed flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed border-slate-200 bg-slate-50 px-6 py-10 text-center dark:border-slate-600 dark:bg-slate-800/60"
+          onDragOver={(e) => {
+            e.preventDefault();
+            setIsDraggingLogo(true);
+          }}
+          onDragLeave={() => setIsDraggingLogo(false)}
+          onDrop={handleLogoDrop}
+          className={`mt-6 flex cursor-pointer flex-col items-center justify-center gap-2 rounded-lg border-2 border-dashed px-6 py-10 text-center transition-colors ${
+            isDraggingLogo
+              ? "border-accent bg-accent/5"
+              : "border-slate-200 bg-slate-50 hover:border-slate-300 dark:border-slate-600 dark:bg-slate-800/60 dark:hover:border-slate-500"
+          }`}
         >
-          <svg
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="currentColor"
-            strokeWidth={1.5}
-            className="h-8 w-8 text-slate-400 dark:text-slate-500"
-          >
-            <path
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+          {displayLogoUrl ? (
+            <img
+              src={displayLogoUrl}
+              alt="Workspace logo"
+              className="h-16 w-16 rounded-lg object-contain"
             />
-          </svg>
-          <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
-            Drag & drop your logo, or click to browse
-          </p>
-          <p className="text-xs text-slate-400 dark:text-slate-500">
-            PNG, JPG or SVG — coming soon
-          </p>
-          <input id="logo-upload" type="file" accept="image/*" disabled className="hidden" />
+          ) : (
+            <svg
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth={1.5}
+              className="h-8 w-8 text-slate-400 dark:text-slate-500"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M12 16V4m0 0 4 4m-4-4-4 4M4 16v2a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-2"
+              />
+            </svg>
+          )}
+          {uploadingLogo ? (
+            <p className="flex items-center gap-2 text-sm font-medium text-slate-600 dark:text-slate-300">
+              <span className="h-3.5 w-3.5 animate-spin rounded-full border-2 border-current border-t-transparent" />
+              Uploading…
+            </p>
+          ) : (
+            <p className="text-sm font-medium text-slate-600 dark:text-slate-300">
+              {displayLogoUrl ? "Click or drop to replace" : "Drag & drop your logo, or click to browse"}
+            </p>
+          )}
+          <p className="text-xs text-slate-400 dark:text-slate-500">PNG, JPG or SVG — up to 5MB</p>
+          {logoError && <p className="text-xs text-red-600 dark:text-red-400">{logoError}</p>}
+          <input
+            id="logo-upload"
+            type="file"
+            accept="image/png,image/jpeg,image/svg+xml"
+            onChange={handleLogoInputChange}
+            disabled={uploadingLogo}
+            className="hidden"
+          />
         </label>
       </div>
     </div>

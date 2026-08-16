@@ -49,6 +49,26 @@ export async function updateProfile(formData: FormData): Promise<SettingsActionR
   return {};
 }
 
+export async function updateAvatarUrl(avatarUrl: string): Promise<SettingsActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  if (!avatarUrl || !avatarUrl.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+    return { error: "Invalid image URL." };
+  }
+
+  const { error } = await ctx.supabase
+    .from("users")
+    .update({ avatar_url: avatarUrl })
+    .eq("id", ctx.user.id);
+
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
 export async function updateWorkspaceBranding(formData: FormData): Promise<SettingsActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
@@ -84,6 +104,30 @@ export async function updateWorkspaceBranding(formData: FormData): Promise<Setti
     .eq("id", ctx.workspace.id);
 
   if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  revalidatePath("/dashboard");
+  return {};
+}
+
+export async function updateWorkspaceLogoUrl(logoUrl: string): Promise<SettingsActionResult> {
+  const ctx = await requireWorkspace();
+  if ("error" in ctx) return ctx;
+
+  if (ctx.workspace.role !== "owner") {
+    return { error: "Only the workspace owner can update these settings." };
+  }
+
+  if (!logoUrl || !logoUrl.startsWith(process.env.NEXT_PUBLIC_SUPABASE_URL ?? "")) {
+    return { error: "Invalid image URL." };
+  }
+
+  const { error: logoError } = await ctx.supabase
+    .from("workspaces")
+    .update({ logo_url: logoUrl })
+    .eq("id", ctx.workspace.id);
+
+  if (logoError) return { error: logoError.message };
 
   revalidatePath("/dashboard/settings");
   revalidatePath("/dashboard");

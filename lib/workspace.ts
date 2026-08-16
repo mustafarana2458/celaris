@@ -6,18 +6,20 @@ export type CurrentWorkspace = {
   name: string;
   role: string;
   permissions: WorkspacePermissions | null;
+  logoUrl: string | null;
 };
 
 export type WorkspaceSummary = {
   id: string;
   name: string;
   role: string;
+  logoUrl: string | null;
 };
 
 type MembershipRow = {
   role: string;
   permissions: WorkspacePermissions | null;
-  workspaces: { id: string; name: string } | null;
+  workspaces: { id: string; name: string; logo_url: string | null } | null;
 };
 
 export async function getCurrentWorkspace(
@@ -33,7 +35,7 @@ export async function getCurrentWorkspace(
   if (userRow?.last_active_workspace_id) {
     const { data } = await supabase
       .from("workspace_members")
-      .select("role, permissions, workspaces(id, name)")
+      .select("role, permissions, workspaces(id, name, logo_url)")
       .eq("user_id", userId)
       .eq("workspace_id", userRow.last_active_workspace_id)
       .maybeSingle<MembershipRow>();
@@ -44,6 +46,7 @@ export async function getCurrentWorkspace(
         name: data.workspaces.name,
         role: data.role,
         permissions: data.permissions ?? null,
+        logoUrl: data.workspaces.logo_url ?? null,
       };
     }
     // Membership on the saved workspace no longer exists (removed from it) --
@@ -52,7 +55,7 @@ export async function getCurrentWorkspace(
 
   const { data } = await supabase
     .from("workspace_members")
-    .select("role, permissions, workspaces(id, name)")
+    .select("role, permissions, workspaces(id, name, logo_url)")
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle<MembershipRow>();
@@ -64,6 +67,7 @@ export async function getCurrentWorkspace(
     name: data.workspaces.name,
     role: data.role,
     permissions: data.permissions ?? null,
+    logoUrl: data.workspaces.logo_url ?? null,
   };
 }
 
@@ -73,11 +77,19 @@ export async function listUserWorkspaces(
 ): Promise<WorkspaceSummary[]> {
   const { data } = await supabase
     .from("workspace_members")
-    .select("role, workspaces(id, name)")
+    .select("role, workspaces(id, name, logo_url)")
     .eq("user_id", userId);
 
   return ((data as MembershipRow[] | null) ?? [])
-    .filter((row): row is MembershipRow & { workspaces: { id: string; name: string } } => Boolean(row.workspaces))
-    .map((row) => ({ id: row.workspaces.id, name: row.workspaces.name, role: row.role }))
+    .filter(
+      (row): row is MembershipRow & { workspaces: { id: string; name: string; logo_url: string | null } } =>
+        Boolean(row.workspaces)
+    )
+    .map((row) => ({
+      id: row.workspaces.id,
+      name: row.workspaces.name,
+      role: row.role,
+      logoUrl: row.workspaces.logo_url ?? null,
+    }))
     .sort((a, b) => a.name.localeCompare(b.name));
 }

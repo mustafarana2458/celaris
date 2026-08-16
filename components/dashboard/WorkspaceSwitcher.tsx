@@ -21,7 +21,7 @@ export function WorkspaceSwitcher({
   activeWorkspace,
   workspaces,
 }: {
-  activeWorkspace: { id: string; name: string } | null;
+  activeWorkspace: { id: string; name: string; logoUrl: string | null } | null;
   workspaces: WorkspaceSummary[];
 }) {
   const [isPending, startTransition] = useTransition();
@@ -67,8 +67,13 @@ export function WorkspaceSwitcher({
             aria-label="Switch workspace"
             className="flex items-center gap-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-slate-100 disabled:opacity-60 dark:hover:bg-slate-700"
           >
-            <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-accent/10 text-accent-hover dark:bg-accent/20 dark:text-accent">
-              <Building2 className="h-4 w-4" />
+            <span className="flex h-8 w-8 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/10 text-accent-hover dark:bg-accent/20 dark:text-accent">
+              {activeWorkspace?.logoUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={activeWorkspace.logoUrl} alt="" className="h-full w-full object-cover" />
+              ) : (
+                <Building2 className="h-4 w-4" />
+              )}
             </span>
             <span className="hidden max-w-[10rem] truncate text-sm font-medium text-slate-900 sm:block dark:text-slate-100">
               {activeWorkspace?.name ?? "Select workspace"}
@@ -80,8 +85,13 @@ export function WorkspaceSwitcher({
           <DropdownMenuLabel>Your workspaces</DropdownMenuLabel>
           {workspaces.map((ws) => (
             <DropdownMenuItem key={ws.id} onSelect={() => handleSwitch(ws.id)}>
-              <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-accent/10 text-[11px] font-semibold text-accent-hover dark:bg-accent/20 dark:text-accent">
-                {ws.name[0]?.toUpperCase() ?? "?"}
+              <span className="flex h-6 w-6 shrink-0 items-center justify-center overflow-hidden rounded-full bg-accent/10 text-[11px] font-semibold text-accent-hover dark:bg-accent/20 dark:text-accent">
+                {ws.logoUrl ? (
+                  // eslint-disable-next-line @next/next/no-img-element
+                  <img src={ws.logoUrl} alt="" className="h-full w-full object-cover" />
+                ) : (
+                  ws.name[0]?.toUpperCase() ?? "?"
+                )}
               </span>
               <span className="flex-1 truncate">{ws.name}</span>
               {ws.id === activeWorkspace?.id && (

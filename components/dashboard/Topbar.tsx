@@ -11,7 +11,7 @@ export function Topbar({
 }: {
   fullName: string;
   avatarUrl: string | null;
-  activeWorkspace: { id: string; name: string } | null;
+  activeWorkspace: { id: string; name: string; logoUrl: string | null } | null;
   workspaces: WorkspaceSummary[];
   onMenuClick?: () => void;
 }) {
