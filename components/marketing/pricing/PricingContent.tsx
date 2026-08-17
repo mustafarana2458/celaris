@@ -9,7 +9,9 @@ type Tier = {
   id: string;
   name: string;
   description: string;
-  monthlyPrice: number | null;
+  monthlyPrice: number;
+  yearlyMonthlyPrice: number;
+  yearlyTotal: number;
   features: string[];
   cta: { label: string; href: string };
   highlighted?: boolean;
@@ -17,56 +19,68 @@ type Tier = {
 
 const TIERS: Tier[] = [
   {
-    id: "starter",
-    name: "Starter",
-    description: "For small teams getting their first CRM off the ground.",
-    monthlyPrice: 19,
+    id: "solo",
+    name: "Solo",
+    description: "For freelancers & solopreneurs.",
+    monthlyPrice: 25,
+    yearlyMonthlyPrice: 21,
+    yearlyTotal: 252,
     features: [
-      "Up to 3 team members",
-      "Contacts & CRM (People, Companies)",
-      "1 deals pipeline",
-      "Projects & tasks",
-      "1 GB file storage",
-      "Email support",
+      "Full access to core Dashboard & analytical overview",
+      "1 user (Admin)",
+      "1 workspace",
+      "Core modules: Contacts, Deals, Tasks, Invoices",
+      "500 AI credits / month",
+      "5 GB storage",
+      "Basic Module Preferences",
     ],
-    cta: { label: "Start free trial", href: "/signup" },
+    cta: { label: "Get started", href: "/signup" },
   },
   {
-    id: "pro",
-    name: "Pro",
-    description: "For growing teams that need the full toolkit.",
-    monthlyPrice: 49,
+    id: "team",
+    name: "Team",
+    description: "For agencies & studios.",
+    monthlyPrice: 83,
+    yearlyMonthlyPrice: 70,
+    yearlyTotal: 840,
     features: [
-      "Up to 15 team members",
-      "Everything in Starter",
-      "Unlimited pipelines, forecasts & AI deal summary",
-      "Project templates & milestone/Gantt timelines",
-      "Recurring billing & product library",
-      "AI Assistant",
-      "Role-based permissions & departments",
-      "Priority email support",
+      "Full access to core Dashboard & analytical overview",
+      "Up to 5 users",
+      "1 workspace",
+      "Full suite — adds Projects & Team Management",
+      "2,500 AI credits / month",
+      "25 GB storage",
+      "Full Workspace Customization",
     ],
     cta: { label: "Get started", href: "/signup" },
     highlighted: true,
   },
   {
-    id: "enterprise",
-    name: "Enterprise",
-    description: "For larger orgs that need scale, control, and support.",
-    monthlyPrice: null,
+    id: "scale",
+    name: "Scale",
+    description: "For growing SMBs.",
+    monthlyPrice: 199,
+    yearlyMonthlyPrice: 165,
+    yearlyTotal: 1980,
     features: [
-      "Unlimited team members",
-      "Everything in Pro",
-      "Dedicated onboarding",
-      "Priority support with faster response times",
-      "Custom contract & invoicing terms",
-      "Dedicated account manager",
+      "Full access to core Dashboard & analytical overview",
+      "Unlimited users",
+      "Up to 3 workspaces",
+      "Full suite — adds Priority Support & Custom Onboarding",
+      "10,000 AI credits / month",
+      "100 GB storage",
+      "Full Workspace Customization",
     ],
-    cta: { label: "Contact sales", href: "mailto:sales@celaris.cloud" },
+    cta: { label: "Get started", href: "/signup" },
   },
 ];
 
-const YEARLY_DISCOUNT = 0.2;
+// Highest per-tier saving across all plans, so the toggle badge stays accurate
+// if a tier's yearly price ever changes -- avoids hardcoding a flat "20%"
+// that only some tiers actually hit.
+const MAX_YEARLY_SAVINGS_PERCENT = Math.max(
+  ...TIERS.map((tier) => Math.round((1 - tier.yearlyMonthlyPrice / tier.monthlyPrice) * 100))
+);
 
 function CheckIcon() {
   return (
@@ -92,7 +106,7 @@ export function PricingContent() {
           Simple, transparent pricing
         </h1>
         <p className="mt-4 text-lg text-slate-500 dark:text-neutral-400">
-          Start free, upgrade as your team grows. No hidden fees.
+          Pick the plan that fits your team. Upgrade anytime as you grow. No hidden fees.
         </p>
       </div>
 
@@ -123,19 +137,14 @@ export function PricingContent() {
         </div>
         {billing === "yearly" && (
           <span className="rounded-full bg-emerald-100 px-3 py-1 text-xs font-semibold text-emerald-700 dark:bg-emerald-500/10 dark:text-emerald-400">
-            Save 20%
+            Save up to {MAX_YEARLY_SAVINGS_PERCENT}%
           </span>
         )}
       </div>
 
       <div className="mt-16 grid grid-cols-1 gap-8 lg:grid-cols-3 lg:items-center">
         {TIERS.map((tier) => {
-          const price =
-            tier.monthlyPrice === null
-              ? null
-              : billing === "yearly"
-                ? Math.round(tier.monthlyPrice * (1 - YEARLY_DISCOUNT))
-                : tier.monthlyPrice;
+          const price = billing === "yearly" ? tier.yearlyMonthlyPrice : tier.monthlyPrice;
 
           return (
             <div
@@ -156,19 +165,13 @@ export function PricingContent() {
               <p className="mt-2 text-sm text-slate-500 dark:text-neutral-400">{tier.description}</p>
 
               <div className="mt-6 flex items-baseline gap-1">
-                {price === null ? (
-                  <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">Custom</span>
-                ) : (
-                  <>
-                    <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">
-                      ${price}
-                    </span>
-                    <span className="text-sm text-slate-500 dark:text-neutral-400">/month</span>
-                  </>
-                )}
+                <span className="text-4xl font-bold tracking-tight text-slate-900 dark:text-white">${price}</span>
+                <span className="text-sm text-slate-500 dark:text-neutral-400">/month</span>
               </div>
-              {price !== null && billing === "yearly" && (
-                <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">Billed annually</p>
+              {billing === "yearly" && (
+                <p className="mt-1 text-xs text-slate-400 dark:text-neutral-500">
+                  Billed annually at ${tier.yearlyTotal}/year
+                </p>
               )}
 
               <Link
