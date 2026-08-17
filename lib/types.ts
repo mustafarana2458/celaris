@@ -1,3 +1,5 @@
+import type { RemainingCredits } from "@/lib/aiCredits";
+
 export type UserProfile = {
   id: string;
   full_name: string;
@@ -77,7 +79,7 @@ export type FollowUpOutputType = "email" | "message";
 export type FollowUpTone = "friendly" | "professional" | "direct" | "warm";
 
 export type FollowUpDraftResult =
-  | { subject?: string; body: string }
+  | { subject?: string; body: string; credits?: RemainingCredits }
   | { error: string };
 
 export type CompanyIndustry = "Tech" | "Finance" | "Retail" | "Healthcare" | "Other";
@@ -130,7 +132,12 @@ export type DealAiSummary = {
   follow_up_email: { subject: string; body: string };
 };
 
-export type DealSummaryActionResult = { error?: string; summary?: DealAiSummary; generated_at?: string };
+export type DealSummaryActionResult = {
+  error?: string;
+  summary?: DealAiSummary;
+  generated_at?: string;
+  credits?: RemainingCredits;
+};
 
 export type PipelineView = "kanban" | "list";
 export type UserPreferenceActionResult = { error?: string };

@@ -5,6 +5,13 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireFullAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
+import {
+  deductAiCredits,
+  getRemainingCreditsAfter,
+  requireAiCredits,
+  resetCreditsIfDue,
+  type RemainingCredits,
+} from "@/lib/aiCredits";
 import type { TaskPriority, TaskStatus } from "@/lib/types";
 
 export type TaskActionResult = { error?: string };
@@ -27,7 +34,7 @@ async function requireWorkspace() {
     return { error: "No workspace found for this account." } as const;
   }
 
-  return { supabase, workspace } as const;
+  return { supabase, workspace, userId: user.id } as const;
 }
 
 // TipTap emits "<p></p>" (or a run of empty paragraphs) for a blank editor --
@@ -204,7 +211,7 @@ export async function deleteTask(id: string): Promise<TaskActionResult> {
   return {};
 }
 
-export type BreakdownTaskResult = { titles?: string[]; error?: string };
+export type BreakdownTaskResult = { titles?: string[]; error?: string; credits?: RemainingCredits };
 
 function buildBreakdownPrompt(title: string, description: string | null) {
   const descLine = description?.trim()
@@ -253,11 +260,21 @@ export async function breakdownTask(id: string): Promise<BreakdownTaskResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  // Lazy monthly reset, persisted before the check below and before
+  // deductAiCredits()'s RPC later -- same pattern as lib/actions/assistant.ts.
+  const resetState = await resetCreditsIfDue(ctx.supabase, ctx.workspace);
+  const workspace = { ...ctx.workspace, ...resetState };
+
+  const creditCheck = requireAiCredits(workspace, "task_breakdown");
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
+  }
+
   const { data: task, error: taskError } = await ctx.supabase
     .from("tasks")
     .select("title, description")
     .eq("id", id)
-    .eq("workspace_id", ctx.workspace.id)
+    .eq("workspace_id", workspace.id)
     .maybeSingle<{ title: string; description: string | null }>();
 
   if (taskError || !task) {
@@ -280,5 +297,8 @@ export async function breakdownTask(id: string): Promise<BreakdownTaskResult> {
     };
   }
 
-  return { titles };
+  const deduction = await deductAiCredits(workspace, "task_breakdown", ctx.userId);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, "task_breakdown") : undefined;
+
+  return { titles, credits };
 }

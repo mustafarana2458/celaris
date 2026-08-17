@@ -5,6 +5,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireFullAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
+import { deductAiCredits, getRemainingCreditsAfter, requireAiCredits, resetCreditsIfDue } from "@/lib/aiCredits";
 import type { DealAiSummary, DealStage, DealSummaryActionResult } from "@/lib/types";
 
 async function requireWorkspace() {
@@ -22,7 +23,7 @@ async function requireWorkspace() {
     return { error: "No workspace found for this account." } as const;
   }
 
-  return { supabase, workspace } as const;
+  return { supabase, workspace, userId: user.id } as const;
 }
 
 type PromptDeal = {
@@ -98,11 +99,21 @@ export async function generateDealSummary(dealId: string): Promise<DealSummaryAc
   const permError = requireFullAccess(ctx.workspace, "deals", "pipelines");
   if (permError) return permError;
 
+  // Lazy monthly reset, persisted before the check below and before
+  // deductAiCredits()'s RPC later -- same pattern as lib/actions/assistant.ts.
+  const resetState = await resetCreditsIfDue(ctx.supabase, ctx.workspace);
+  const workspace = { ...ctx.workspace, ...resetState };
+
+  const creditCheck = requireAiCredits(workspace, "summarize_deal");
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
+  }
+
   const { data: deal, error: dealError } = await ctx.supabase
     .from("deals")
     .select("title, value, stage, expected_close, contacts(name, company, notes, companies(name))")
     .eq("id", dealId)
-    .eq("workspace_id", ctx.workspace.id)
+    .eq("workspace_id", workspace.id)
     .maybeSingle<PromptDeal>();
 
   if (dealError || !deal) {
@@ -124,12 +135,17 @@ export async function generateDealSummary(dealId: string): Promise<DealSummaryAc
     .from("deals")
     .update({ ai_summary: parsed, ai_summary_generated_at: generatedAt })
     .eq("id", dealId)
-    .eq("workspace_id", ctx.workspace.id);
+    .eq("workspace_id", workspace.id);
 
   if (updateError) {
     return { error: updateError.message };
   }
 
+  // Deducted only once the summary has actually been persisted -- a
+  // successful Groq call whose DB write then failed shouldn't cost a credit.
+  const deduction = await deductAiCredits(workspace, "summarize_deal", ctx.userId);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, "summarize_deal") : undefined;
+
   revalidatePath("/dashboard/deals");
-  return { summary: parsed, generated_at: generatedAt };
+  return { summary: parsed, generated_at: generatedAt, credits };
 }

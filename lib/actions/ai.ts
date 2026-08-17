@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { callGroq } from "@/lib/groq";
+import { deductAiCredits, getRemainingCreditsAfter, requireAiCredits, resetCreditsIfDue } from "@/lib/aiCredits";
 import type { FollowUpDraftResult, FollowUpOutputType, FollowUpTone } from "@/lib/types";
 
 type PromptContact = {
@@ -120,9 +121,19 @@ export async function generateFollowUpDraft(
     return { error: "Not authenticated." };
   }
 
-  const workspace = await getCurrentWorkspace(supabase, user.id);
-  if (!workspace) {
+  const rawWorkspace = await getCurrentWorkspace(supabase, user.id);
+  if (!rawWorkspace) {
     return { error: "No workspace found for this account." };
+  }
+
+  // Lazy monthly reset, persisted before the check below and before
+  // deductAiCredits()'s RPC later -- same pattern as lib/actions/assistant.ts.
+  const resetState = await resetCreditsIfDue(supabase, rawWorkspace);
+  const workspace = { ...rawWorkspace, ...resetState };
+
+  const creditCheck = requireAiCredits(workspace, "draft_email");
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
   }
 
   const { data: contact, error: contactError } = await supabase
@@ -145,5 +156,15 @@ export async function generateFollowUpDraft(
     return { error: result.error ?? "The AI didn't return a response. Please try again." };
   }
 
-  return parseDraft(result.text, outputType);
+  const draft = parseDraft(result.text, outputType);
+  if ("error" in draft) {
+    return draft;
+  }
+
+  // Only a successfully parsed draft costs a credit -- Groq responding with
+  // unusable/malformed JSON shouldn't be billed.
+  const deduction = await deductAiCredits(workspace, "draft_email", user.id);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, "draft_email") : undefined;
+
+  return { ...draft, credits };
 }

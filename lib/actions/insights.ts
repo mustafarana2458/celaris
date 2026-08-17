@@ -5,8 +5,15 @@ import { getCurrentWorkspace } from "@/lib/workspace";
 import { hasModuleAccess } from "@/lib/permissions";
 import { callGroq } from "@/lib/groq";
 import { buildWorkspaceSummary, formatWorkspaceSummary } from "@/lib/workspaceSummary";
+import {
+  deductAiCredits,
+  getRemainingCreditsAfter,
+  requireAiCredits,
+  resetCreditsIfDue,
+  type RemainingCredits,
+} from "@/lib/aiCredits";
 
-export type InsightsResult = { insights?: string; error?: string };
+export type InsightsResult = { insights?: string; error?: string; credits?: RemainingCredits };
 
 function buildInsightsPrompt(summaryText: string) {
   return (
@@ -32,9 +39,19 @@ export async function generateInsights(): Promise<InsightsResult> {
     return { error: "Not authenticated." };
   }
 
-  const workspace = await getCurrentWorkspace(supabase, user.id);
-  if (!workspace) {
+  const rawWorkspace = await getCurrentWorkspace(supabase, user.id);
+  if (!rawWorkspace) {
     return { error: "No workspace found for this account." };
+  }
+
+  // Lazy monthly reset, persisted before the check below and before
+  // deductAiCredits()'s RPC later -- same pattern as lib/actions/assistant.ts.
+  const resetState = await resetCreditsIfDue(supabase, rawWorkspace);
+  const workspace = { ...rawWorkspace, ...resetState };
+
+  const creditCheck = requireAiCredits(workspace, "ai_insights");
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
   }
 
   // Same gates as the dashboard's KPI widgets -- a member who can't see
@@ -72,5 +89,8 @@ export async function generateInsights(): Promise<InsightsResult> {
     return { error: result.error };
   }
 
-  return { insights: result.text };
+  const deduction = await deductAiCredits(workspace, "ai_insights", user.id);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, "ai_insights") : undefined;
+
+  return { insights: result.text, credits };
 }
