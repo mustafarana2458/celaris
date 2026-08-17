@@ -2,8 +2,19 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createContact, listContacts } from "@/lib/actions/contacts";
 import { createTask } from "@/lib/actions/tasks";
 import { createDeal } from "@/lib/actions/deals";
+import { createCompany } from "@/lib/actions/companies";
+import { createProject } from "@/lib/actions/projects";
+import { createInvoice } from "@/lib/actions/invoices";
 import { getProjectProgress } from "@/lib/projectProgress";
-import type { ContactType, DealStage, TaskPriority } from "@/lib/types";
+import { suggestNextInvoiceNumber } from "@/lib/invoiceNumber";
+import type {
+  CompanyIndustry,
+  CompanySize,
+  ContactType,
+  DealStage,
+  ProjectStatus,
+  TaskPriority,
+} from "@/lib/types";
 
 const currency = new Intl.NumberFormat("en-US", {
   style: "currency",
@@ -196,6 +207,32 @@ export type CreateDealParams = {
   contact_name: string | null;
 };
 
+export type CreateCompanyParams = {
+  name: string;
+  website: string | null;
+  industry: CompanyIndustry | null;
+  size: CompanySize | null;
+  location: string | null;
+};
+
+export type CreateProjectParams = {
+  name: string;
+  company_id: string;
+  company_name: string;
+  description: string | null;
+  due_date: string | null;
+  status: ProjectStatus | null;
+};
+
+export type CreateInvoiceParams = {
+  invoice_number: string;
+  contact_id: string | null;
+  contact_name: string | null;
+  description: string;
+  amount: number;
+  due_date: string | null;
+};
+
 export function previewCreateContact(p: CreateContactParams): string {
   const details = [p.type, p.email, p.phone, p.company_name].filter(Boolean).join(" · ");
   return `I'll create a new contact: **${p.name}**${details ? ` (${details})` : ""}. Create it?`;
@@ -220,6 +257,29 @@ export function previewCreateDeal(p: CreateDealParams): string {
     .filter(Boolean)
     .join(" · ");
   return `I'll create a deal: **${p.title}**${details ? ` (${details})` : ""}. Create it?`;
+}
+
+export function previewCreateCompany(p: CreateCompanyParams): string {
+  const details = [p.industry, p.size, p.location].filter(Boolean).join(" · ");
+  return `I'll create a new company: **${p.name}**${details ? ` (${details})` : ""}. Create it?`;
+}
+
+export function previewCreateProject(p: CreateProjectParams): string {
+  const details = [`client: ${p.company_name}`, p.due_date ? `due ${formatDate(p.due_date)}` : null]
+    .filter(Boolean)
+    .join(" · ");
+  return `I'll create a project: **${p.name}** (${details}). Create it?`;
+}
+
+export function previewCreateInvoice(p: CreateInvoiceParams): string {
+  const details = [
+    currency.format(p.amount),
+    p.contact_name ? `billed to ${p.contact_name}${!p.contact_id ? " (not found, will be unlinked)" : ""}` : null,
+    p.due_date ? `due ${formatDate(p.due_date)}` : null,
+  ]
+    .filter(Boolean)
+    .join(" · ");
+  return `I'll create invoice **${p.invoice_number}**: ${p.description} (${details}). Create it?`;
 }
 
 // ---- Write tools: execute via the real, existing server actions ----
@@ -261,6 +321,48 @@ export async function executeCreateDeal(p: CreateDealParams): Promise<string> {
   return `Created deal **${p.title}**${p.value != null ? ` (${currency.format(p.value)})` : ""}.`;
 }
 
+export async function executeCreateCompany(p: CreateCompanyParams): Promise<string> {
+  const fd = new FormData();
+  fd.set("name", p.name);
+  if (p.website) fd.set("website", p.website);
+  if (p.industry) fd.set("industry", p.industry);
+  if (p.size) fd.set("size", p.size);
+  if (p.location) fd.set("location", p.location);
+
+  const result = await createCompany(fd);
+  if (result.error) return `Couldn't create that company: ${result.error}`;
+  return `Created company **${p.name}**.`;
+}
+
+export async function executeCreateProject(p: CreateProjectParams): Promise<string> {
+  const fd = new FormData();
+  fd.set("name", p.name);
+  fd.set("company_id", p.company_id);
+  if (p.description) fd.set("description", p.description);
+  if (p.due_date) fd.set("due_date", p.due_date);
+  if (p.status) fd.set("status", p.status);
+
+  const result = await createProject(fd);
+  if (result.error) return `Couldn't create that project: ${result.error}`;
+  return `Created project **${p.name}** for ${p.company_name}.`;
+}
+
+export async function executeCreateInvoice(p: CreateInvoiceParams): Promise<string> {
+  const fd = new FormData();
+  fd.set("invoice_number", p.invoice_number);
+  if (p.contact_id) fd.set("contact_id", p.contact_id);
+  fd.set("status", "unpaid");
+  if (p.due_date) fd.set("due_date", p.due_date);
+  fd.set(
+    "line_items_json",
+    JSON.stringify([{ description: p.description, quantity: 1, unit_price: p.amount }])
+  );
+
+  const result = await createInvoice(fd);
+  if (result.error) return `Couldn't create that invoice: ${result.error}`;
+  return `Created invoice **${p.invoice_number}** for ${currency.format(p.amount)}.`;
+}
+
 export async function resolveContactIdByName(
   supabase: SupabaseClient,
   workspaceId: string,
@@ -275,4 +377,29 @@ export async function resolveContactIdByName(
     .limit(1)
     .maybeSingle();
   return data?.id ?? null;
+}
+
+export async function resolveCompanyIdByName(
+  supabase: SupabaseClient,
+  workspaceId: string,
+  name: string | null
+): Promise<string | null> {
+  if (!name || !name.trim()) return null;
+  const { data } = await supabase
+    .from("companies")
+    .select("id")
+    .eq("workspace_id", workspaceId)
+    .ilike("name", `%${name.trim()}%`)
+    .limit(1)
+    .maybeSingle();
+  return data?.id ?? null;
+}
+
+export async function suggestInvoiceNumber(
+  supabase: SupabaseClient,
+  workspaceId: string
+): Promise<string> {
+  const { data } = await supabase.from("invoices").select("invoice_number").eq("workspace_id", workspaceId);
+  const numbers = (data ?? []).map((row) => (row as { invoice_number: string }).invoice_number);
+  return suggestNextInvoiceNumber(numbers);
 }

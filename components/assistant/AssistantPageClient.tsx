@@ -9,7 +9,14 @@ import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
 import { setSaveAiHistory } from "@/lib/actions/userPreferences";
 import { ClearChatDialog } from "./ClearChatDialog";
 import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
-import type { CreateContactParams, CreateDealParams, CreateTaskParams } from "@/lib/assistantTools";
+import type {
+  CreateCompanyParams,
+  CreateContactParams,
+  CreateDealParams,
+  CreateInvoiceParams,
+  CreateProjectParams,
+  CreateTaskParams,
+} from "@/lib/assistantTools";
 
 const INPUT_MAX_HEIGHT = 200;
 
@@ -26,7 +33,13 @@ export type ConfirmMessage = {
   role: "assistant";
   kind: "confirm";
   tool: WriteTool;
-  params: CreateContactParams | CreateTaskParams | CreateDealParams;
+  params:
+    | CreateContactParams
+    | CreateTaskParams
+    | CreateDealParams
+    | CreateCompanyParams
+    | CreateProjectParams
+    | CreateInvoiceParams;
   preview: string;
   status: "pending" | "confirming" | "confirmed" | "cancelled" | "error";
   error?: string;

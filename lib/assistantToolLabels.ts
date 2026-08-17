@@ -6,7 +6,14 @@ export const READ_TOOLS = [
   "project_progress",
 ] as const;
 
-export const WRITE_TOOLS = ["create_contact", "create_task", "create_deal"] as const;
+export const WRITE_TOOLS = [
+  "create_contact",
+  "create_task",
+  "create_deal",
+  "create_company",
+  "create_project",
+  "create_invoice",
+] as const;
 
 export type ReadTool = (typeof READ_TOOLS)[number];
 export type WriteTool = (typeof WRITE_TOOLS)[number];
@@ -20,4 +27,7 @@ export const TOOL_LABELS: Record<ReadTool | WriteTool, string> = {
   create_contact: "✅ Created contact",
   create_task: "✅ Created task",
   create_deal: "✅ Created deal",
+  create_company: "✅ Created company",
+  create_project: "✅ Created project",
+  create_invoice: "✅ Created invoice",
 };
