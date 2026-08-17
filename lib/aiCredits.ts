@@ -202,7 +202,10 @@ export async function deductAiCredits(
   return { ok: true, cost };
 }
 
-export type RemainingCredits = { used: number; limit: number; remaining: number };
+// `cost` is only set by getRemainingCreditsAfter() below (the delta an
+// action just charged) -- getRemainingCredits() reports a point-in-time
+// balance with no associated action, so it leaves `cost` undefined.
+export type RemainingCredits = { used: number; limit: number; remaining: number; cost?: number };
 
 // Phase 4 (UI): effective remaining balance for display, accounting for a
 // reset that's due but not yet persisted. Read-only, writes nothing.
@@ -227,5 +230,5 @@ export function getRemainingCreditsAfter(
   const limit = getPlanLimit(workspace.plan);
   const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
   const used = effectiveUsed + CREDIT_COSTS[actionType];
-  return { used, limit, remaining: Math.max(0, limit - used) };
+  return { used, limit, remaining: Math.max(0, limit - used), cost: CREDIT_COSTS[actionType] };
 }

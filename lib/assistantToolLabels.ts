@@ -31,3 +31,15 @@ export const TOOL_LABELS: Record<ReadTool | WriteTool, string> = {
   create_project: "✅ Created project",
   create_invoice: "✅ Created invoice",
 };
+
+// Suffix for the per-message "-2 AI Credits (Contact Created)" credit tag --
+// separate from TOOL_LABELS above since that one carries an emoji/"Looked
+// up"/"Created" prefix meant for the badge above the bubble, not inline text.
+export const CREATE_ACTION_LABELS: Record<WriteTool, string> = {
+  create_contact: "Contact Created",
+  create_task: "Task Created",
+  create_deal: "Deal Created",
+  create_company: "Company Created",
+  create_project: "Project Created",
+  create_invoice: "Invoice Created",
+};

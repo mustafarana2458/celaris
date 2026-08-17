@@ -8,7 +8,8 @@ import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
 import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
 import { setSaveAiHistory } from "@/lib/actions/userPreferences";
 import { ClearChatDialog } from "./ClearChatDialog";
-import { TOOL_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
+import { TOOL_LABELS, CREATE_ACTION_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
+import type { RemainingCredits } from "@/lib/aiCredits";
 import type {
   CreateCompanyParams,
   CreateContactParams,
@@ -26,6 +27,10 @@ export type AnswerMessage = {
   kind: "answer";
   content: string;
   tool?: ReadTool | WriteTool;
+  // Only set when this specific response actually deducted a credit --
+  // absent for messages loaded from persisted history (Phase 4 doesn't
+  // store a per-message delta) or if the deduction itself failed.
+  credits?: RemainingCredits;
 };
 
 export type ConfirmMessage = {
@@ -69,9 +74,11 @@ function renderWithBold(text: string): ReactNode[] {
 export function AssistantPageClient({
   initialMessages,
   initialSaveHistory,
+  initialCredits,
 }: {
   initialMessages: ChatMessage[];
   initialSaveHistory: boolean;
+  initialCredits: RemainingCredits;
 }) {
   const [messages, setMessages] = useState<ChatMessage[]>(initialMessages);
   const [input, setInput] = useState("");
@@ -79,6 +86,7 @@ export function AssistantPageClient({
   const [error, setError] = useState<string | null>(null);
   const [saveHistory, setSaveHistory] = useState(initialSaveHistory);
   const [confirmingClear, setConfirmingClear] = useState(false);
+  const [credits, setCredits] = useState<RemainingCredits>(initialCredits);
   const listEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
@@ -140,10 +148,12 @@ export function AssistantPageClient({
       return;
     }
 
+    if (result.credits) setCredits(result.credits);
+
     if (result.kind === "answer") {
       setMessages((prev) => [
         ...prev,
-        { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
+        { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool, credits: result.credits },
       ]);
       persistMessage("assistant", result.text);
     } else {
@@ -182,11 +192,13 @@ export function AssistantPageClient({
       return;
     }
 
+    if (result.credits) setCredits(result.credits);
+
     setMessages((prev) => [
       ...prev.map((m) =>
         m.id === message.id && m.kind === "confirm" ? { ...m, status: "confirmed" as const } : m
       ),
-      { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool },
+      { id: makeId(), role: "assistant", kind: "answer", content: result.text, tool: result.tool, credits: result.credits },
     ]);
     persistMessage("assistant", result.text);
   }
@@ -219,6 +231,18 @@ export function AssistantPageClient({
           <h1 className="text-2xl font-semibold text-slate-900 dark:text-slate-100">AI Assistant</h1>
           <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
             Your intelligent copilot for managing contacts, deals, and daily tasks.
+          </p>
+          <p
+            className={`mt-1 text-xs font-medium ${
+              credits.remaining === 0
+                ? "text-red-600 dark:text-red-400"
+                : credits.limit > 0 && credits.remaining / credits.limit < 0.1
+                  ? "text-amber-600 dark:text-amber-400"
+                  : "text-slate-400 dark:text-slate-500"
+            }`}
+            title={`${credits.used} of ${credits.limit} AI credits used this month`}
+          >
+            {credits.remaining} / {credits.limit} AI credits left this month
           </p>
         </div>
         <div className="flex items-center gap-3">
@@ -317,6 +341,14 @@ export function AssistantPageClient({
                     >
                       {m.content}
                     </div>
+                    {m.credits?.cost != null && (
+                      <span className="mt-1 px-1 text-[11px] text-slate-400 dark:text-slate-500">
+                        -{m.credits.cost} AI Credit{m.credits.cost === 1 ? "" : "s"}
+                        {m.tool && m.tool in CREATE_ACTION_LABELS
+                          ? ` (${CREATE_ACTION_LABELS[m.tool as WriteTool]})`
+                          : ""}
+                      </span>
+                    )}
                   </div>
                 );
               })}

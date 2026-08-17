@@ -2,6 +2,7 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
+import { getRemainingCredits, getPlanLimit } from "@/lib/aiCredits";
 import { AssistantPageClient, type ChatMessage } from "@/components/assistant/AssistantPageClient";
 
 type AiChatHistoryRow = {
@@ -54,5 +55,15 @@ export default async function AssistantPage() {
     }
   }
 
-  return <AssistantPageClient initialMessages={initialMessages} initialSaveHistory={saveHistory} />;
+  const initialCredits = workspace
+    ? getRemainingCredits(workspace)
+    : { used: 0, limit: getPlanLimit(null), remaining: getPlanLimit(null) };
+
+  return (
+    <AssistantPageClient
+      initialMessages={initialMessages}
+      initialSaveHistory={saveHistory}
+      initialCredits={initialCredits}
+    />
+  );
 }
