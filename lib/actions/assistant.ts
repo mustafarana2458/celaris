@@ -33,13 +33,23 @@ import {
   type CreateInvoiceParams,
   type CreateProjectParams,
   type CreateTaskParams,
+  type ExecuteResult,
 } from "@/lib/assistantTools";
+import { deductAiCredits, getRemainingCreditsAfter, requireAiCredits, resetCreditsIfDue, type RemainingCredits } from "@/lib/aiCredits";
 import type { ReadTool, WriteTool } from "@/lib/assistantToolLabels";
 import type { CompanyIndustry, CompanySize, ContactType, DealStage, ProjectStatus, TaskPriority } from "@/lib/types";
 
 const MAX_QUESTION_LENGTH = 500;
 
-export type AssistantAnswer = { kind: "answer"; text: string; tool?: ReadTool | WriteTool };
+export type AssistantAnswer = {
+  kind: "answer";
+  text: string;
+  tool?: ReadTool | WriteTool;
+  // Set whenever an AI credit was actually deducted for this response
+  // (Phase 4 will use this for the "-2 AI Credits" chat tag + remaining
+  // count). Absent when nothing was deducted (errors, clarify questions).
+  credits?: RemainingCredits;
+};
 export type AssistantConfirm = {
   kind: "confirm";
   tool: WriteTool;
@@ -51,6 +61,11 @@ export type AssistantConfirm = {
     | CreateProjectParams
     | CreateInvoiceParams;
   preview: string;
+  // The chat/classification credit (1) that already ran to produce this
+  // preview -- charged regardless of whether the user goes on to confirm or
+  // cancel. The create-specific cost is separate and only charged in
+  // confirmAssistantAction, once the user actually confirms.
+  credits?: RemainingCredits;
 };
 export type AssistantActionResult = AssistantAnswer | AssistantConfirm | { error: string };
 
@@ -185,38 +200,52 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
   const ctx = await requireWorkspace();
   if (!ctx.ok) return { error: ctx.error };
 
+  // Lazy monthly reset -- persist any rollover to DB now, before both the
+  // pre-check below and deductAiCredits()'s RPC later, so neither is working
+  // off a stale prior-period counter. `workspace` (not ctx.workspace) is
+  // used for the rest of this function so it reflects the reset.
+  const resetState = await resetCreditsIfDue(ctx.supabase, ctx.workspace);
+  const workspace: CurrentWorkspace = { ...ctx.workspace, ...resetState };
+
+  // Classification (the Groq call below) always costs 1 credit -- checked
+  // up front so a workspace at its limit doesn't spend the call at all.
+  const creditCheck = requireAiCredits(workspace, "chat");
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
+  }
+
   // Same gates as the dashboard's KPI widgets -- a member who can't see
   // revenue/deals/contacts figures on the dashboard shouldn't see them
   // surface through the assistant's chat responses either.
   const visibility = {
     contacts: hasModuleAccess(
-      ctx.workspace.role,
-      ctx.workspace.permissions,
+      workspace.role,
+      workspace.permissions,
       "dashboard",
       "contacts_kpis",
-      ctx.workspace.modulePreferences
+      workspace.modulePreferences
     ),
     deals: hasModuleAccess(
-      ctx.workspace.role,
-      ctx.workspace.permissions,
+      workspace.role,
+      workspace.permissions,
       "dashboard",
       "deals_kpis",
-      ctx.workspace.modulePreferences
+      workspace.modulePreferences
     ),
     revenue: hasModuleAccess(
-      ctx.workspace.role,
-      ctx.workspace.permissions,
+      workspace.role,
+      workspace.permissions,
       "dashboard",
       "revenue_kpis",
-      ctx.workspace.modulePreferences
+      workspace.modulePreferences
     ),
   };
 
-  const summary = await buildWorkspaceSummary(ctx.supabase, ctx.workspace.id, visibility);
+  const summary = await buildWorkspaceSummary(ctx.supabase, workspace.id, visibility);
   const todayISO = new Date().toISOString().slice(0, 10);
   const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed);
 
-  const history = await loadConversationHistory(ctx.supabase, ctx.userId, ctx.workspace.id);
+  const history = await loadConversationHistory(ctx.supabase, ctx.userId, workspace.id);
   const messages: GroqMessage[] = [...history, { role: "user", content: prompt }];
 
   const result = await callGroq(messages, { temperature: 0 }, "json");
@@ -224,170 +253,182 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
     return { error: result.error ?? "The AI didn't return a response. Please try again." };
   }
 
+  // Classification succeeded -- 1 credit, regardless of which branch below
+  // runs (even if the user goes on to cancel a create-preview). A failed
+  // deduction here (e.g. a concurrent request won the race) doesn't block
+  // the response the user already paid the Groq round trip for -- it just
+  // means no `credits` info is attached.
+  const deduction = await deductAiCredits(workspace, "chat", ctx.userId);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, "chat") : undefined;
+
   const intent = parseIntent(result.text);
   if (!intent || !intent.tool) {
     // Fall back to treating the raw text as a direct answer rather than erroring out.
-    return { kind: "answer", text: result.text.trim() };
+    return { kind: "answer", text: result.text.trim(), credits };
   }
 
   const params = intent.params ?? {};
 
-  switch (intent.tool) {
-    case "chat":
-      return { kind: "answer", text: intent.answer?.trim() || "I'm not sure how to answer that." };
+  const outcome = await (async (): Promise<AssistantAnswer | AssistantConfirm> => {
+    switch (intent.tool) {
+      case "chat":
+        return { kind: "answer", text: intent.answer?.trim() || "I'm not sure how to answer that." };
 
-    case "clarify":
-      return { kind: "answer", text: intent.question?.trim() || "Could you say a bit more about what you need?" };
+      case "clarify":
+        return { kind: "answer", text: intent.question?.trim() || "Could you say a bit more about what you need?" };
 
-    case "list_contacts": {
-      const text = await runListContacts({
-        type: (params.type as ContactType | null) ?? null,
-        search: (params.search as string | null) ?? null,
-      });
-      return { kind: "answer", text, tool: "list_contacts" };
-    }
-
-    case "list_deals": {
-      const text = await runListDeals(
-        ctx.supabase,
-        ctx.workspace.id,
-        { stage: (params.stage as DealStage | null) ?? null },
-        visibility.deals
-      );
-      return { kind: "answer", text, tool: "list_deals" };
-    }
-
-    case "upcoming_tasks": {
-      const text = await runUpcomingTasks(ctx.supabase, ctx.workspace.id);
-      return { kind: "answer", text, tool: "upcoming_tasks" };
-    }
-
-    case "overdue_invoices": {
-      const text = await runOverdueInvoices(ctx.supabase, ctx.workspace.id, visibility.revenue);
-      return { kind: "answer", text, tool: "overdue_invoices" };
-    }
-
-    case "project_progress": {
-      const text = await runProjectProgress(ctx.supabase, ctx.workspace.id, {
-        project_name: (params.project_name as string | null) ?? null,
-      });
-      return { kind: "answer", text, tool: "project_progress" };
-    }
-
-    case "create_contact": {
-      const name = String(params.name ?? "").trim();
-      if (!name) {
-        return { kind: "answer", text: "What should I name the new contact?" };
+      case "list_contacts": {
+        const text = await runListContacts({
+          type: (params.type as ContactType | null) ?? null,
+          search: (params.search as string | null) ?? null,
+        });
+        return { kind: "answer", text, tool: "list_contacts" };
       }
-      const createParams: CreateContactParams = {
-        name,
-        email: (params.email as string | null) ?? null,
-        phone: (params.phone as string | null) ?? null,
-        company_name: (params.company_name as string | null) ?? null,
-        type: params.type === "customer" ? "customer" : "lead",
-      };
-      return { kind: "confirm", tool: "create_contact", params: createParams, preview: previewCreateContact(createParams) };
-    }
 
-    case "create_task": {
-      const title = String(params.title ?? "").trim();
-      if (!title) {
-        return { kind: "answer", text: "What should the task be called?" };
+      case "list_deals": {
+        const text = await runListDeals(
+          ctx.supabase,
+          workspace.id,
+          { stage: (params.stage as DealStage | null) ?? null },
+          visibility.deals
+        );
+        return { kind: "answer", text, tool: "list_deals" };
       }
-      const createParams: CreateTaskParams = {
-        title,
-        description: (params.description as string | null) ?? null,
-        due_date: (params.due_date as string | null) ?? null,
-        priority: (params.priority as TaskPriority | null) ?? null,
-      };
-      return { kind: "confirm", tool: "create_task", params: createParams, preview: previewCreateTask(createParams) };
-    }
 
-    case "create_deal": {
-      const title = String(params.title ?? "").trim();
-      if (!title) {
-        return { kind: "answer", text: "What should the deal be called?" };
+      case "upcoming_tasks": {
+        const text = await runUpcomingTasks(ctx.supabase, workspace.id);
+        return { kind: "answer", text, tool: "upcoming_tasks" };
       }
-      const contactName = (params.contact_name as string | null) ?? null;
-      const contactId = await resolveContactIdByName(ctx.supabase, ctx.workspace.id, contactName);
-      const valueRaw = params.value;
-      const value = typeof valueRaw === "number" ? valueRaw : valueRaw != null ? Number(valueRaw) : null;
-      const createParams: CreateDealParams = {
-        title,
-        value: value != null && !Number.isNaN(value) ? value : null,
-        stage: (params.stage as DealStage | null) ?? null,
-        contact_id: contactId,
-        contact_name: contactName,
-      };
-      return { kind: "confirm", tool: "create_deal", params: createParams, preview: previewCreateDeal(createParams) };
-    }
 
-    case "create_company": {
-      const name = String(params.name ?? "").trim();
-      if (!name) {
-        return { kind: "answer", text: "What should I name the new company?" };
+      case "overdue_invoices": {
+        const text = await runOverdueInvoices(ctx.supabase, workspace.id, visibility.revenue);
+        return { kind: "answer", text, tool: "overdue_invoices" };
       }
-      const createParams: CreateCompanyParams = {
-        name,
-        website: (params.website as string | null) ?? null,
-        industry: (params.industry as CompanyIndustry | null) ?? null,
-        size: (params.size as CompanySize | null) ?? null,
-        location: (params.location as string | null) ?? null,
-      };
-      return { kind: "confirm", tool: "create_company", params: createParams, preview: previewCreateCompany(createParams) };
-    }
 
-    case "create_project": {
-      const name = String(params.name ?? "").trim();
-      if (!name) {
-        return { kind: "answer", text: "What should the project be called?" };
+      case "project_progress": {
+        const text = await runProjectProgress(ctx.supabase, workspace.id, {
+          project_name: (params.project_name as string | null) ?? null,
+        });
+        return { kind: "answer", text, tool: "project_progress" };
       }
-      const companyName = String(params.company_name ?? "").trim();
-      if (!companyName) {
-        return { kind: "answer", text: "Which client/company is this project for?" };
-      }
-      const companyId = await resolveCompanyIdByName(ctx.supabase, ctx.workspace.id, companyName);
-      if (!companyId) {
-        return {
-          kind: "answer",
-          text: `I couldn't find a company called "${companyName}". Add that company first, or tell me the correct name.`,
+
+      case "create_contact": {
+        const name = String(params.name ?? "").trim();
+        if (!name) {
+          return { kind: "answer", text: "What should I name the new contact?" };
+        }
+        const createParams: CreateContactParams = {
+          name,
+          email: (params.email as string | null) ?? null,
+          phone: (params.phone as string | null) ?? null,
+          company_name: (params.company_name as string | null) ?? null,
+          type: params.type === "customer" ? "customer" : "lead",
         };
+        return { kind: "confirm", tool: "create_contact", params: createParams, preview: previewCreateContact(createParams) };
       }
-      const createParams: CreateProjectParams = {
-        name,
-        company_id: companyId,
-        company_name: companyName,
-        description: (params.description as string | null) ?? null,
-        due_date: (params.due_date as string | null) ?? null,
-        status: (params.status as ProjectStatus | null) ?? null,
-      };
-      return { kind: "confirm", tool: "create_project", params: createParams, preview: previewCreateProject(createParams) };
-    }
 
-    case "create_invoice": {
-      const amountRaw = params.amount;
-      const amount = typeof amountRaw === "number" ? amountRaw : amountRaw != null ? Number(amountRaw) : NaN;
-      if (!Number.isFinite(amount) || amount <= 0) {
-        return { kind: "answer", text: "What amount should this invoice be for?" };
+      case "create_task": {
+        const title = String(params.title ?? "").trim();
+        if (!title) {
+          return { kind: "answer", text: "What should the task be called?" };
+        }
+        const createParams: CreateTaskParams = {
+          title,
+          description: (params.description as string | null) ?? null,
+          due_date: (params.due_date as string | null) ?? null,
+          priority: (params.priority as TaskPriority | null) ?? null,
+        };
+        return { kind: "confirm", tool: "create_task", params: createParams, preview: previewCreateTask(createParams) };
       }
-      const contactName = (params.contact_name as string | null) ?? null;
-      const contactId = await resolveContactIdByName(ctx.supabase, ctx.workspace.id, contactName);
-      const invoiceNumber = await suggestInvoiceNumber(ctx.supabase, ctx.workspace.id);
-      const description = String(params.description ?? "").trim() || "Services";
-      const createParams: CreateInvoiceParams = {
-        invoice_number: invoiceNumber,
-        contact_id: contactId,
-        contact_name: contactName,
-        description,
-        amount,
-        due_date: (params.due_date as string | null) ?? null,
-      };
-      return { kind: "confirm", tool: "create_invoice", params: createParams, preview: previewCreateInvoice(createParams) };
-    }
 
-    default:
-      return { kind: "answer", text: "I'm not sure how to help with that yet. Try asking about your contacts, companies, deals, tasks, invoices, or projects." };
-  }
+      case "create_deal": {
+        const title = String(params.title ?? "").trim();
+        if (!title) {
+          return { kind: "answer", text: "What should the deal be called?" };
+        }
+        const contactName = (params.contact_name as string | null) ?? null;
+        const contactId = await resolveContactIdByName(ctx.supabase, workspace.id, contactName);
+        const valueRaw = params.value;
+        const value = typeof valueRaw === "number" ? valueRaw : valueRaw != null ? Number(valueRaw) : null;
+        const createParams: CreateDealParams = {
+          title,
+          value: value != null && !Number.isNaN(value) ? value : null,
+          stage: (params.stage as DealStage | null) ?? null,
+          contact_id: contactId,
+          contact_name: contactName,
+        };
+        return { kind: "confirm", tool: "create_deal", params: createParams, preview: previewCreateDeal(createParams) };
+      }
+
+      case "create_company": {
+        const name = String(params.name ?? "").trim();
+        if (!name) {
+          return { kind: "answer", text: "What should I name the new company?" };
+        }
+        const createParams: CreateCompanyParams = {
+          name,
+          website: (params.website as string | null) ?? null,
+          industry: (params.industry as CompanyIndustry | null) ?? null,
+          size: (params.size as CompanySize | null) ?? null,
+          location: (params.location as string | null) ?? null,
+        };
+        return { kind: "confirm", tool: "create_company", params: createParams, preview: previewCreateCompany(createParams) };
+      }
+
+      case "create_project": {
+        const name = String(params.name ?? "").trim();
+        if (!name) {
+          return { kind: "answer", text: "What should the project be called?" };
+        }
+        const companyName = String(params.company_name ?? "").trim();
+        if (!companyName) {
+          return { kind: "answer", text: "Which client/company is this project for?" };
+        }
+        const companyId = await resolveCompanyIdByName(ctx.supabase, workspace.id, companyName);
+        if (!companyId) {
+          return {
+            kind: "answer",
+            text: `I couldn't find a company called "${companyName}". Add that company first, or tell me the correct name.`,
+          };
+        }
+        const createParams: CreateProjectParams = {
+          name,
+          company_id: companyId,
+          company_name: companyName,
+          description: (params.description as string | null) ?? null,
+          due_date: (params.due_date as string | null) ?? null,
+          status: (params.status as ProjectStatus | null) ?? null,
+        };
+        return { kind: "confirm", tool: "create_project", params: createParams, preview: previewCreateProject(createParams) };
+      }
+
+      case "create_invoice": {
+        const amountRaw = params.amount;
+        const amount = typeof amountRaw === "number" ? amountRaw : amountRaw != null ? Number(amountRaw) : NaN;
+        if (!Number.isFinite(amount) || amount <= 0) {
+          return { kind: "answer", text: "What amount should this invoice be for?" };
+        }
+        const contactName = (params.contact_name as string | null) ?? null;
+        const contactId = await resolveContactIdByName(ctx.supabase, workspace.id, contactName);
+        const invoiceNumber = await suggestInvoiceNumber(ctx.supabase, workspace.id);
+        const description = String(params.description ?? "").trim() || "Services";
+        const createParams: CreateInvoiceParams = {
+          invoice_number: invoiceNumber,
+          contact_id: contactId,
+          contact_name: contactName,
+          description,
+          amount,
+          due_date: (params.due_date as string | null) ?? null,
+        };
+        return { kind: "confirm", tool: "create_invoice", params: createParams, preview: previewCreateInvoice(createParams) };
+      }
+
+      default:
+        return { kind: "answer", text: "I'm not sure how to help with that yet. Try asking about your contacts, companies, deals, tasks, invoices, or projects." };
+    }
+  })();
+
+  return { ...outcome, credits };
 }
 
 export async function confirmAssistantAction(
@@ -403,29 +444,48 @@ export async function confirmAssistantAction(
   const ctx = await requireWorkspace();
   if (!ctx.ok) return { error: ctx.error };
 
-  let text: string;
+  const resetState = await resetCreditsIfDue(ctx.supabase, ctx.workspace);
+  const workspace: CurrentWorkspace = { ...ctx.workspace, ...resetState };
+
+  // Create-specific cost (2 or 3), separate from and on top of the 1 credit
+  // already charged for classification when the preview was generated.
+  const creditCheck = requireAiCredits(workspace, tool);
+  if (!creditCheck.ok) {
+    return { error: creditCheck.error };
+  }
+
+  let outcome: ExecuteResult;
   switch (tool) {
     case "create_contact":
-      text = await executeCreateContact(params as CreateContactParams);
+      outcome = await executeCreateContact(params as CreateContactParams);
       break;
     case "create_task":
-      text = await executeCreateTask(params as CreateTaskParams);
+      outcome = await executeCreateTask(params as CreateTaskParams);
       break;
     case "create_deal":
-      text = await executeCreateDeal(params as CreateDealParams);
+      outcome = await executeCreateDeal(params as CreateDealParams);
       break;
     case "create_company":
-      text = await executeCreateCompany(params as CreateCompanyParams);
+      outcome = await executeCreateCompany(params as CreateCompanyParams);
       break;
     case "create_project":
-      text = await executeCreateProject(params as CreateProjectParams);
+      outcome = await executeCreateProject(params as CreateProjectParams);
       break;
     case "create_invoice":
-      text = await executeCreateInvoice(params as CreateInvoiceParams);
+      outcome = await executeCreateInvoice(params as CreateInvoiceParams);
       break;
     default:
       return { error: "Unknown action." };
   }
 
-  return { kind: "answer", text, tool };
+  // Only a successful create ever costs credits -- a failed write (bad
+  // input, permission error, DB error) returns its message as-is, unmetered.
+  if (!outcome.ok) {
+    return { kind: "answer", text: outcome.text, tool };
+  }
+
+  const deduction = await deductAiCredits(workspace, tool, ctx.userId);
+  const credits = deduction.ok ? getRemainingCreditsAfter(workspace, tool) : undefined;
+
+  return { kind: "answer", text: outcome.text, tool, credits };
 }

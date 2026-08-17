@@ -2,11 +2,11 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import type { CurrentWorkspace } from "@/lib/workspace";
 
-// ---- Phase 1: plumbing only ----
-// Nothing in this file is called from an AI action yet (askAssistant,
-// confirmAssistantAction, generateInsights, generateDealSummary,
-// generateFollowUpDraft, breakdownTask all still run unmetered). Wiring
-// requireAiCredits()/deductAiCredits() into those is Phase 2/3.
+// ---- Phase 2: wired into the Assistant panel only ----
+// lib/actions/assistant.ts (askAssistant + confirmAssistantAction) now
+// calls into these helpers. The other 4 AI surfaces -- generateInsights,
+// generateDealSummary, generateFollowUpDraft, breakdownTask -- still run
+// unmetered; that's Phase 3.
 
 // One entry per distinct AI action across the app (see the boss's pricing
 // doc, Part 2). Costs not explicitly given in that doc are noted below.
@@ -212,4 +212,20 @@ export function getRemainingCredits(
   const limit = getPlanLimit(workspace.plan);
   const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
   return { used: effectiveUsed, limit, remaining: Math.max(0, limit - effectiveUsed) };
+}
+
+// Phase 2/3: pure calculation of the balance *after* deducting actionType's
+// cost, for attaching to an action's result once deductAiCredits() has
+// actually succeeded with that exact cost (Phase 4 UI: "-2 AI Credits" +
+// "480/500 left"). Doesn't re-read the DB -- the caller's `workspace` is
+// whatever was loaded/reset at the start of the request, so this reports
+// "what your balance should now be" rather than issuing another query.
+export function getRemainingCreditsAfter(
+  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt">,
+  actionType: AiActionType
+): RemainingCredits {
+  const limit = getPlanLimit(workspace.plan);
+  const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
+  const used = effectiveUsed + CREDIT_COSTS[actionType];
+  return { used, limit, remaining: Math.max(0, limit - used) };
 }

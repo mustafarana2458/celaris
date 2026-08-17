@@ -284,7 +284,13 @@ export function previewCreateInvoice(p: CreateInvoiceParams): string {
 
 // ---- Write tools: execute via the real, existing server actions ----
 
-export async function executeCreateContact(p: CreateContactParams): Promise<string> {
+// A discriminated union rather than a bare string -- confirmAssistantAction
+// needs a reliable success/failure signal (not string-sniffing the message)
+// to decide whether an AI credit should actually be deducted: only a
+// successful create should ever cost credits.
+export type ExecuteResult = { ok: true; text: string } | { ok: false; text: string };
+
+export async function executeCreateContact(p: CreateContactParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("name", p.name);
   if (p.email) fd.set("email", p.email);
@@ -293,11 +299,11 @@ export async function executeCreateContact(p: CreateContactParams): Promise<stri
   fd.set("type", p.type);
 
   const result = await createContact(fd);
-  if (result.error) return `Couldn't create that contact: ${result.error}`;
-  return `Created contact **${p.name}**.`;
+  if (result.error) return { ok: false, text: `Couldn't create that contact: ${result.error}` };
+  return { ok: true, text: `Created contact **${p.name}**.` };
 }
 
-export async function executeCreateTask(p: CreateTaskParams): Promise<string> {
+export async function executeCreateTask(p: CreateTaskParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("title", p.title);
   if (p.description) fd.set("description", p.description);
@@ -305,11 +311,11 @@ export async function executeCreateTask(p: CreateTaskParams): Promise<string> {
   if (p.priority) fd.set("priority", p.priority);
 
   const result = await createTask(fd);
-  if (result.error) return `Couldn't create that task: ${result.error}`;
-  return `Created task **${p.title}**${p.due_date ? ` due ${formatDate(p.due_date)}` : ""}.`;
+  if (result.error) return { ok: false, text: `Couldn't create that task: ${result.error}` };
+  return { ok: true, text: `Created task **${p.title}**${p.due_date ? ` due ${formatDate(p.due_date)}` : ""}.` };
 }
 
-export async function executeCreateDeal(p: CreateDealParams): Promise<string> {
+export async function executeCreateDeal(p: CreateDealParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("title", p.title);
   if (p.value != null) fd.set("value", String(p.value));
@@ -317,11 +323,11 @@ export async function executeCreateDeal(p: CreateDealParams): Promise<string> {
   if (p.contact_id) fd.set("contact_id", p.contact_id);
 
   const result = await createDeal(fd);
-  if (result.error) return `Couldn't create that deal: ${result.error}`;
-  return `Created deal **${p.title}**${p.value != null ? ` (${currency.format(p.value)})` : ""}.`;
+  if (result.error) return { ok: false, text: `Couldn't create that deal: ${result.error}` };
+  return { ok: true, text: `Created deal **${p.title}**${p.value != null ? ` (${currency.format(p.value)})` : ""}.` };
 }
 
-export async function executeCreateCompany(p: CreateCompanyParams): Promise<string> {
+export async function executeCreateCompany(p: CreateCompanyParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("name", p.name);
   if (p.website) fd.set("website", p.website);
@@ -330,11 +336,11 @@ export async function executeCreateCompany(p: CreateCompanyParams): Promise<stri
   if (p.location) fd.set("location", p.location);
 
   const result = await createCompany(fd);
-  if (result.error) return `Couldn't create that company: ${result.error}`;
-  return `Created company **${p.name}**.`;
+  if (result.error) return { ok: false, text: `Couldn't create that company: ${result.error}` };
+  return { ok: true, text: `Created company **${p.name}**.` };
 }
 
-export async function executeCreateProject(p: CreateProjectParams): Promise<string> {
+export async function executeCreateProject(p: CreateProjectParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("name", p.name);
   fd.set("company_id", p.company_id);
@@ -343,11 +349,11 @@ export async function executeCreateProject(p: CreateProjectParams): Promise<stri
   if (p.status) fd.set("status", p.status);
 
   const result = await createProject(fd);
-  if (result.error) return `Couldn't create that project: ${result.error}`;
-  return `Created project **${p.name}** for ${p.company_name}.`;
+  if (result.error) return { ok: false, text: `Couldn't create that project: ${result.error}` };
+  return { ok: true, text: `Created project **${p.name}** for ${p.company_name}.` };
 }
 
-export async function executeCreateInvoice(p: CreateInvoiceParams): Promise<string> {
+export async function executeCreateInvoice(p: CreateInvoiceParams): Promise<ExecuteResult> {
   const fd = new FormData();
   fd.set("invoice_number", p.invoice_number);
   if (p.contact_id) fd.set("contact_id", p.contact_id);
@@ -359,8 +365,8 @@ export async function executeCreateInvoice(p: CreateInvoiceParams): Promise<stri
   );
 
   const result = await createInvoice(fd);
-  if (result.error) return `Couldn't create that invoice: ${result.error}`;
-  return `Created invoice **${p.invoice_number}** for ${currency.format(p.amount)}.`;
+  if (result.error) return { ok: false, text: `Couldn't create that invoice: ${result.error}` };
+  return { ok: true, text: `Created invoice **${p.invoice_number}** for ${currency.format(p.amount)}.` };
 }
 
 export async function resolveContactIdByName(
