@@ -3,7 +3,13 @@
 import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
-import { getAiProviderMode, setAiProviderMode, verifyDevPanelPin } from "@/lib/actions/devPanel";
+import {
+  getAiProviderMode,
+  getWorkspacePlan,
+  setAiProviderMode,
+  setWorkspacePlan,
+  verifyDevPanelPin,
+} from "@/lib/actions/devPanel";
 import type { AiProviderMode } from "@/lib/groq";
 
 const MODE_OPTIONS: { value: AiProviderMode; label: string; description: string }[] = [
@@ -13,21 +19,32 @@ const MODE_OPTIONS: { value: AiProviderMode; label: string; description: string 
   { value: "mistral", label: "Force Mistral", description: "Always use Mistral. No fallback." },
 ];
 
+const PLAN_OPTIONS: { value: string; label: string; description: string }[] = [
+  { value: "free", label: "Free (legacy)", description: "No plan assigned -- treated as Solo's limit by default." },
+  { value: "solo", label: "Solo", description: "500 AI credits/month." },
+  { value: "team", label: "Team", description: "2,500 AI credits/month." },
+  { value: "scale", label: "Scale", description: "10,000 AI credits/month." },
+];
+
 export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () => void }) {
   const [pin, setPin] = useState("");
   const [verifiedPin, setVerifiedPin] = useState<string | null>(null);
   const [mode, setMode] = useState<AiProviderMode | null>(null);
+  const [plan, setPlan] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<AiProviderMode | null>(null);
+  const [switchingPlanTo, setSwitchingPlanTo] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function handleClose() {
     setPin("");
     setVerifiedPin(null);
     setMode(null);
+    setPlan(null);
     setError(null);
     setLoading(false);
     setSwitchingTo(null);
+    setSwitchingPlanTo(null);
     onClose();
   }
 
@@ -43,16 +60,17 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
       return;
     }
 
-    const modeResult = await getAiProviderMode(pin);
+    const [modeResult, planResult] = await Promise.all([getAiProviderMode(pin), getWorkspacePlan(pin)]);
     setLoading(false);
-    if (!modeResult.ok || !modeResult.mode) {
-      setError(modeResult.error ?? "Access denied.");
+    if (!modeResult.ok || !modeResult.mode || !planResult.ok || !planResult.plan) {
+      setError(modeResult.error ?? planResult.error ?? "Access denied.");
       setPin("");
       return;
     }
 
     setVerifiedPin(pin);
     setMode(modeResult.mode);
+    setPlan(planResult.plan);
   }
 
   async function handleSelectMode(next: AiProviderMode) {
@@ -67,6 +85,20 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
       return;
     }
     setMode(next);
+  }
+
+  async function handleSelectPlan(next: string) {
+    if (!verifiedPin || next === plan || switchingPlanTo) return;
+    setSwitchingPlanTo(next);
+    setError(null);
+
+    const result = await setWorkspacePlan(next, verifiedPin);
+    setSwitchingPlanTo(null);
+    if (!result.ok) {
+      setError(result.error ?? "Access denied.");
+      return;
+    }
+    setPlan(next);
   }
 
   return (
@@ -113,6 +145,45 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
                   type="button"
                   onClick={() => handleSelectMode(opt.value)}
                   disabled={switchingTo !== null}
+                  className={`flex flex-col gap-0.5 rounded-lg border px-3.5 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
+                    isActive
+                      ? "border-accent bg-accent/5 dark:bg-accent/10"
+                      : "border-slate-200 hover:border-slate-300 dark:border-slate-600 dark:hover:border-slate-500"
+                  }`}
+                >
+                  <span className="flex items-center justify-between gap-2 text-sm font-medium text-slate-900 dark:text-slate-100">
+                    {opt.label}
+                    {isSwitching ? (
+                      <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
+                    ) : (
+                      isActive && (
+                        <span className="shrink-0 rounded-full bg-accent/15 px-2 py-0.5 text-[10px] font-semibold uppercase text-accent-hover dark:bg-accent/20 dark:text-accent">
+                          Active
+                        </span>
+                      )
+                    )}
+                  </span>
+                  <span className="text-xs text-slate-500 dark:text-slate-400">{opt.description}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Workspace plan
+            <span className="ml-1 font-normal text-slate-400 dark:text-slate-500">
+              (manual -- no billing flow yet)
+            </span>
+          </p>
+          <div className="flex flex-col gap-2">
+            {PLAN_OPTIONS.map((opt) => {
+              const isActive = plan === opt.value;
+              const isSwitching = switchingPlanTo === opt.value;
+              return (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => handleSelectPlan(opt.value)}
+                  disabled={switchingPlanTo !== null}
                   className={`flex flex-col gap-0.5 rounded-lg border px-3.5 py-2.5 text-left transition-colors disabled:cursor-not-allowed disabled:opacity-60 ${
                     isActive
                       ? "border-accent bg-accent/5 dark:bg-accent/10"

@@ -8,6 +8,15 @@ export type CurrentWorkspace = {
   permissions: WorkspacePermissions | null;
   logoUrl: string | null;
   modulePreferences: ModulePreferences | null;
+  // AI credit system (Phase 1 plumbing -- not yet read for enforcement
+  // anywhere). plan drives the credit limit (see lib/aiCredits.ts);
+  // aiCreditsUsed/aiCreditsResetAt are the raw stored counter -- callers
+  // that need the *effective* (reset-aware) used count should go through
+  // resolveCreditPeriod()/getRemainingCredits() rather than reading these
+  // directly.
+  plan: string;
+  aiCreditsUsed: number;
+  aiCreditsResetAt: string;
 };
 
 export type WorkspaceSummary = {
@@ -25,8 +34,31 @@ type MembershipRow = {
     name: string;
     logo_url: string | null;
     module_preferences: ModulePreferences | null;
+    plan: string | null;
+    ai_credits_used: number | null;
+    ai_credits_reset_at: string | null;
   } | null;
 };
+
+const WORKSPACE_COLUMNS =
+  "id, name, logo_url, module_preferences, plan, ai_credits_used, ai_credits_reset_at";
+
+// ai_credits_used/ai_credits_reset_at have DB defaults (0 / today) but
+// aren't guaranteed NOT NULL, so coalesce defensively rather than let a
+// null slip into arithmetic in lib/aiCredits.ts.
+function toCurrentWorkspace(role: string, permissions: WorkspacePermissions | null, ws: NonNullable<MembershipRow["workspaces"]>): CurrentWorkspace {
+  return {
+    id: ws.id,
+    name: ws.name,
+    role,
+    permissions: permissions ?? null,
+    logoUrl: ws.logo_url ?? null,
+    modulePreferences: ws.module_preferences ?? null,
+    plan: ws.plan ?? "free",
+    aiCreditsUsed: ws.ai_credits_used ?? 0,
+    aiCreditsResetAt: ws.ai_credits_reset_at ?? new Date().toISOString().slice(0, 10),
+  };
+}
 
 export async function getCurrentWorkspace(
   supabase: SupabaseClient,
@@ -41,20 +73,13 @@ export async function getCurrentWorkspace(
   if (userRow?.last_active_workspace_id) {
     const { data } = await supabase
       .from("workspace_members")
-      .select("role, permissions, workspaces(id, name, logo_url, module_preferences)")
+      .select(`role, permissions, workspaces(${WORKSPACE_COLUMNS})`)
       .eq("user_id", userId)
       .eq("workspace_id", userRow.last_active_workspace_id)
       .maybeSingle<MembershipRow>();
 
     if (data?.workspaces) {
-      return {
-        id: data.workspaces.id,
-        name: data.workspaces.name,
-        role: data.role,
-        permissions: data.permissions ?? null,
-        logoUrl: data.workspaces.logo_url ?? null,
-        modulePreferences: data.workspaces.module_preferences ?? null,
-      };
+      return toCurrentWorkspace(data.role, data.permissions, data.workspaces);
     }
     // Membership on the saved workspace no longer exists (removed from it) --
     // fall through to the default membership below.
@@ -62,21 +87,14 @@ export async function getCurrentWorkspace(
 
   const { data } = await supabase
     .from("workspace_members")
-    .select("role, permissions, workspaces(id, name, logo_url, module_preferences)")
+    .select(`role, permissions, workspaces(${WORKSPACE_COLUMNS})`)
     .eq("user_id", userId)
     .limit(1)
     .maybeSingle<MembershipRow>();
 
   if (!data?.workspaces) return null;
 
-  return {
-    id: data.workspaces.id,
-    name: data.workspaces.name,
-    role: data.role,
-    permissions: data.permissions ?? null,
-    logoUrl: data.workspaces.logo_url ?? null,
-    modulePreferences: data.workspaces.module_preferences ?? null,
-  };
+  return toCurrentWorkspace(data.role, data.permissions, data.workspaces);
 }
 
 export async function listUserWorkspaces(
