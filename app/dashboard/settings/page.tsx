@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { SettingsPageClient } from "./SettingsPageClient";
-import type { UserProfile } from "@/lib/types";
+import type { AiUsageChartView, UserProfile } from "@/lib/types";
 
 export type WorkspaceBranding = {
   id: string;
@@ -30,7 +30,7 @@ export default async function SettingsPage() {
   const workspace = await getCurrentWorkspace(supabase, user.id);
   requireModuleAccess(workspace, "settings");
 
-  const [{ data: profile }, { data: workspaceRow }] = await Promise.all([
+  const [{ data: profile }, { data: workspaceRow }, { data: aiUsagePreference }] = await Promise.all([
     supabase
       .from("users")
       .select("id, full_name, business_name, phone, avatar_url, plan, created_at")
@@ -43,7 +43,17 @@ export default async function SettingsPage() {
           .eq("id", workspace.id)
           .maybeSingle<WorkspaceBranding>()
       : Promise.resolve({ data: null }),
+    workspace
+      ? supabase
+          .from("user_preferences")
+          .select("show_ai_usage_widget, ai_usage_chart_view")
+          .eq("user_id", user.id)
+          .eq("workspace_id", workspace.id)
+          .maybeSingle<{ show_ai_usage_widget: boolean | null; ai_usage_chart_view: string | null }>()
+      : Promise.resolve({ data: null }),
   ]);
+
+  const initialAiUsageChartView: AiUsageChartView = aiUsagePreference?.ai_usage_chart_view === "monthly" ? "monthly" : "daily";
 
   return (
     <SettingsPageClient
@@ -51,6 +61,8 @@ export default async function SettingsPage() {
       profile={profile ?? null}
       workspace={workspace}
       workspaceBranding={workspaceRow ?? null}
+      initialShowAiUsageWidget={aiUsagePreference?.show_ai_usage_widget ?? true}
+      initialAiUsageChartView={initialAiUsageChartView}
     />
   );
 }

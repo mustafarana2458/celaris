@@ -5,9 +5,11 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useWorkspace } from "@/components/workspace/WorkspaceContext";
 import { hasModuleAccess } from "@/lib/permissions";
-import { navLinks, getActiveHref, type NavGroup } from "./nav-links";
+import { navLinks, getActiveHref, type NavGroup, type NavItem } from "./nav-links";
 import { NavIcon } from "./NavIcon";
 import { DevPanelModal } from "./DevPanelModal";
+import { AiUsageWidget } from "./AiUsageWidget";
+import type { AiUsageChartView } from "@/lib/types";
 
 const SECRET_CLICKS = 5;
 const SECRET_WINDOW_MS = 2000;
@@ -30,7 +32,15 @@ function ChevronIcon({ open }: { open: boolean }) {
   );
 }
 
-export function Sidebar({ className = "" }: { className?: string }) {
+export function Sidebar({
+  className = "",
+  showAiUsageWidget = true,
+  initialAiUsageChartView = "daily",
+}: {
+  className?: string;
+  showAiUsageWidget?: boolean;
+  initialAiUsageChartView?: AiUsageChartView;
+}) {
   const pathname = usePathname();
   const workspace = useWorkspace();
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
@@ -102,6 +112,88 @@ export function Sidebar({ className = "" }: { className?: string }) {
     setExpandedGroup((prev) => (prev === label ? null : label));
   }
 
+  // Settings is pulled out of the main list so the AI Usage widget can sit
+  // just above it, both pinned to the bottom of the sidebar via the
+  // `flex-1` wrapper around everything else below.
+  const settingsLink = visibleNavLinks.find(
+    (item): item is Extract<NavItem, { type: "link" }> => item.type === "link" && item.href === "/dashboard/settings"
+  );
+  const mainNavLinks = visibleNavLinks.filter((item) => item !== settingsLink);
+
+  function renderNavItem(item: NavItem) {
+    if (item.type === "group") {
+      const groupActive = groupHasActiveChild(item);
+      const isOpen = expandedGroup === item.label;
+
+      return (
+        <div key={item.label} className="flex flex-col">
+          <button
+            type="button"
+            onClick={() => toggleGroup(item.label)}
+            aria-expanded={isOpen}
+            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+              groupActive
+                ? "text-slate-900 dark:text-slate-100"
+                : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+            }`}
+          >
+            <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
+            <span className="flex-1 text-left">{item.label}</span>
+            <ChevronIcon open={isOpen} />
+          </button>
+
+          <div
+            className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out ${
+              isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
+            }`}
+          >
+            <div className="min-h-0 overflow-hidden">
+              <div className="ml-5 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-4 dark:border-slate-700">
+                {item.children.map((child) => {
+                  const isActive = isLinkActive(child.href);
+                  return (
+                    <Link
+                      key={child.label}
+                      href={child.href}
+                      className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
+                        isActive
+                          ? "bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent"
+                          : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+                      }`}
+                    >
+                      {child.label}
+                    </Link>
+                  );
+                })}
+              </div>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    const isActive = isLinkActive(item.href);
+    return (
+      <Link
+        key={item.href}
+        href={item.href}
+        className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
+          isActive
+            ? "bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent"
+            : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
+        }`}
+      >
+        <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
+        <span className="flex-1">{item.label}</span>
+        {item.badge && (
+          <span className="rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-hover dark:bg-accent/20 dark:text-accent">
+            {item.badge}
+          </span>
+        )}
+      </Link>
+    );
+  }
+
   return (
     <nav className={`flex h-full flex-col gap-1 overflow-y-auto p-4 ${className}`}>
       <Link
@@ -118,79 +210,10 @@ export function Sidebar({ className = "" }: { className?: string }) {
         Celaris
       </Link>
 
-      {visibleNavLinks.map((item) => {
-        if (item.type === "group") {
-          const groupActive = groupHasActiveChild(item);
-          const isOpen = expandedGroup === item.label;
+      <div className="flex flex-1 flex-col gap-1">{mainNavLinks.map(renderNavItem)}</div>
 
-          return (
-            <div key={item.label} className="flex flex-col">
-              <button
-                type="button"
-                onClick={() => toggleGroup(item.label)}
-                aria-expanded={isOpen}
-                className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-                  groupActive
-                    ? "text-slate-900 dark:text-slate-100"
-                    : "text-slate-500 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                }`}
-              >
-                <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
-                <span className="flex-1 text-left">{item.label}</span>
-                <ChevronIcon open={isOpen} />
-              </button>
-
-              <div
-                className={`grid overflow-hidden transition-[grid-template-rows] duration-300 ease-in-out ${
-                  isOpen ? "grid-rows-[1fr]" : "grid-rows-[0fr]"
-                }`}
-              >
-                <div className="min-h-0 overflow-hidden">
-                  <div className="ml-5 mt-1 flex flex-col gap-1 border-l border-slate-200 pl-4 dark:border-slate-700">
-                    {item.children.map((child) => {
-                      const isActive = isLinkActive(child.href);
-                      return (
-                        <Link
-                          key={child.label}
-                          href={child.href}
-                          className={`rounded-lg px-3 py-2 text-sm font-medium transition-colors ${
-                            isActive
-                              ? "bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent"
-                              : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-                          }`}
-                        >
-                          {child.label}
-                        </Link>
-                      );
-                    })}
-                  </div>
-                </div>
-              </div>
-            </div>
-          );
-        }
-
-        const isActive = isLinkActive(item.href);
-        return (
-          <Link
-            key={item.href}
-            href={item.href}
-            className={`flex items-center gap-3 rounded-lg px-3 py-2.5 text-sm font-medium transition-colors ${
-              isActive
-                ? "bg-accent/10 text-accent-hover dark:bg-accent/15 dark:text-accent"
-                : "text-slate-600 hover:bg-slate-100 hover:text-slate-900 dark:text-slate-400 dark:hover:bg-slate-700 dark:hover:text-slate-100"
-            }`}
-          >
-            <NavIcon name={item.icon} className="h-5 w-5 shrink-0" />
-            <span className="flex-1">{item.label}</span>
-            {item.badge && (
-              <span className="rounded-full bg-accent/15 px-1.5 py-0.5 text-[10px] font-semibold uppercase text-accent-hover dark:bg-accent/20 dark:text-accent">
-                {item.badge}
-              </span>
-            )}
-          </Link>
-        );
-      })}
+      {showAiUsageWidget && <AiUsageWidget initialChartView={initialAiUsageChartView} />}
+      {settingsLink && renderNavItem(settingsLink)}
 
       <DevPanelModal open={devPanelOpen} onClose={() => setDevPanelOpen(false)} />
     </nav>

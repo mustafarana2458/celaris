@@ -3,7 +3,7 @@
 import { SVGProps, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { CurrentWorkspace } from "@/lib/workspace";
-import type { UserProfile } from "@/lib/types";
+import type { AiUsageChartView, UserProfile } from "@/lib/types";
 import type { WorkspaceBranding } from "./page";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { WorkspaceTab } from "./tabs/WorkspaceTab";
@@ -12,12 +12,14 @@ import { AboutTab } from "./tabs/AboutTab";
 import { ModulePreferencesTab } from "./tabs/ModulePreferencesTab";
 import { IntegrationsTab } from "./tabs/IntegrationsTab";
 import { BillingTab } from "./tabs/BillingTab";
+import { AiUsageTab } from "./tabs/AiUsageTab";
 
 type TabId =
   | "profile"
   | "workspace"
   | "appearance"
   | "modules"
+  | "ai-usage"
   | "integrations"
   | "billing"
   | "about";
@@ -30,6 +32,7 @@ const TAB_ICON_PATHS: Record<TabId, string> = {
   appearance:
     "M12 3a9 9 0 1 0 0 18c1.1 0 2-.9 2-2 0-.5-.2-1-.5-1.3-.3-.3-.5-.8-.5-1.3 0-1.1.9-2 2-2h2.4c1.9 0 3.6-1.6 3.6-3.5C21 6.9 17 3 12 3Z",
   modules: "M4 4h6v6H4V4Zm10 0h6v6h-6V4ZM4 14h6v6H4v-6Zm10 0h6v6h-6v-6Z",
+  "ai-usage": "M3 3v18h18M7 15l4-6 3 4 5-8",
   integrations:
     "M9 3H5a2 2 0 0 0-2 2v4m6-6h10a2 2 0 0 1 2 2v4M9 3v18M3 9v10a2 2 0 0 0 2 2h4M21 9v10a2 2 0 0 1-2 2h-4",
   billing:
@@ -64,6 +67,7 @@ const ALL_TABS: { id: TabId; label: string; soon?: boolean; ownerOnly?: boolean 
   { id: "workspace", label: "Workspace & Branding" },
   { id: "appearance", label: "Appearance" },
   { id: "modules", label: "Module Preferences", ownerOnly: true },
+  { id: "ai-usage", label: "AI Usage" },
   { id: "integrations", label: "Integrations", ownerOnly: true },
   { id: "billing", label: "Billing", ownerOnly: true },
   { id: "about", label: "About & Legal" },
@@ -74,11 +78,15 @@ export function SettingsPageClient({
   profile,
   workspace,
   workspaceBranding,
+  initialShowAiUsageWidget,
+  initialAiUsageChartView,
 }: {
   email: string;
   profile: UserProfile | null;
   workspace: CurrentWorkspace | null;
   workspaceBranding: WorkspaceBranding | null;
+  initialShowAiUsageWidget: boolean;
+  initialAiUsageChartView: AiUsageChartView;
 }) {
   const isOwner = workspace?.role === "owner";
   const tabs = ALL_TABS.filter((tab) => isOwner || !tab.ownerOnly);
@@ -135,6 +143,13 @@ export function SettingsPageClient({
           )}
           {activeTab === "appearance" && <AppearanceTab />}
           {activeTab === "modules" && <ModulePreferencesTab workspace={workspace} />}
+          {activeTab === "ai-usage" && (
+            <AiUsageTab
+              workspace={workspace}
+              initialShowWidget={initialShowAiUsageWidget}
+              initialChartView={initialAiUsageChartView}
+            />
+          )}
           {activeTab === "integrations" && <IntegrationsTab />}
           {activeTab === "billing" && <BillingTab />}
           {activeTab === "about" && <AboutTab />}

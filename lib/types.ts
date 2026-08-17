@@ -140,6 +140,7 @@ export type DealSummaryActionResult = {
 };
 
 export type PipelineView = "kanban" | "list";
+export type AiUsageChartView = "daily" | "monthly";
 export type UserPreferenceActionResult = { error?: string };
 
 export type Deal = {

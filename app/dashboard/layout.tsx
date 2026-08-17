@@ -3,7 +3,7 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace, listUserWorkspaces } from "@/lib/workspace";
 import { DashboardShell } from "@/components/dashboard/DashboardShell";
 import { WorkspaceProvider } from "@/components/workspace/WorkspaceContext";
-import type { UserProfile } from "@/lib/types";
+import type { AiUsageChartView, UserProfile } from "@/lib/types";
 
 export default async function DashboardLayout({
   children,
@@ -30,6 +30,21 @@ export default async function DashboardLayout({
     listUserWorkspaces(supabase, user.id),
   ]);
 
+  let showAiUsageWidget = true;
+  let initialAiUsageChartView: AiUsageChartView = "daily";
+
+  if (workspace) {
+    const { data: preference } = await supabase
+      .from("user_preferences")
+      .select("show_ai_usage_widget, ai_usage_chart_view")
+      .eq("user_id", user.id)
+      .eq("workspace_id", workspace.id)
+      .maybeSingle<{ show_ai_usage_widget: boolean | null; ai_usage_chart_view: string | null }>();
+
+    showAiUsageWidget = preference?.show_ai_usage_widget ?? true;
+    initialAiUsageChartView = preference?.ai_usage_chart_view === "monthly" ? "monthly" : "daily";
+  }
+
   return (
     <WorkspaceProvider workspace={workspace}>
       <DashboardShell
@@ -39,6 +54,8 @@ export default async function DashboardLayout({
           workspace ? { id: workspace.id, name: workspace.name, logoUrl: workspace.logoUrl } : null
         }
         workspaces={workspaces}
+        showAiUsageWidget={showAiUsageWidget}
+        initialAiUsageChartView={initialAiUsageChartView}
       >
         {children}
       </DashboardShell>

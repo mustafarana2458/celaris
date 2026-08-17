@@ -7,18 +7,23 @@ import { AutoBreadcrumb } from "./AutoBreadcrumb";
 import { BreadcrumbProvider } from "./BreadcrumbContext";
 import { InactivityProvider } from "./InactivityProvider";
 import type { WorkspaceSummary } from "@/lib/workspace";
+import type { AiUsageChartView } from "@/lib/types";
 
 export function DashboardShell({
   fullName,
   avatarUrl,
   activeWorkspace,
   workspaces,
+  showAiUsageWidget,
+  initialAiUsageChartView,
   children,
 }: {
   fullName: string;
   avatarUrl: string | null;
   activeWorkspace: { id: string; name: string; logoUrl: string | null } | null;
   workspaces: WorkspaceSummary[];
+  showAiUsageWidget: boolean;
+  initialAiUsageChartView: AiUsageChartView;
   children: ReactNode;
 }) {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -28,7 +33,7 @@ export function DashboardShell({
       <BreadcrumbProvider>
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
           <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block dark:border-slate-700 dark:bg-slate-800">
-            <Sidebar />
+            <Sidebar showAiUsageWidget={showAiUsageWidget} initialAiUsageChartView={initialAiUsageChartView} />
           </aside>
 
           {mobileOpen && (
@@ -38,7 +43,7 @@ export function DashboardShell({
                 onClick={() => setMobileOpen(false)}
               />
               <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl dark:bg-slate-800">
-                <Sidebar />
+                <Sidebar showAiUsageWidget={showAiUsageWidget} initialAiUsageChartView={initialAiUsageChartView} />
               </aside>
             </div>
           )}
