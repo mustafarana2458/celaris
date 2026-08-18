@@ -7,6 +7,10 @@ export async function middleware(request: NextRequest) {
 
 export const config = {
   matcher: [
-    "/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
+    // api/webhooks excluded -- webhook requests (Lemon Squeezy) carry no
+    // user cookies and must never be redirected or delayed by the
+    // Supabase auth.getUser() round-trip below. Signature verification
+    // is the route handler's own job.
+    "/((?!_next/static|_next/image|favicon.ico|api/webhooks|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)",
   ],
 };
