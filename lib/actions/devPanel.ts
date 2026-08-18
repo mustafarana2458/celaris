@@ -4,10 +4,14 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { fetchModeFromDb, invalidateProviderModeCache, type AiProviderMode } from "@/lib/groq";
+import { createCheckoutUrl } from "@/lib/actions/billing";
+import type { Plan } from "@/lib/aiCreditsCore";
+import type { BillingInterval } from "@/lib/lemonSqueezy";
 
 export type DevPanelResult = { ok: boolean; error?: string };
 export type DevPanelModeResult = { ok: boolean; mode?: AiProviderMode; error?: string };
 export type DevPanelPlanResult = { ok: boolean; plan?: string; error?: string };
+export type DevPanelCheckoutResult = { ok: boolean; url?: string; error?: string };
 
 // Deliberately generic and identical whether the PIN was wrong, the role
 // check failed, or the PIN env var isn't even configured -- nothing about
@@ -122,4 +126,27 @@ export async function setWorkspacePlan(plan: string, pin: string): Promise<DevPa
 
   revalidatePath("/dashboard", "layout");
   return { ok: true };
+}
+
+const VALID_TIERS: Plan[] = ["solo", "team", "scale"];
+const VALID_INTERVALS: BillingInterval[] = ["monthly", "yearly"];
+
+// Phase 4 test entry point: builds a real Lemon Squeezy hosted checkout
+// URL for the current workspace (via lib/actions/billing.ts), gated behind
+// the same PIN + owner/admin check as the rest of the Dev Panel. Exists so
+// the checkout -> webhook -> DB sync flow (lib/subscriptionSync.ts) can be
+// exercised end-to-end with a real test-mode purchase before BillingTab
+// has real upgrade buttons (Phase 5).
+export async function createTestCheckout(tier: string, interval: string, pin: string): Promise<DevPanelCheckoutResult> {
+  if (!VALID_TIERS.includes(tier as Plan) || !VALID_INTERVALS.includes(interval as BillingInterval)) {
+    return { ok: false, error: "Invalid tier/interval." };
+  }
+
+  const access = await requireDevAccess(pin);
+  if (!access.ok) return { ok: false, error: ACCESS_DENIED };
+
+  const result = await createCheckoutUrl(tier as Plan, interval as BillingInterval);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  return { ok: true, url: result.url };
 }

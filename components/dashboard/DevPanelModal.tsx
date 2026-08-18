@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import {
+  createTestCheckout,
   getAiProviderMode,
   getWorkspacePlan,
   setAiProviderMode,
@@ -11,6 +12,15 @@ import {
   verifyDevPanelPin,
 } from "@/lib/actions/devPanel";
 import type { AiProviderMode } from "@/lib/groq";
+
+const CHECKOUT_OPTIONS: { tier: "solo" | "team" | "scale"; interval: "monthly" | "yearly"; label: string }[] = [
+  { tier: "solo", interval: "monthly", label: "Solo / Monthly" },
+  { tier: "solo", interval: "yearly", label: "Solo / Yearly" },
+  { tier: "team", interval: "monthly", label: "Team / Monthly" },
+  { tier: "team", interval: "yearly", label: "Team / Yearly" },
+  { tier: "scale", interval: "monthly", label: "Scale / Monthly" },
+  { tier: "scale", interval: "yearly", label: "Scale / Yearly" },
+];
 
 const MODE_OPTIONS: { value: AiProviderMode; label: string; description: string }[] = [
   { value: "auto", label: "Auto", description: "Groq (GPT OSS 120B) first, falls back to Mistral automatically." },
@@ -34,6 +44,7 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
   const [loading, setLoading] = useState(false);
   const [switchingTo, setSwitchingTo] = useState<AiProviderMode | null>(null);
   const [switchingPlanTo, setSwitchingPlanTo] = useState<string | null>(null);
+  const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   function handleClose() {
@@ -45,6 +56,7 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
     setLoading(false);
     setSwitchingTo(null);
     setSwitchingPlanTo(null);
+    setCheckoutLoading(null);
     onClose();
   }
 
@@ -99,6 +111,21 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
       return;
     }
     setPlan(next);
+  }
+
+  async function handleTestCheckout(opt: (typeof CHECKOUT_OPTIONS)[number]) {
+    if (!verifiedPin || checkoutLoading) return;
+    const key = `${opt.tier}-${opt.interval}`;
+    setCheckoutLoading(key);
+    setError(null);
+
+    const result = await createTestCheckout(opt.tier, opt.interval, verifiedPin);
+    setCheckoutLoading(null);
+    if (!result.ok || !result.url) {
+      setError(result.error ?? "Access denied.");
+      return;
+    }
+    window.open(result.url, "_blank", "noopener,noreferrer");
   }
 
   return (
@@ -203,6 +230,32 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
                     )}
                   </span>
                   <span className="text-xs text-slate-500 dark:text-slate-400">{opt.description}</span>
+                </button>
+              );
+            })}
+          </div>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Test Lemon Squeezy checkout
+            <span className="ml-1 font-normal text-slate-400 dark:text-slate-500">
+              (Phase 4 -- opens a real hosted checkout in test mode, not wired into Billing yet)
+            </span>
+          </p>
+          <div className="grid grid-cols-2 gap-2">
+            {CHECKOUT_OPTIONS.map((opt) => {
+              const key = `${opt.tier}-${opt.interval}`;
+              const isLoading = checkoutLoading === key;
+              return (
+                <button
+                  key={key}
+                  type="button"
+                  onClick={() => handleTestCheckout(opt)}
+                  disabled={checkoutLoading !== null}
+                  className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3.5 py-2.5 text-left text-sm font-medium text-slate-900 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-500"
+                >
+                  {opt.label}
+                  {isLoading && (
+                    <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
+                  )}
                 </button>
               );
             })}

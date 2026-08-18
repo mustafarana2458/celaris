@@ -1,12 +1,13 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { syncSubscriptionEvent } from "@/lib/subscriptionSync";
 
-// Lemon Squeezy webhook receiver -- Phase 2 (verify signature + log only,
-// no DB writes; syncing to the subscriptions table is Phase 3). This is
-// deliberately isolated from the rest of the app: no Supabase client, no
-// workspace lookup, no mutation. Its only job right now is to prove
-// signature verification works against real Lemon Squeezy traffic before
-// anything here is trusted to touch billing data.
+// Lemon Squeezy webhook receiver. Phase 2 built signature verification;
+// Phase 3 (this file, now) adds the actual DB sync -- verified events are
+// handed to lib/subscriptionSync.ts, which writes to subscriptions +
+// workspaces via the service-role client (no user session exists for a
+// webhook). Signature verification below is unchanged from Phase 2 -- a
+// payload only ever reaches syncSubscriptionEvent after it's verified.
 //
 // Runs on the Node.js runtime (the Route Handler default) -- do not add
 // `export const runtime = "edge"` here, since verification uses Node's
@@ -104,8 +105,21 @@ export async function POST(request: NextRequest) {
 
   logWebhookPayload(payload);
 
-  // Phase 3 will replace this with the actual subscriptions upsert
-  // (using lib/supabase/service.ts). For now: verify + log + acknowledge,
-  // nothing else.
+  const result = await syncSubscriptionEvent(payload);
+
+  if (!result.ok) {
+    // A genuine write failure (transient DB error, etc.) -- 500 so Lemon
+    // Squeezy retries. Safe to retry: syncSubscriptionEvent's upsert keys
+    // off lemon_subscription_id and only re-grants credits when the
+    // billing period actually changed, so a redelivery of the same event
+    // can't double-charge or double-reset anything.
+    console.error(`[lemonsqueezy webhook] sync failed for event, will let Lemon Squeezy retry: ${result.error}`);
+    return NextResponse.json({ error: "Sync failed." }, { status: 500 });
+  }
+
+  if (result.skipped) {
+    console.log(`[lemonsqueezy webhook] event acknowledged, no sync performed: ${result.skipped}`);
+  }
+
   return NextResponse.json({ received: true }, { status: 200 });
 }
