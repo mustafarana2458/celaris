@@ -112,14 +112,6 @@ export function Sidebar({
     setExpandedGroup((prev) => (prev === label ? null : label));
   }
 
-  // Settings is pulled out of the main list so the AI Usage widget can sit
-  // just above it, both pinned to the bottom of the sidebar via the
-  // `flex-1` wrapper around everything else below.
-  const settingsLink = visibleNavLinks.find(
-    (item): item is Extract<NavItem, { type: "link" }> => item.type === "link" && item.href === "/dashboard/settings"
-  );
-  const mainNavLinks = visibleNavLinks.filter((item) => item !== settingsLink);
-
   function renderNavItem(item: NavItem) {
     if (item.type === "group") {
       const groupActive = groupHasActiveChild(item);
@@ -195,11 +187,11 @@ export function Sidebar({
   }
 
   return (
-    <nav className={`flex h-full flex-col p-4 ${className}`}>
+    <nav className={`flex h-full flex-col gap-1 overflow-y-auto p-4 ${className}`}>
       <Link
         href="/dashboard"
         onClick={handleLogoClick}
-        className="mb-6 flex shrink-0 items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
+        className="mb-6 flex items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
       >
         <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
         <img
@@ -210,16 +202,12 @@ export function Sidebar({
         Celaris
       </Link>
 
-      {/* Scrolls internally when links overflow, so the AI Usage widget and
-          Settings below stay pinned in view instead of being pushed off. */}
-      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
-        {mainNavLinks.map(renderNavItem)}
-      </div>
+      {/* Natural top-to-bottom flow: nav links (AI Assistant, then Settings,
+          both already last in navLinks) followed directly by the AI Usage
+          widget -- no bottom-pinning, so there's no gap above them. */}
+      {visibleNavLinks.map(renderNavItem)}
 
-      <div className="mt-2 flex shrink-0 flex-col gap-1">
-        {showAiUsageWidget && <AiUsageWidget initialChartView={initialAiUsageChartView} />}
-        {settingsLink && renderNavItem(settingsLink)}
-      </div>
+      {showAiUsageWidget && <AiUsageWidget initialChartView={initialAiUsageChartView} />}
 
       <DevPanelModal open={devPanelOpen} onClose={() => setDevPanelOpen(false)} />
     </nav>
