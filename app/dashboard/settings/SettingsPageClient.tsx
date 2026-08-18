@@ -4,7 +4,8 @@ import { SVGProps, useState } from "react";
 import { useSearchParams } from "next/navigation";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { AiUsageChartView, UserProfile } from "@/lib/types";
-import type { WorkspaceBranding } from "./page";
+import type { RemainingCredits } from "@/lib/aiCreditsCore";
+import type { WorkspaceBranding, WorkspaceSubscription } from "./page";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { WorkspaceTab } from "./tabs/WorkspaceTab";
 import { AppearanceTab } from "./tabs/AppearanceTab";
@@ -80,6 +81,8 @@ export function SettingsPageClient({
   workspaceBranding,
   initialShowAiUsageWidget,
   initialAiUsageChartView,
+  subscription,
+  credits,
 }: {
   email: string;
   profile: UserProfile | null;
@@ -87,6 +90,8 @@ export function SettingsPageClient({
   workspaceBranding: WorkspaceBranding | null;
   initialShowAiUsageWidget: boolean;
   initialAiUsageChartView: AiUsageChartView;
+  subscription: WorkspaceSubscription | null;
+  credits: RemainingCredits | null;
 }) {
   const isOwner = workspace?.role === "owner";
   const tabs = ALL_TABS.filter((tab) => isOwner || !tab.ownerOnly);
@@ -151,7 +156,9 @@ export function SettingsPageClient({
             />
           )}
           {activeTab === "integrations" && <IntegrationsTab />}
-          {activeTab === "billing" && <BillingTab />}
+          {activeTab === "billing" && (
+            <BillingTab workspace={workspace} subscription={subscription} credits={credits} />
+          )}
           {activeTab === "about" && <AboutTab />}
         </div>
       </div>

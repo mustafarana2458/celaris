@@ -19,19 +19,22 @@ export function variantForTier(tier: Plan, interval: BillingInterval): string | 
   return process.env[TIER_INTERVAL_ENV[tier][interval]] ?? null;
 }
 
-// variant_id -> tier, built lazily and cached on first call rather than at
-// module load, so importing this file never throws just because a var
-// isn't set yet -- an unrecognized/missing variant simply fails to map
-// (caller decides what to do with `null`). Used by the webhook handler
-// (lib/subscriptionSync.ts).
-let variantToTier: Map<string, Plan> | null = null;
+// variant_id -> {tier, interval}, built lazily and cached on first call
+// rather than at module load, so importing this file never throws just
+// because a var isn't set yet -- an unrecognized/missing variant simply
+// fails to map (caller decides what to do with `null`). Used by the
+// webhook handler (lib/subscriptionSync.ts) and BillingTab (to know which
+// interval the workspace's active subscription is on).
+type VariantDetails = { tier: Plan; interval: BillingInterval };
 
-function buildVariantMap(): Map<string, Plan> {
-  const map = new Map<string, Plan>();
+let variantDetails: Map<string, VariantDetails> | null = null;
+
+function buildVariantMap(): Map<string, VariantDetails> {
+  const map = new Map<string, VariantDetails>();
   for (const tier of Object.keys(TIER_INTERVAL_ENV) as Plan[]) {
     for (const interval of Object.keys(TIER_INTERVAL_ENV[tier]) as BillingInterval[]) {
       const variantId = process.env[TIER_INTERVAL_ENV[tier][interval]];
-      if (variantId) map.set(variantId, tier);
+      if (variantId) map.set(variantId, { tier, interval });
     }
   }
   return map;
@@ -40,8 +43,12 @@ function buildVariantMap(): Map<string, Plan> {
 // Lemon Squeezy sends variant_id as a JSON:API string; accepts number too
 // since some payload fields (e.g. attributes.variant_id) come through as a
 // number rather than a string.
-export function tierForVariant(variantId: string | number | null | undefined): Plan | null {
+export function detailsForVariant(variantId: string | number | null | undefined): VariantDetails | null {
   if (variantId === null || variantId === undefined) return null;
-  if (!variantToTier) variantToTier = buildVariantMap();
-  return variantToTier.get(String(variantId)) ?? null;
+  if (!variantDetails) variantDetails = buildVariantMap();
+  return variantDetails.get(String(variantId)) ?? null;
+}
+
+export function tierForVariant(variantId: string | number | null | undefined): Plan | null {
+  return detailsForVariant(variantId)?.tier ?? null;
 }
