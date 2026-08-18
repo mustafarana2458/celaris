@@ -195,11 +195,11 @@ export function Sidebar({
   }
 
   return (
-    <nav className={`flex h-full flex-col gap-1 overflow-y-auto p-4 ${className}`}>
+    <nav className={`flex h-full flex-col p-4 ${className}`}>
       <Link
         href="/dashboard"
         onClick={handleLogoClick}
-        className="mb-6 flex items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
+        className="mb-6 flex shrink-0 items-center gap-2 px-2 text-lg font-semibold text-slate-900 dark:text-slate-100"
       >
         <img src="/celaris-logo.svg" alt="Celaris" className="h-8 w-8 rounded-lg dark:hidden" />
         <img
@@ -210,10 +210,16 @@ export function Sidebar({
         Celaris
       </Link>
 
-      <div className="flex flex-1 flex-col gap-1">{mainNavLinks.map(renderNavItem)}</div>
+      {/* Scrolls internally when links overflow, so the AI Usage widget and
+          Settings below stay pinned in view instead of being pushed off. */}
+      <div className="flex min-h-0 flex-1 flex-col gap-1 overflow-y-auto">
+        {mainNavLinks.map(renderNavItem)}
+      </div>
 
-      {showAiUsageWidget && <AiUsageWidget initialChartView={initialAiUsageChartView} />}
-      {settingsLink && renderNavItem(settingsLink)}
+      <div className="mt-2 flex shrink-0 flex-col gap-1">
+        {showAiUsageWidget && <AiUsageWidget initialChartView={initialAiUsageChartView} />}
+        {settingsLink && renderNavItem(settingsLink)}
+      </div>
 
       <DevPanelModal open={devPanelOpen} onClose={() => setDevPanelOpen(false)} />
     </nav>

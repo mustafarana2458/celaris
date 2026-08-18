@@ -32,7 +32,7 @@ export function DashboardShell({
     <InactivityProvider>
       <BreadcrumbProvider>
         <div className="flex min-h-screen bg-slate-50 dark:bg-slate-900">
-          <aside className="hidden w-64 shrink-0 border-r border-slate-200 bg-white md:block dark:border-slate-700 dark:bg-slate-800">
+          <aside className="sticky top-0 hidden h-screen w-64 shrink-0 overflow-hidden border-r border-slate-200 bg-white md:block dark:border-slate-700 dark:bg-slate-800">
             <Sidebar showAiUsageWidget={showAiUsageWidget} initialAiUsageChartView={initialAiUsageChartView} />
           </aside>
 
@@ -42,7 +42,7 @@ export function DashboardShell({
                 className="absolute inset-0 bg-slate-900/40 dark:bg-slate-950/60"
                 onClick={() => setMobileOpen(false)}
               />
-              <aside className="absolute inset-y-0 left-0 w-64 bg-white shadow-xl dark:bg-slate-800">
+              <aside className="absolute inset-y-0 left-0 w-64 overflow-hidden bg-white shadow-xl dark:bg-slate-800">
                 <Sidebar showAiUsageWidget={showAiUsageWidget} initialAiUsageChartView={initialAiUsageChartView} />
               </aside>
             </div>
