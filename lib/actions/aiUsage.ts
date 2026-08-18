@@ -1,5 +1,6 @@
 "use server";
 
+import { revalidatePath } from "next/cache";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
@@ -7,6 +8,9 @@ import type { AiActionType } from "@/lib/aiCreditsCore";
 import type { AiUsageChartView } from "@/lib/types";
 
 type WorkspaceCtx = { ok: true; supabase: SupabaseClient; workspaceId: string } | { ok: false; error: string };
+type WorkspaceCtxWithRole =
+  | { ok: true; supabase: SupabaseClient; workspaceId: string; role: string }
+  | { ok: false; error: string };
 
 async function requireWorkspaceId(): Promise<WorkspaceCtx> {
   const supabase = await createClient();
@@ -20,6 +24,20 @@ async function requireWorkspaceId(): Promise<WorkspaceCtx> {
   if (!workspace) return { ok: false, error: "No workspace found for this account." };
 
   return { ok: true, supabase, workspaceId: workspace.id };
+}
+
+async function requireWorkspaceIdWithRole(): Promise<WorkspaceCtxWithRole> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) return { ok: false, error: "Not authenticated." };
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+  if (!workspace) return { ok: false, error: "No workspace found for this account." };
+
+  return { ok: true, supabase, workspaceId: workspace.id, role: workspace.role };
 }
 
 export type AiUsageChartPoint = { label: string; credits: number };
@@ -98,37 +116,64 @@ export async function getAiUsageChart(view: AiUsageChartView): Promise<AiUsageCh
 }
 
 export type AiUsageLogRow = { id: string; actionType: AiActionType | string; cost: number; createdAt: string };
-export type AiUsageLogPageResult = { rows: AiUsageLogRow[]; hasMore: boolean } | { error: string };
+export type AiUsageLogPageResult = { rows: AiUsageLogRow[]; total: number } | { error: string };
 
-const LOG_PAGE_SIZE = 25;
+const LOG_PAGE_SIZE = 10;
 
-// Whole-workspace log, newest first -- see getAiUsageChart's doc comment for
-// why this isn't scoped to the calling user. Fetches one row past the page
-// size to know whether "Load More" should render, without a separate count
-// query.
-export async function getAiUsageLogPage(offset: number): Promise<AiUsageLogPageResult> {
+// Whole-workspace log, newest first, one page (10 rows) at a time -- see
+// getAiUsageChart's doc comment for why this isn't scoped to the calling
+// user. `page` is 0-indexed. Uses a Postgres exact count alongside the
+// range query so the UI can render "Page X of Y" without a second
+// round-trip.
+export async function getAiUsageLogPage(page: number): Promise<AiUsageLogPageResult> {
   const ctx = await requireWorkspaceId();
   if (!ctx.ok) return { error: ctx.error };
 
-  const { data, error } = await ctx.supabase
+  const from = page * LOG_PAGE_SIZE;
+  const to = from + LOG_PAGE_SIZE - 1;
+
+  const { data, error, count } = await ctx.supabase
     .from("ai_usage_log")
-    .select("id, action_type, cost, created_at")
+    .select("id, action_type, cost, created_at", { count: "exact" })
     .eq("workspace_id", ctx.workspaceId)
     .order("created_at", { ascending: false })
-    .range(offset, offset + LOG_PAGE_SIZE);
+    .range(from, to);
 
   if (error) return { error: error.message };
 
   const rows = (data as { id: string; action_type: string; cost: number; created_at: string }[] | null) ?? [];
-  const hasMore = rows.length > LOG_PAGE_SIZE;
 
   return {
-    rows: rows.slice(0, LOG_PAGE_SIZE).map((r) => ({
+    rows: rows.map((r) => ({
       id: r.id,
       actionType: r.action_type,
       cost: r.cost,
       createdAt: r.created_at,
     })),
-    hasMore,
+    total: count ?? 0,
   };
+}
+
+export type ClearAiUsageLogResult = { error?: string };
+
+// Deletes only the history rows (ai_usage_log) -- never touches
+// workspaces.ai_credits_used or the plan limit, so credit enforcement is
+// unaffected; this just clears what's shown in the detailed log (and, as a
+// side effect, the "Usage over time" chart and sidebar sparkline, since
+// both are aggregated straight from this same table). Gated to
+// owner/admin, consistent with other workspace-wide destructive settings
+// actions.
+export async function clearAiUsageLog(): Promise<ClearAiUsageLogResult> {
+  const ctx = await requireWorkspaceIdWithRole();
+  if (!ctx.ok) return { error: ctx.error };
+
+  if (ctx.role !== "owner" && ctx.role !== "admin") {
+    return { error: "Only workspace owners and admins can clear the usage log." };
+  }
+
+  const { error } = await ctx.supabase.from("ai_usage_log").delete().eq("workspace_id", ctx.workspaceId);
+  if (error) return { error: error.message };
+
+  revalidatePath("/dashboard/settings");
+  return {};
 }

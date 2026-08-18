@@ -3,9 +3,15 @@
 import { useEffect, useState, useTransition } from "react";
 import { useRouter } from "next/navigation";
 import { AI_ACTION_LABELS, CREDIT_COSTS, getRemainingCredits, type AiActionType } from "@/lib/aiCreditsCore";
-import { getAiUsageChart, getAiUsageLogPage, type AiUsageChartPoint, type AiUsageLogRow } from "@/lib/actions/aiUsage";
+import {
+  getAiUsageChart,
+  getAiUsageLogPage,
+  type AiUsageChartPoint,
+  type AiUsageLogRow,
+} from "@/lib/actions/aiUsage";
 import { setAiUsageChartView, setShowAiUsageWidget } from "@/lib/actions/userPreferences";
 import { AiUsageChart } from "@/components/dashboard/charts/AiUsageChart";
+import { ClearAiUsageLogDialog } from "./ClearAiUsageLogDialog";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { AiUsageChartView } from "@/lib/types";
 
@@ -29,6 +35,10 @@ const CREDIT_REFERENCE_ROWS: { label: string; actionTypes: AiActionType[]; pendi
   { label: "Parse Document / Extract Contact Info from Image/File", actionTypes: ["parse_document"], pending: true },
   { label: "Deep Financial & Revenue Forecasting Report", actionTypes: ["forecast_report"], pending: true },
 ];
+
+// Must match LOG_PAGE_SIZE in lib/actions/aiUsage.ts (not exported since
+// that's a "use server" file, which may only export async functions).
+const LOG_PAGE_SIZE = 10;
 
 const dateFormatter = new Intl.DateTimeFormat("en-US", {
   month: "short",
@@ -74,9 +84,15 @@ export function AiUsageTab({
   const [chartError, setChartError] = useState<string | null>(null);
 
   const [logRows, setLogRows] = useState<AiUsageLogRow[]>([]);
-  const [logHasMore, setLogHasMore] = useState(false);
+  const [logPage, setLogPage] = useState(0);
+  const [logTotal, setLogTotal] = useState(0);
   const [logError, setLogError] = useState<string | null>(null);
   const [logLoading, startLogTransition] = useTransition();
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
+  // Bumped after "Clear log" succeeds to force both the chart and the log
+  // page effects below to re-fetch (they're both derived from the same
+  // ai_usage_log table, so clearing it empties both).
+  const [refreshKey, setRefreshKey] = useState(0);
 
   const [costTableOpen, setCostTableOpen] = useState(false);
 
@@ -95,34 +111,27 @@ export function AiUsageTab({
     return () => {
       cancelled = true;
     };
-  }, [chartView]);
+  }, [chartView, refreshKey]);
 
   useEffect(() => {
     startLogTransition(async () => {
-      const result = await getAiUsageLogPage(0);
+      const result = await getAiUsageLogPage(logPage);
       if ("error" in result) {
         setLogError(result.error);
         return;
       }
       setLogError(null);
       setLogRows(result.rows);
-      setLogHasMore(result.hasMore);
+      setLogTotal(result.total);
     });
-    // Only the initial page load -- "Load More" below appends manually.
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [logPage, refreshKey]);
 
-  function loadMoreLog() {
-    startLogTransition(async () => {
-      const result = await getAiUsageLogPage(logRows.length);
-      if ("error" in result) {
-        setLogError(result.error);
-        return;
-      }
-      setLogError(null);
-      setLogRows((prev) => [...prev, ...result.rows]);
-      setLogHasMore(result.hasMore);
-    });
+  const logTotalPages = Math.max(1, Math.ceil(logTotal / LOG_PAGE_SIZE));
+
+  function handleLogCleared() {
+    setClearDialogOpen(false);
+    setLogPage(0);
+    setRefreshKey((k) => k + 1);
   }
 
   async function handleToggleWidget(checked: boolean) {
@@ -145,6 +154,7 @@ export function AiUsageTab({
   }
 
   const credits = workspace ? getRemainingCredits(workspace) : null;
+  const canClearLog = workspace?.role === "owner" || workspace?.role === "admin";
 
   return (
     <div className="flex flex-col gap-6">
@@ -220,10 +230,23 @@ export function AiUsageTab({
       </div>
 
       <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
-        <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Detailed usage log</h3>
-        <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
-          Every AI action across your workspace and its credit cost.
-        </p>
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h3 className="text-sm font-semibold text-slate-900 dark:text-slate-100">Detailed usage log</h3>
+            <p className="mt-1 text-xs text-slate-500 dark:text-slate-400">
+              Every AI action across your workspace and its credit cost.
+            </p>
+          </div>
+          {canClearLog && logRows.length > 0 && (
+            <button
+              type="button"
+              onClick={() => setClearDialogOpen(true)}
+              className="shrink-0 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-medium text-red-600 transition-colors hover:bg-red-50 dark:border-slate-600 dark:text-red-400 dark:hover:bg-red-950/30"
+            >
+              Clear logs
+            </button>
+          )}
+        </div>
 
         {logError && <p className="mt-3 text-sm text-red-600 dark:text-red-400">{logError}</p>}
 
@@ -261,19 +284,36 @@ export function AiUsageTab({
           </div>
         )}
 
-        {logHasMore && (
-          <div className="mt-4 flex justify-center">
+        {logTotal > 0 && (
+          <div className="mt-4 flex items-center justify-between gap-3">
             <button
               type="button"
-              onClick={loadMoreLog}
-              disabled={logLoading}
-              className="rounded-lg border border-slate-200 px-4 py-2 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:opacity-60 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+              onClick={() => setLogPage((p) => Math.max(0, p - 1))}
+              disabled={logLoading || logPage === 0}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
             >
-              {logLoading ? "Loading..." : "Load more"}
+              Previous
+            </button>
+            <span className="text-xs text-slate-500 dark:text-slate-400">
+              Page {logPage + 1} of {logTotalPages}
+            </span>
+            <button
+              type="button"
+              onClick={() => setLogPage((p) => Math.min(logTotalPages - 1, p + 1))}
+              disabled={logLoading || logPage >= logTotalPages - 1}
+              className="rounded-lg border border-slate-200 px-3 py-1.5 text-sm font-medium text-slate-600 transition-colors hover:bg-slate-50 disabled:cursor-not-allowed disabled:opacity-50 dark:border-slate-600 dark:text-slate-300 dark:hover:bg-slate-700"
+            >
+              Next
             </button>
           </div>
         )}
       </div>
+
+      <ClearAiUsageLogDialog
+        open={clearDialogOpen}
+        onClose={() => setClearDialogOpen(false)}
+        onCleared={handleLogCleared}
+      />
 
       <div className="rounded-2xl border border-slate-200 bg-white dark:border-slate-700 dark:bg-slate-800">
         <button
