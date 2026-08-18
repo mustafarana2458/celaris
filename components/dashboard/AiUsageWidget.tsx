@@ -7,14 +7,15 @@ import { getRemainingCredits } from "@/lib/aiCreditsCore";
 import { getAiUsageChart, type AiUsageChartPoint } from "@/lib/actions/aiUsage";
 import { setAiUsageChartView } from "@/lib/actions/userPreferences";
 import type { AiUsageChartView } from "@/lib/types";
-import { AiUsageChart } from "./charts/AiUsageChart";
+import { AiUsageSparkline } from "./charts/AiUsageSparkline";
 
 const AI_USAGE_HREF = "/dashboard/settings?tab=ai-usage";
 
-// Sidebar widget: balance bar + a tiny 7-day/6-month chart, click-through to
-// the settings AI Usage tab. Not a <Link> because the daily/monthly toggle
-// buttons need to sit inside it without nesting <button> inside <a> --
-// keyboard/click navigation on the outer card is done manually instead.
+// Sidebar widget: balance bar + a minimal 7-day/6-month sparkline,
+// click-through to the settings AI Usage tab. Not a <Link> because the
+// daily/monthly toggle buttons need to sit inside it without nesting
+// <button> inside <a> -- keyboard/click navigation on the outer card is
+// done manually instead.
 export function AiUsageWidget({ initialChartView }: { initialChartView: AiUsageChartView }) {
   const router = useRouter();
   const workspace = useWorkspace();
@@ -62,7 +63,7 @@ export function AiUsageWidget({ initialChartView }: { initialChartView: AiUsageC
       onClick={navigateToUsage}
       onKeyDown={handleCardKeyDown}
       aria-label="AI Usage -- view details in Settings"
-      className="mb-3 flex cursor-pointer flex-col gap-2 rounded-xl border border-slate-200 p-3 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40"
+      className="mt-3 mb-3 flex cursor-pointer flex-col gap-2 rounded-xl border border-slate-200 p-3 transition-colors hover:bg-slate-50 dark:border-slate-700 dark:hover:bg-slate-700/40"
     >
       <div className="flex items-center justify-between">
         <span className="text-xs font-medium text-slate-500 dark:text-slate-400">AI Usage</span>
@@ -92,9 +93,9 @@ export function AiUsageWidget({ initialChartView }: { initialChartView: AiUsageC
         </div>
       </div>
 
-      <div className="h-10">
+      <div className="h-11">
         {points ? (
-          <AiUsageChart data={points} compact />
+          <AiUsageSparkline data={points} />
         ) : (
           <div className="h-full animate-pulse rounded bg-slate-100 dark:bg-slate-700/50" />
         )}
