@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { Modal } from "@/components/ui/Modal";
 import { createCheckoutUrl, createSafepayCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
 import { detailsForVariant, type BillingInterval } from "@/lib/lemonSqueezy";
 import { tierAndIntervalForPlanId } from "@/lib/safepay";
@@ -84,10 +85,17 @@ export function BillingTab({
   );
 
   const [billing, setBilling] = useState<BillingInterval>(currentInterval ?? "monthly");
+  // Set when a plan card's Upgrade/Switch button is clicked -- opens the
+  // gateway-choice modal for that specific tier+interval. Cleared on
+  // close, on a successful LS checkout (new tab opened, nothing left to do
+  // on this page), or on a checkout error (falls back to the bottom error
+  // banner rather than an in-modal one). Not cleared on a successful
+  // Safepay checkout since that navigates the whole page away.
+  const [gatewayModalTarget, setGatewayModalTarget] = useState<{ tier: Plan; interval: BillingInterval } | null>(null);
   // Keyed "safepay-{tier}-{interval}" / "ls-{tier}-{interval}" rather than
-  // just "{tier}-{interval}" -- a plan card now offers both gateways, so
-  // the loading spinner needs to land on whichever button was actually
-  // clicked, not just whichever tier/interval.
+  // just "{tier}-{interval}" -- the modal offers both gateways for the same
+  // tier/interval, so the loading spinner needs to land on whichever
+  // button was actually clicked.
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -101,10 +109,12 @@ export function BillingTab({
     const result = await createCheckoutUrl(tier, interval);
     setCheckoutLoading(null);
     if (!result.ok) {
+      setGatewayModalTarget(null);
       setError(result.error);
       return;
     }
     window.open(result.url, "_blank", "noopener,noreferrer");
+    setGatewayModalTarget(null);
   }
 
   async function handleSafepayCheckout(tier: Plan, interval: BillingInterval) {
@@ -116,12 +126,14 @@ export function BillingTab({
     const result = await createSafepayCheckoutUrl(tier, interval);
     if (!result.ok) {
       setCheckoutLoading(null);
+      setGatewayModalTarget(null);
       setError(result.error);
       return;
     }
     // A real redirect, not a new tab -- Safepay's hosted checkout needs to
     // own the top-level navigation for its redirect_url/cancel_url round
     // trip back to /dashboard/settings?tab=billing&safepay=... to work.
+    // No need to clear gatewayModalTarget -- the page is navigating away.
     window.location.href = result.url;
   }
 
@@ -149,6 +161,20 @@ export function BillingTab({
 
   const periodEndLabel = formatDate(subscription?.current_period_end ?? null);
   const limit = getPlanLimit(workspace.plan);
+
+  const modalTierCard = gatewayModalTarget ? TIER_CARDS.find((t) => t.id === gatewayModalTarget.tier) : null;
+  const modalPrice =
+    gatewayModalTarget && modalTierCard
+      ? gatewayModalTarget.interval === "yearly"
+        ? modalTierCard.yearlyMonthlyPrice
+        : modalTierCard.monthlyPrice
+      : null;
+  const isSafepayLoading = gatewayModalTarget
+    ? checkoutLoading === `safepay-${gatewayModalTarget.tier}-${gatewayModalTarget.interval}`
+    : false;
+  const isLsModalLoading = gatewayModalTarget
+    ? checkoutLoading === `ls-${gatewayModalTarget.tier}-${gatewayModalTarget.interval}`
+    : false;
 
   return (
     <div className="flex flex-col gap-6">
@@ -277,7 +303,7 @@ export function BillingTab({
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Plans</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Upgrade or switch plans -- pay with Safepay (PKR) or an international card.
+              Upgrade or switch plans -- takes you to a secure checkout.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-600 dark:bg-slate-800/60">
@@ -311,11 +337,6 @@ export function BillingTab({
             const price = billing === "yearly" ? tier.yearlyMonthlyPrice : tier.monthlyPrice;
             const isCurrentTier = tier.id === currentTier;
             const isCurrentInterval = isCurrentTier && currentInterval === billing;
-            const actionVerb = isCurrentTier ? "Switch" : TIER_RANK[tier.id] > currentRank ? "Upgrade" : "Switch";
-            const safepayKey = `safepay-${tier.id}-${billing}`;
-            const lsKey = `ls-${tier.id}-${billing}`;
-            const isSafepayLoading = checkoutLoading === safepayKey;
-            const isLsLoading = checkoutLoading === lsKey;
 
             return (
               <div
@@ -342,33 +363,19 @@ export function BillingTab({
                     Current Plan
                   </span>
                 ) : (
-                  <div className="mt-auto flex flex-col gap-2">
-                    {/* Safepay is the recommended gateway (boss's call --
-                        "Preferred for Pakistan") -- primary button + badge,
-                        listed first. Lemon Squeezy stays fully functional
-                        as a lighter-weight secondary option underneath, not
-                        removed or degraded. */}
-                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                      Preferred for Pakistan
-                    </span>
-                    <Button
-                      type="button"
-                      variant="primary"
-                      loading={isSafepayLoading}
-                      disabled={checkoutLoading !== null}
-                      onClick={() => handleSafepayCheckout(tier.id, billing)}
-                    >
-                      {actionVerb} -- Pay with Safepay (PKR)
-                    </Button>
-                    <button
-                      type="button"
-                      disabled={checkoutLoading !== null}
-                      onClick={() => handleCheckout(tier.id, billing)}
-                      className="text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:text-slate-200"
-                    >
-                      {isLsLoading ? "Opening checkout..." : `${actionVerb} with card instead (international)`}
-                    </button>
-                  </div>
+                  <Button
+                    type="button"
+                    variant={isCurrentTier ? "secondary" : TIER_RANK[tier.id] > currentRank ? "primary" : "secondary"}
+                    className="mt-auto"
+                    disabled={checkoutLoading !== null}
+                    onClick={() => setGatewayModalTarget({ tier: tier.id, interval: billing })}
+                  >
+                    {isCurrentTier
+                      ? `Switch to ${billing === "yearly" ? "Yearly" : "Monthly"}`
+                      : TIER_RANK[tier.id] > currentRank
+                        ? "Upgrade"
+                        : "Switch"}
+                  </Button>
                 )}
               </div>
             );
@@ -380,6 +387,71 @@ export function BillingTab({
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
           {error}
         </div>
+      )}
+
+      {gatewayModalTarget && modalTierCard && (
+        <Modal
+          open
+          onClose={() => {
+            if (checkoutLoading === null) setGatewayModalTarget(null);
+          }}
+          title="Choose a payment method"
+        >
+          <div className="flex flex-col gap-4">
+            <p className="text-sm text-slate-500 dark:text-slate-400">
+              {modalTierCard.name} Plan -- {gatewayModalTarget.interval === "yearly" ? "Yearly" : "Monthly"}
+              {modalPrice !== null && <> (${modalPrice}/mo)</>}
+            </p>
+
+            <div className="flex flex-col gap-3 rounded-xl border border-accent bg-accent/5 p-4 dark:bg-accent/10">
+              <div className="flex items-center justify-between gap-2">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safepay</span>
+                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                  Preferred for Pakistan
+                </span>
+              </div>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                Pay in PKR via local cards, bank transfer, or wallets.
+              </p>
+              <Button
+                type="button"
+                variant="primary"
+                loading={isSafepayLoading}
+                disabled={checkoutLoading !== null}
+                onClick={() => handleSafepayCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
+              >
+                Pay with Safepay (PKR)
+              </Button>
+            </div>
+
+            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lemon Squeezy</span>
+              <p className="text-xs text-slate-500 dark:text-slate-400">
+                International card payments (USD).
+              </p>
+              <Button
+                type="button"
+                variant="secondary"
+                loading={isLsModalLoading}
+                disabled={checkoutLoading !== null}
+                onClick={() => handleCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
+              >
+                Pay with card (International)
+              </Button>
+            </div>
+
+            <div className="flex justify-end">
+              <Button
+                type="button"
+                variant="secondary"
+                disabled={checkoutLoading !== null}
+                onClick={() => setGatewayModalTarget(null)}
+              >
+                Cancel
+              </Button>
+            </div>
+          </div>
+        </Modal>
       )}
     </div>
   );
