@@ -143,8 +143,19 @@ export async function createSafepayCheckoutUrl(tier: Plan, interval: BillingInte
     url = await safepay.checkout.createSubscription({
       planId,
       reference: workspace.id,
-      cancelUrl: `${appUrl}/settings?tab=billing&safepay=cancel`,
-      redirectUrl: `${appUrl}/settings?tab=billing&safepay=success`,
+      // /settings doesn't exist as a route (404'd in testing) -- the real
+      // Settings page is /dashboard/settings. ?tab=billing does work as a
+      // deep link there: SettingsPageClient reads searchParams.get("tab")
+      // once on mount to seed its initial tab state (see
+      // app/dashboard/settings/SettingsPageClient.tsx), it's just that
+      // clicking between tabs afterward doesn't push the URL, which is why
+      // the address bar never shows ?tab= once the page is already open.
+      // ?safepay=success/cancel isn't read by anything yet (BillingTab
+      // doesn't consume it -- that's Phase 5), but Next.js ignores unknown
+      // query params, so it's a harmless forward-compatible signal for when
+      // that lands rather than something that could break routing now.
+      cancelUrl: `${appUrl}/dashboard/settings?tab=billing&safepay=cancel`,
+      redirectUrl: `${appUrl}/dashboard/settings?tab=billing&safepay=success`,
     });
   } catch (err) {
     console.error("[safepay checkout] createSubscription failed:", err);
