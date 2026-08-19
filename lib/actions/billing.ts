@@ -3,6 +3,7 @@
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { variantForTier, type BillingInterval } from "@/lib/lemonSqueezy";
+import { getSafepayClient, planIdForTier } from "@/lib/safepay";
 import type { Plan } from "@/lib/aiCreditsCore";
 
 export type CreateCheckoutResult = { ok: true; url: string } | { ok: false; error: string };
@@ -88,6 +89,74 @@ export async function createCheckoutUrl(tier: Plan, interval: BillingInterval): 
   const url = json.data?.attributes?.url;
   if (!url) {
     console.error("[lemonsqueezy checkout] response missing checkout URL", json);
+    return { ok: false, error: "Could not create checkout session." };
+  }
+
+  return { ok: true, url };
+}
+
+// Phase 2 (Safepay): builds a Safepay hosted subscription checkout URL for
+// the caller's current workspace. Uses checkout.createSubscription() rather
+// than the one-time checkout.create() since our plans are recurring
+// monthly/yearly PKR subscriptions -- createSubscription internally requests
+// an authorization token via authorization.create() and returns a signed
+// /subscribe URL (see node_modules/@sfpy/node-sdk/dist/resources/checkout.js),
+// so there's no need to do that two-step dance ourselves.
+//
+// workspace.id is passed as `reference`. The SDK appends it as a literal
+// `reference` query param on the generated checkout URL, and `reference` is
+// also a field on Safepay's canonical subscription resource shape
+// (SubscriptionProps in dist/types/subscription.d.ts -- the same shape
+// returned by subscription.cancel/pause/resume). Phase 3's webhook handler
+// should read this same field back out of the event payload to resolve which
+// workspace a subscription belongs to, the same way lib/subscriptionSync.ts
+// reads meta.custom_data.workspace_id for Lemon Squeezy.
+export async function createSafepayCheckoutUrl(tier: Plan, interval: BillingInterval): Promise<CreateCheckoutResult> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+  if (!user) return { ok: false, error: "Not signed in." };
+
+  const workspace = await getCurrentWorkspace(supabase, user.id);
+  if (!workspace) return { ok: false, error: "No workspace found." };
+
+  // Same role gate as createCheckoutUrl above.
+  if (workspace.role !== "owner" && workspace.role !== "admin") {
+    return { ok: false, error: "Only workspace owners/admins can manage billing." };
+  }
+
+  const planId = planIdForTier(tier, interval);
+  if (!planId) {
+    return { ok: false, error: `No Safepay plan configured for ${tier}/${interval}.` };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    console.error("[safepay checkout] NEXT_PUBLIC_APP_URL is not set -- cannot build redirect URLs.");
+    return { ok: false, error: "App URL is not configured." };
+  }
+
+  let url: string;
+  try {
+    const safepay = getSafepayClient();
+    url = await safepay.checkout.createSubscription({
+      planId,
+      reference: workspace.id,
+      cancelUrl: `${appUrl}/settings?tab=billing&safepay=cancel`,
+      redirectUrl: `${appUrl}/settings?tab=billing&safepay=success`,
+    });
+  } catch (err) {
+    console.error("[safepay checkout] createSubscription failed:", err);
+    return { ok: false, error: "Could not create checkout session." };
+  }
+
+  // createSubscription's internal .catch() resolves with the raw Error
+  // object from authorization.create() instead of rejecting (see
+  // checkout.js) -- its declared return type (Promise<string>) doesn't
+  // reflect that, so guard defensively rather than trusting the type.
+  if (typeof url !== "string" || !url) {
+    console.error("[safepay checkout] createSubscription resolved without a URL:", url);
     return { ok: false, error: "Could not create checkout session." };
   }
 
