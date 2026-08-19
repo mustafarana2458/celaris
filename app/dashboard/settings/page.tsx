@@ -3,6 +3,8 @@ import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireModuleAccess } from "@/lib/permissions";
 import { getRemainingCredits } from "@/lib/aiCreditsCore";
+import { detailsForVariant, type BillingInterval } from "@/lib/lemonSqueezy";
+import { tierAndIntervalForPlanId } from "@/lib/safepay";
 import { SettingsPageClient } from "./SettingsPageClient";
 import type { AiUsageChartView, UserProfile } from "@/lib/types";
 
@@ -86,6 +88,21 @@ export default async function SettingsPage() {
 
   const initialAiUsageChartView: AiUsageChartView = aiUsagePreference?.ai_usage_chart_view === "monthly" ? "monthly" : "daily";
 
+  // Derived here, server-side, rather than inside BillingTab: both
+  // detailsForVariant() and tierAndIntervalForPlanId() read plain
+  // (non-NEXT_PUBLIC_) env vars, which are stripped from the client
+  // bundle. BillingTab is a "use client" component -- calling either
+  // function there would silently look up against empty maps in the
+  // browser and always return null, which is exactly why the current-plan
+  // card never matched its interval and kept showing a Switch button
+  // instead of "Current Plan". Computing it here, in a Server Component,
+  // and passing the result down as a plain value sidesteps that entirely.
+  const subscriptionInterval: BillingInterval | null = subscriptionRow
+    ? subscriptionRow.provider === "safepay"
+      ? (tierAndIntervalForPlanId(subscriptionRow.plan_id)?.interval ?? null)
+      : (detailsForVariant(subscriptionRow.variant_id)?.interval ?? null)
+    : null;
+
   return (
     <SettingsPageClient
       email={user.email ?? ""}
@@ -95,6 +112,7 @@ export default async function SettingsPage() {
       initialShowAiUsageWidget={aiUsagePreference?.show_ai_usage_widget ?? true}
       initialAiUsageChartView={initialAiUsageChartView}
       subscription={subscriptionRow ?? null}
+      subscriptionInterval={subscriptionInterval}
       credits={workspace ? getRemainingCredits(workspace) : null}
     />
   );

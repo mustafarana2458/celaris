@@ -5,8 +5,7 @@ import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Modal } from "@/components/ui/Modal";
 import { createCheckoutUrl, createSafepayCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
-import { detailsForVariant, type BillingInterval } from "@/lib/lemonSqueezy";
-import { tierAndIntervalForPlanId } from "@/lib/safepay";
+import type { BillingInterval } from "@/lib/lemonSqueezy";
 import { getPlanLimit, type Plan, type RemainingCredits } from "@/lib/aiCreditsCore";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { WorkspaceSubscription } from "../page";
@@ -51,10 +50,12 @@ function formatDate(iso: string | null): string | null {
 export function BillingTab({
   workspace,
   subscription,
+  subscriptionInterval,
   credits,
 }: {
   workspace: CurrentWorkspace | null;
   subscription: WorkspaceSubscription | null;
+  subscriptionInterval: BillingInterval | null;
   credits: RemainingCredits | null;
 }) {
   const currentTier: Plan | null =
@@ -67,16 +68,13 @@ export function BillingTab({
   // status/interval/manage-subscription purposes. Only "expired" means
   // there's genuinely nothing to manage.
   const hasManageableSubscription = subscription !== null && subscription.status !== "expired";
-  // Interval is derived differently per gateway -- LS rows carry a
-  // variant_id (one of 6 LS variants, decoded via detailsForVariant()),
-  // Safepay rows carry a plan_id (one of 6 Safepay plans, decoded via
-  // tierAndIntervalForPlanId()). subscription.provider says which decoder
-  // applies; the other gateway's id column is null on that row.
-  const currentInterval: BillingInterval | null = subscription
-    ? subscription.provider === "safepay"
-      ? (tierAndIntervalForPlanId(subscription.plan_id)?.interval ?? null)
-      : (detailsForVariant(subscription.variant_id)?.interval ?? null)
-    : null;
+  // Passed down from the settings page.tsx Server Component rather than
+  // derived here -- detailsForVariant()/tierAndIntervalForPlanId() read
+  // plain (non-NEXT_PUBLIC_) env vars, which don't exist in the client
+  // bundle. Calling them from this "use client" component would always
+  // hit an empty lookup map and return null, which is exactly why the
+  // current-plan card previously never matched on interval.
+  const currentInterval = subscriptionInterval;
 
   const searchParams = useSearchParams();
   const requestedSafepayNotice = searchParams.get("safepay");

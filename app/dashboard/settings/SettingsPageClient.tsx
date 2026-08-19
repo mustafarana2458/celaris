@@ -5,6 +5,7 @@ import { useSearchParams } from "next/navigation";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { AiUsageChartView, UserProfile } from "@/lib/types";
 import type { RemainingCredits } from "@/lib/aiCreditsCore";
+import type { BillingInterval } from "@/lib/lemonSqueezy";
 import type { WorkspaceBranding, WorkspaceSubscription } from "./page";
 import { ProfileTab } from "./tabs/ProfileTab";
 import { WorkspaceTab } from "./tabs/WorkspaceTab";
@@ -82,6 +83,7 @@ export function SettingsPageClient({
   initialShowAiUsageWidget,
   initialAiUsageChartView,
   subscription,
+  subscriptionInterval,
   credits,
 }: {
   email: string;
@@ -91,6 +93,7 @@ export function SettingsPageClient({
   initialShowAiUsageWidget: boolean;
   initialAiUsageChartView: AiUsageChartView;
   subscription: WorkspaceSubscription | null;
+  subscriptionInterval: BillingInterval | null;
   credits: RemainingCredits | null;
 }) {
   const isOwner = workspace?.role === "owner";
@@ -157,7 +160,12 @@ export function SettingsPageClient({
           )}
           {activeTab === "integrations" && <IntegrationsTab />}
           {activeTab === "billing" && (
-            <BillingTab workspace={workspace} subscription={subscription} credits={credits} />
+            <BillingTab
+              workspace={workspace}
+              subscription={subscription}
+              subscriptionInterval={subscriptionInterval}
+              credits={credits}
+            />
           )}
           {activeTab === "about" && <AboutTab />}
         </div>
