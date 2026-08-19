@@ -1,3 +1,4 @@
+import { createHmac } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { getSafepayClient } from "@/lib/safepay";
 
@@ -54,6 +55,42 @@ export async function POST(request: NextRequest) {
   }
 
   const signatureValue = request.headers.get(SIGNATURE_HEADER);
+
+  // --- TEMPORARY DIAGNOSTIC (Phase 3b-fix) ---
+  // The real sandbox payload has a top-level `data` field (matching what
+  // the SDK's verify.webhook() assumes -- see the header comment), yet
+  // verification still fails on every delivery. That means the SDK's own
+  // re-serialized hash doesn't byte-match whatever Safepay actually signed
+  // -- likely because Safepay signs the exact raw request bytes, while the
+  // SDK hashes JSON.stringify() of a re-parsed object, which is not
+  // guaranteed to reproduce the original bytes (key order, spacing, etc.).
+  // Logging several candidate HMAC-SHA512 digests next to the received
+  // signature so we can see which one (if any) matches on the next
+  // delivery, then lock in the correct method and delete this block.
+  // Sandbox test data only -- safe to log the raw body here.
+  const webhookSecret = process.env.SAFEPAY_WEBHOOK_SECRET;
+  if (!webhookSecret) {
+    console.error("[safepay webhook][DIAGNOSTIC] SAFEPAY_WEBHOOK_SECRET is not set -- cannot compute candidates.");
+  } else {
+    // Deliberately reading SAFEPAY_WEBHOOK_SECRET directly here (the
+    // "shared secret" from Safepay's Endpoints page), NOT SAFEPAY_SECRET_KEY
+    // (the API/v1Secret) or SAFEPAY_PUBLIC_KEY (the apiKey) -- same secret
+    // getSafepayClient() wires up as `webhookSecret` in lib/safepay.ts, so
+    // there's no ambiguity about which of the three keys this is.
+    const dataField = typeof payload === "object" && payload !== null ? (payload as Record<string, unknown>).data : undefined;
+
+    const candidateRawBody = createHmac("sha512", webhookSecret).update(rawBody, "utf8").digest("hex");
+    const candidateDataField = createHmac("sha512", webhookSecret).update(JSON.stringify(dataField)).digest("hex");
+    const candidateWholeEnvelope = createHmac("sha512", webhookSecret).update(JSON.stringify(payload)).digest("hex");
+
+    console.log("[safepay webhook][DIAGNOSTIC] raw body (verbatim):", rawBody);
+    console.log(`[safepay webhook][DIAGNOSTIC] received "${SIGNATURE_HEADER}":`, signatureValue);
+    console.log("[safepay webhook][DIAGNOSTIC] secret used: process.env.SAFEPAY_WEBHOOK_SECRET (Endpoints-page shared secret)");
+    console.log("[safepay webhook][DIAGNOSTIC] candidate a) HMAC-SHA512(raw body verbatim):         ", candidateRawBody);
+    console.log("[safepay webhook][DIAGNOSTIC] candidate b) HMAC-SHA512(JSON.stringify(body.data)): ", candidateDataField);
+    console.log("[safepay webhook][DIAGNOSTIC] candidate c) HMAC-SHA512(JSON.stringify(whole body)):", candidateWholeEnvelope);
+  }
+  // --- END TEMPORARY DIAGNOSTIC ---
 
   let verified = false;
   try {
