@@ -8,7 +8,12 @@ import type { AiUsageChartView, UserProfile } from "@/lib/types";
 
 export type WorkspaceSubscription = {
   plan_tier: "solo" | "team" | "scale";
-  variant_id: string;
+  // Nullable now that Safepay rows share this table (see
+  // sql/subscriptions_schema.sql's Safepay migration) -- a Safepay row's
+  // interval is derived from plan_id via tierAndIntervalForPlanId() instead.
+  variant_id: string | null;
+  plan_id: string | null;
+  provider: "lemonsqueezy" | "safepay";
   status: string;
   current_period_end: string | null;
 };
@@ -63,13 +68,15 @@ export default async function SettingsPage() {
       // Most recently touched row -- a workspace can accumulate multiple
       // historical subscriptions (see sql/subscriptions_schema.sql) if it
       // was cancelled and later resubscribed under a new
-      // lemon_subscription_id; the latest one is the one BillingTab cares
-      // about. RLS (subscriptions_select_workspace_members) allows any
-      // member to read this, same as workspaceRow above.
+      // lemon_subscription_id/safepay_subscription_id (or switched
+      // gateways entirely); the latest one is the one BillingTab cares
+      // about, regardless of which provider it's on. RLS
+      // (subscriptions_select_workspace_members) allows any member to
+      // read this, same as workspaceRow above.
       workspace
         ? supabase
             .from("subscriptions")
-            .select("plan_tier, variant_id, status, current_period_end")
+            .select("plan_tier, variant_id, plan_id, provider, status, current_period_end")
             .eq("workspace_id", workspace.id)
             .order("updated_at", { ascending: false })
             .limit(1)

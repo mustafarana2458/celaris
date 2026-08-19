@@ -1,9 +1,11 @@
 "use client";
 
 import { useState } from "react";
+import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
-import { createCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
+import { createCheckoutUrl, createSafepayCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
 import { detailsForVariant, type BillingInterval } from "@/lib/lemonSqueezy";
+import { tierAndIntervalForPlanId } from "@/lib/safepay";
 import { getPlanLimit, type Plan, type RemainingCredits } from "@/lib/aiCreditsCore";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { WorkspaceSubscription } from "../page";
@@ -23,6 +25,7 @@ const STATUS_STYLES: Record<string, string> = {
   past_due: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
   unpaid: "bg-red-100 text-red-700 dark:bg-red-900/40 dark:text-red-400",
   paused: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
+  incomplete: "bg-slate-100 text-slate-600 dark:bg-slate-700 dark:text-slate-300",
 };
 
 const STATUS_LABELS: Record<string, string> = {
@@ -33,6 +36,10 @@ const STATUS_LABELS: Record<string, string> = {
   unpaid: "Unpaid",
   paused: "Paused",
   expired: "Expired",
+  // Safepay-only pre-payment status -- a checkout that was started but
+  // never completed (see lib/safepaySubscriptionSync.ts's
+  // subscription.created handling).
+  incomplete: "Incomplete",
 };
 
 function formatDate(iso: string | null): string | null {
@@ -53,23 +60,41 @@ export function BillingTab({
     workspace && workspace.plan in TIER_RANK ? (workspace.plan as Plan) : null;
   const currentRank = currentTier ? TIER_RANK[currentTier] : 0;
 
-  // A cancelled-but-not-yet-expired row still grants access (Lemon Squeezy
-  // keeps it around until current_period_end -- see lib/subscriptionSync.ts),
-  // so it's still "the subscription" for status/interval/manage-subscription
-  // purposes. Only "expired" means there's genuinely nothing to manage.
+  // A cancelled-but-not-yet-expired row still grants access (both gateways
+  // keep it around until current_period_end -- see lib/subscriptionSync.ts
+  // / lib/safepaySubscriptionSync.ts), so it's still "the subscription" for
+  // status/interval/manage-subscription purposes. Only "expired" means
+  // there's genuinely nothing to manage.
   const hasManageableSubscription = subscription !== null && subscription.status !== "expired";
+  // Interval is derived differently per gateway -- LS rows carry a
+  // variant_id (one of 6 LS variants, decoded via detailsForVariant()),
+  // Safepay rows carry a plan_id (one of 6 Safepay plans, decoded via
+  // tierAndIntervalForPlanId()). subscription.provider says which decoder
+  // applies; the other gateway's id column is null on that row.
   const currentInterval: BillingInterval | null = subscription
-    ? (detailsForVariant(subscription.variant_id)?.interval ?? null)
+    ? subscription.provider === "safepay"
+      ? (tierAndIntervalForPlanId(subscription.plan_id)?.interval ?? null)
+      : (detailsForVariant(subscription.variant_id)?.interval ?? null)
     : null;
 
+  const searchParams = useSearchParams();
+  const requestedSafepayNotice = searchParams.get("safepay");
+  const [safepayNotice, setSafepayNotice] = useState<"success" | "cancel" | null>(
+    requestedSafepayNotice === "success" || requestedSafepayNotice === "cancel" ? requestedSafepayNotice : null
+  );
+
   const [billing, setBilling] = useState<BillingInterval>(currentInterval ?? "monthly");
+  // Keyed "safepay-{tier}-{interval}" / "ls-{tier}-{interval}" rather than
+  // just "{tier}-{interval}" -- a plan card now offers both gateways, so
+  // the loading spinner needs to land on whichever button was actually
+  // clicked, not just whichever tier/interval.
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function handleCheckout(tier: Plan, interval: BillingInterval) {
     if (checkoutLoading) return;
-    const key = `${tier}-${interval}`;
+    const key = `ls-${tier}-${interval}`;
     setCheckoutLoading(key);
     setError(null);
 
@@ -80,6 +105,24 @@ export function BillingTab({
       return;
     }
     window.open(result.url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleSafepayCheckout(tier: Plan, interval: BillingInterval) {
+    if (checkoutLoading) return;
+    const key = `safepay-${tier}-${interval}`;
+    setCheckoutLoading(key);
+    setError(null);
+
+    const result = await createSafepayCheckoutUrl(tier, interval);
+    if (!result.ok) {
+      setCheckoutLoading(null);
+      setError(result.error);
+      return;
+    }
+    // A real redirect, not a new tab -- Safepay's hosted checkout needs to
+    // own the top-level navigation for its redirect_url/cancel_url round
+    // trip back to /dashboard/settings?tab=billing&safepay=... to work.
+    window.location.href = result.url;
   }
 
   async function handleManageSubscription() {
@@ -116,6 +159,33 @@ export function BillingTab({
         </p>
       </div>
 
+      {safepayNotice === "success" && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+          <span>Payment successful -- your plan has been updated.</span>
+          <button
+            type="button"
+            onClick={() => setSafepayNotice(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+          >
+            ×
+          </button>
+        </div>
+      )}
+      {safepayNotice === "cancel" && (
+        <div className="flex items-center justify-between gap-3 rounded-lg bg-slate-100 p-3 text-sm text-slate-600 dark:bg-slate-700/50 dark:text-slate-300">
+          <span>Checkout cancelled -- no changes were made.</span>
+          <button
+            type="button"
+            onClick={() => setSafepayNotice(null)}
+            aria-label="Dismiss"
+            className="shrink-0 text-slate-500 hover:text-slate-700 dark:text-slate-400 dark:hover:text-slate-200"
+          >
+            ×
+          </button>
+        </div>
+      )}
+
       <div className="rounded-2xl border border-accent bg-white p-6 ring-2 ring-accent/20 dark:bg-slate-800">
         <div className="flex flex-col justify-between gap-4 sm:flex-row sm:items-start">
           <div>
@@ -140,12 +210,29 @@ export function BillingTab({
                   ? "Current plan"
                   : "Upgrade below to unlock more AI credits and team seats."}
             </p>
+            {subscription && (
+              <p className="mt-0.5 text-xs text-slate-400 dark:text-slate-500">
+                Paid via {subscription.provider === "safepay" ? "Safepay" : "Lemon Squeezy"}
+              </p>
+            )}
           </div>
-          {hasManageableSubscription && (
-            <Button type="button" onClick={handleManageSubscription} loading={portalLoading}>
-              Manage Subscription
-            </Button>
-          )}
+          {hasManageableSubscription &&
+            (subscription?.provider === "safepay" ? (
+              // No Safepay-side customer portal exists in this integration
+              // yet (getCustomerPortalUrl in lib/actions/billing.ts is
+              // Lemon-Squeezy-only -- calling it for a Safepay subscription
+              // would silently manage the wrong gateway, or error, since it
+              // looks up lemon_subscription_id). Until a Safepay cancel/
+              // manage action exists, surface this as a note rather than a
+              // button that does the wrong thing.
+              <p className="max-w-[16rem] text-right text-xs text-slate-400 dark:text-slate-500">
+                Managed via Safepay -- contact support to change or cancel.
+              </p>
+            ) : (
+              <Button type="button" onClick={handleManageSubscription} loading={portalLoading}>
+                Manage Subscription
+              </Button>
+            ))}
         </div>
 
         <dl className="mt-6 grid grid-cols-2 gap-4 border-t border-slate-100 pt-6 sm:grid-cols-3 dark:border-slate-700">
@@ -190,7 +277,7 @@ export function BillingTab({
           <div>
             <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Plans</h3>
             <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
-              Upgrade or switch plans -- takes you to a secure Lemon Squeezy checkout.
+              Upgrade or switch plans -- pay with Safepay (PKR) or an international card.
             </p>
           </div>
           <div className="flex shrink-0 items-center gap-1 rounded-full border border-slate-200 bg-slate-50 p-1 dark:border-slate-600 dark:bg-slate-800/60">
@@ -224,8 +311,11 @@ export function BillingTab({
             const price = billing === "yearly" ? tier.yearlyMonthlyPrice : tier.monthlyPrice;
             const isCurrentTier = tier.id === currentTier;
             const isCurrentInterval = isCurrentTier && currentInterval === billing;
-            const key = `${tier.id}-${billing}`;
-            const isLoading = checkoutLoading === key;
+            const actionVerb = isCurrentTier ? "Switch" : TIER_RANK[tier.id] > currentRank ? "Upgrade" : "Switch";
+            const safepayKey = `safepay-${tier.id}-${billing}`;
+            const lsKey = `ls-${tier.id}-${billing}`;
+            const isSafepayLoading = checkoutLoading === safepayKey;
+            const isLsLoading = checkoutLoading === lsKey;
 
             return (
               <div
@@ -252,20 +342,33 @@ export function BillingTab({
                     Current Plan
                   </span>
                 ) : (
-                  <Button
-                    type="button"
-                    variant={isCurrentTier ? "secondary" : TIER_RANK[tier.id] > currentRank ? "primary" : "secondary"}
-                    className="mt-auto"
-                    loading={isLoading}
-                    disabled={checkoutLoading !== null}
-                    onClick={() => handleCheckout(tier.id, billing)}
-                  >
-                    {isCurrentTier
-                      ? `Switch to ${billing === "yearly" ? "Yearly" : "Monthly"}`
-                      : TIER_RANK[tier.id] > currentRank
-                        ? "Upgrade"
-                        : "Switch"}
-                  </Button>
+                  <div className="mt-auto flex flex-col gap-2">
+                    {/* Safepay is the recommended gateway (boss's call --
+                        "Preferred for Pakistan") -- primary button + badge,
+                        listed first. Lemon Squeezy stays fully functional
+                        as a lighter-weight secondary option underneath, not
+                        removed or degraded. */}
+                    <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
+                      Preferred for Pakistan
+                    </span>
+                    <Button
+                      type="button"
+                      variant="primary"
+                      loading={isSafepayLoading}
+                      disabled={checkoutLoading !== null}
+                      onClick={() => handleSafepayCheckout(tier.id, billing)}
+                    >
+                      {actionVerb} -- Pay with Safepay (PKR)
+                    </Button>
+                    <button
+                      type="button"
+                      disabled={checkoutLoading !== null}
+                      onClick={() => handleCheckout(tier.id, billing)}
+                      className="text-xs font-medium text-slate-500 underline-offset-2 hover:text-slate-700 hover:underline disabled:cursor-not-allowed disabled:opacity-60 dark:text-slate-400 dark:hover:text-slate-200"
+                    >
+                      {isLsLoading ? "Opening checkout..." : `${actionVerb} with card instead (international)`}
+                    </button>
+                  </div>
                 )}
               </div>
             );
