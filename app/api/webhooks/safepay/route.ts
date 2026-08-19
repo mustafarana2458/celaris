@@ -1,9 +1,15 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
+import { applySafepaySubscriptionUpdate } from "@/lib/safepaySubscriptionSync";
 
-// Safepay webhook receiver -- Phase 3b-fix: verify + log only, no DB writes
-// yet. Signature verification is a manual raw-body HMAC-SHA512 compare, NOT
-// the SDK's verify.webhook(). That method hashes JSON.stringify(body.data)
+// Safepay webhook receiver. Phase 3b-fix built signature verification;
+// Phase 3c (this file, now) adds the actual DB sync -- verified events are
+// handed to lib/safepaySubscriptionSync.ts, which writes to subscriptions +
+// workspaces via the service-role client (no user session exists for a
+// webhook). Signature verification below is unchanged from Phase 3b-fix.
+//
+// Verification is a manual raw-body HMAC-SHA512 compare, NOT the SDK's
+// verify.webhook(). That method hashes JSON.stringify(body.data)
 // (a re-parsed object, re-serialized) rather than the exact bytes Safepay
 // signed -- confirmed wrong empirically: across 4 real sandbox deliveries,
 // the received x-sfpy-signature only ever matched HMAC-SHA512 of the raw
@@ -90,14 +96,6 @@ export async function POST(request: NextRequest) {
   // "subscription.created" / "subscription.payment.succeeded") and
   // `merchant_api_key` live at the top level; the subscription resource
   // itself (id, status, plan_id, ...) lives under `data`.
-  //
-  // Lifecycle note for the next phase (Phase 3c, not implemented here):
-  // subscription.created fires with data.status "INCOMPLETE" before any
-  // payment has been taken; subscription.payment.succeeded fires once the
-  // charge clears, with data.status "ACTIVE". Granting/upgrading the plan
-  // needs to happen on that ACTIVE transition, not on "created" -- otherwise
-  // a workspace would be upgraded for a subscription that never actually
-  // gets paid.
   if (typeof payload === "object" && payload !== null) {
     const p = payload as Record<string, unknown>;
     const data = (p.data ?? {}) as Record<string, unknown>;
@@ -108,6 +106,29 @@ export async function POST(request: NextRequest) {
     });
   } else {
     console.warn("[safepay webhook] verified but payload is not an object:", payload);
+  }
+
+  // applySafepaySubscriptionUpdate() itself filters to the handled
+  // subscription-scoped events (subscription.created/.payment.succeeded/
+  // .canceled/.unpaid/.ended) and no-ops (ok:true, skipped:"unhandled
+  // event: ...") on anything else, including "payment.succeeded" (the
+  // non-subscription-scoped, tracker-based event) -- so there's no separate
+  // event-name filter here; that would just duplicate the one source of
+  // truth for which events matter.
+  const result = await applySafepaySubscriptionUpdate(payload);
+
+  if (!result.ok) {
+    // A genuine write failure (transient DB error, etc.) -- 500 so Safepay
+    // retries. Safe to retry: the grant path's upsert keys off
+    // safepay_subscription_id and only re-grants credits when the billing
+    // period actually changed, so a redelivery of the same event can't
+    // double-charge or double-reset anything.
+    console.error(`[safepay webhook] sync failed for event, will let Safepay retry: ${result.error}`);
+    return NextResponse.json({ error: "Sync failed." }, { status: 500 });
+  }
+
+  if (result.skipped) {
+    console.log(`[safepay webhook] event acknowledged, no sync performed: ${result.skipped}`);
   }
 
   return NextResponse.json({ received: true }, { status: 200 });
