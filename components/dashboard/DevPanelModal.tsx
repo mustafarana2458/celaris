@@ -4,6 +4,7 @@ import { useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import {
+  createSafepayTestCheckout,
   createTestCheckout,
   getAiProviderMode,
   getWorkspacePlan,
@@ -21,6 +22,16 @@ const CHECKOUT_OPTIONS: { tier: "solo" | "team" | "scale"; interval: "monthly" |
   { tier: "scale", interval: "monthly", label: "Scale / Monthly" },
   { tier: "scale", interval: "yearly", label: "Scale / Yearly" },
 ];
+
+// Phase 4: a single fixed tier/interval, not a full grid like
+// CHECKOUT_OPTIONS above -- this button exists purely to prove the
+// checkout -> webhook -> DB sync round trip works end-to-end with a real
+// `reference`, not to be a usable plan picker (that's Phase 5's BillingTab).
+const SAFEPAY_CHECKOUT_OPTION: { tier: "solo"; interval: "monthly"; label: string } = {
+  tier: "solo",
+  interval: "monthly",
+  label: "Solo / Monthly (PKR, Safepay)",
+};
 
 const MODE_OPTIONS: { value: AiProviderMode; label: string; description: string }[] = [
   { value: "auto", label: "Auto", description: "Groq (GPT OSS 120B) first, falls back to Mistral automatically." },
@@ -45,6 +56,7 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
   const [switchingTo, setSwitchingTo] = useState<AiProviderMode | null>(null);
   const [switchingPlanTo, setSwitchingPlanTo] = useState<string | null>(null);
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
+  const [safepayCheckoutLoading, setSafepayCheckoutLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   function handleClose() {
@@ -57,6 +69,7 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
     setSwitchingTo(null);
     setSwitchingPlanTo(null);
     setCheckoutLoading(null);
+    setSafepayCheckoutLoading(false);
     onClose();
   }
 
@@ -126,6 +139,23 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
       return;
     }
     window.open(result.url, "_blank", "noopener,noreferrer");
+  }
+
+  async function handleSafepayTestCheckout() {
+    if (!verifiedPin || safepayCheckoutLoading) return;
+    setSafepayCheckoutLoading(true);
+    setError(null);
+
+    const result = await createSafepayTestCheckout(SAFEPAY_CHECKOUT_OPTION.tier, SAFEPAY_CHECKOUT_OPTION.interval, verifiedPin);
+    if (!result.ok || !result.url) {
+      setSafepayCheckoutLoading(false);
+      setError(result.error ?? "Access denied.");
+      return;
+    }
+    // A real redirect, not a new tab like the LS button above -- Safepay's
+    // hosted checkout needs to be the top-level navigation for its own
+    // redirect_url/cancel_url round trip back to us to work as expected.
+    window.location.href = result.url;
   }
 
   return (
@@ -260,6 +290,23 @@ export function DevPanelModal({ open, onClose }: { open: boolean; onClose: () =>
               );
             })}
           </div>
+          <p className="mt-2 text-sm text-slate-500 dark:text-slate-400">
+            Test Safepay checkout
+            <span className="ml-1 font-normal text-slate-400 dark:text-slate-500">
+              (Phase 4 -- redirects to a real Safepay sandbox checkout, not wired into Billing yet)
+            </span>
+          </p>
+          <button
+            type="button"
+            onClick={handleSafepayTestCheckout}
+            disabled={safepayCheckoutLoading}
+            className="flex items-center justify-between gap-2 rounded-lg border border-slate-200 px-3.5 py-2.5 text-left text-sm font-medium text-slate-900 transition-colors hover:border-slate-300 disabled:cursor-not-allowed disabled:opacity-60 dark:border-slate-600 dark:text-slate-100 dark:hover:border-slate-500"
+          >
+            {SAFEPAY_CHECKOUT_OPTION.label}
+            {safepayCheckoutLoading && (
+              <span className="h-3.5 w-3.5 shrink-0 animate-spin rounded-full border-2 border-slate-300 border-t-accent dark:border-slate-600" />
+            )}
+          </button>
           {error && (
             <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
               {error}

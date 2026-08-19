@@ -4,7 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { fetchModeFromDb, invalidateProviderModeCache, type AiProviderMode } from "@/lib/groq";
-import { createCheckoutUrl } from "@/lib/actions/billing";
+import { createCheckoutUrl, createSafepayCheckoutUrl } from "@/lib/actions/billing";
 import type { Plan } from "@/lib/aiCreditsCore";
 import type { BillingInterval } from "@/lib/lemonSqueezy";
 
@@ -146,6 +146,29 @@ export async function createTestCheckout(tier: string, interval: string, pin: st
   if (!access.ok) return { ok: false, error: ACCESS_DENIED };
 
   const result = await createCheckoutUrl(tier as Plan, interval as BillingInterval);
+  if (!result.ok) return { ok: false, error: result.error };
+
+  return { ok: true, url: result.url };
+}
+
+// Phase 4 (Safepay) test entry point: builds a real Safepay hosted
+// subscription checkout URL for the current workspace (via
+// createSafepayCheckoutUrl in lib/actions/billing.ts), gated behind the
+// same PIN + owner/admin check as the LS equivalent above. Exists so the
+// checkout -> webhook -> DB sync flow (lib/safepaySubscriptionSync.ts) can
+// finally be exercised end-to-end with a subscription that actually carries
+// `reference` -- every payload captured so far was a dashboard-created test
+// subscription with no reference at all, which can't prove the workspace_id
+// passthrough works.
+export async function createSafepayTestCheckout(tier: string, interval: string, pin: string): Promise<DevPanelCheckoutResult> {
+  if (!VALID_TIERS.includes(tier as Plan) || !VALID_INTERVALS.includes(interval as BillingInterval)) {
+    return { ok: false, error: "Invalid tier/interval." };
+  }
+
+  const access = await requireDevAccess(pin);
+  if (!access.ok) return { ok: false, error: ACCESS_DENIED };
+
+  const result = await createSafepayCheckoutUrl(tier as Plan, interval as BillingInterval);
   if (!result.ok) return { ok: false, error: result.error };
 
   return { ok: true, url: result.url };
