@@ -8,9 +8,11 @@ import type { Plan } from "@/lib/aiCreditsCore";
 // user session to authenticate a normal client with). Only called from
 // app/api/webhooks/safepay/route.ts, after signature verification -- never
 // call this with an unverified payload. Mirrors lib/subscriptionSync.ts's
-// shape (parse -> resolve workspace -> route by event -> upsert/grant), but
+// shape (parse -> resolve workspace -> route by event -> write/grant), but
 // Safepay's envelope and status vocabulary differ enough from Lemon
-// Squeezy's that the details aren't shared code.
+// Squeezy's that the details aren't shared code. Row writes are a manual
+// select-then-insert-or-update rather than a Postgres upsert -- see
+// writeSubscriptionRow's comment for why .upsert() can't be used here.
 
 export type SyncResult = { ok: true; skipped?: string } | { ok: false; error: string };
 
@@ -144,11 +146,58 @@ async function downgradeWorkspaceToFree(supabase: SupabaseClient, workspaceId: s
   return { ok: true };
 }
 
+// Postgres SQLSTATE for a unique-constraint/unique-index violation.
+const UNIQUE_VIOLATION = "23505";
+
+// idx_subscriptions_safepay_subscription_id is a PARTIAL unique index
+// (`... WHERE safepay_subscription_id IS NOT NULL`) -- it exists only so
+// LS rows (safepay_subscription_id always null) don't collide with each
+// other, but it means Postgres's ON CONFLICT can't target it (a plain
+// .upsert({ onConflict: "safepay_subscription_id" }) has no way to express
+// the index's WHERE predicate, so Postgres rejects it with "no unique or
+// exclusion constraint matching the ON CONFLICT specification"). Confirmed
+// by a real failed webhook delivery, not a guess -- select-then-write is
+// the only option here, not a preference.
+//
+// Falls back to UPDATE on a unique-violation INSERT error (SQLSTATE 23505)
+// to stay safe against two webhook deliveries for the same brand-new
+// subscription racing each other: both could run the SELECT below before
+// either INSERTs, so the loser's INSERT must recover instead of crashing
+// the handler (and, by extension, 500ing the webhook and getting retried
+// into the same race again).
+async function writeSubscriptionRow(
+  supabase: SupabaseClient,
+  existingId: string | null,
+  subscriptionId: string,
+  row: Record<string, unknown>
+): Promise<SyncResult> {
+  if (existingId) {
+    const { error } = await supabase.from("subscriptions").update(row).eq("id", existingId);
+    if (error) return { ok: false, error: `subscriptions update failed: ${error.message}` };
+    return { ok: true };
+  }
+
+  const { error: insertError } = await supabase.from("subscriptions").insert(row);
+  if (!insertError) return { ok: true };
+
+  if (insertError.code === UNIQUE_VIOLATION) {
+    const { error: raceUpdateError } = await supabase
+      .from("subscriptions")
+      .update(row)
+      .eq("safepay_subscription_id", subscriptionId);
+    if (raceUpdateError) return { ok: false, error: `subscriptions race-update failed: ${raceUpdateError.message}` };
+    return { ok: true };
+  }
+
+  return { ok: false, error: `subscriptions insert failed: ${insertError.message}` };
+}
+
 // Handles subscription.created (INCOMPLETE), subscription.payment.succeeded
 // (ACTIVE), and subscription.unpaid (UNPAID) -- every status that isn't a
-// terminal cancel/expire -- via a single upsert, same split Lemon Squeezy's
-// handleActiveEvent uses. Only grants workspace access when status is
-// literally 'active' AND the billing period actually changed.
+// terminal cancel/expire -- via a single select-then-insert-or-update, same
+// split Lemon Squeezy's handleActiveEvent uses for routing. Only grants
+// workspace access when status is literally 'active' AND the billing
+// period actually changed.
 async function handleGrantableEvent(
   supabase: SupabaseClient,
   workspaceId: string,
@@ -160,35 +209,38 @@ async function handleGrantableEvent(
 ): Promise<SyncResult> {
   const periodEnd = secondsToIso(data.current_period_end_date);
 
+  // Single SELECT does double duty: existence (id, for UPDATE vs INSERT
+  // below) and the idempotency guard (current_period_end, for the grant
+  // check below) -- no need for two round trips to the same row.
+  const { data: existing, error: selectError } = await supabase
+    .from("subscriptions")
+    .select("id, current_period_end")
+    .eq("safepay_subscription_id", subscriptionId)
+    .maybeSingle<{ id: string; current_period_end: string | null }>();
+
+  if (selectError) return { ok: false, error: `subscriptions select failed: ${selectError.message}` };
+
   // Idempotency guard: a retried delivery of the same event carries the
   // same current_period_end as what's already stored, so it must not
   // re-grant a fresh credit period. A genuinely new billing period (first
   // payment, renewal) always has a different (or previously absent) period
   // end. Mirrors lib/subscriptionSync.ts's handleActiveEvent exactly.
-  const { data: existing } = await supabase
-    .from("subscriptions")
-    .select("current_period_end")
-    .eq("safepay_subscription_id", subscriptionId)
-    .maybeSingle<{ current_period_end: string | null }>();
-
   const isNewBillingPeriod = !existing || existing.current_period_end !== periodEnd;
 
-  const { error: upsertError } = await supabase.from("subscriptions").upsert(
-    {
-      workspace_id: workspaceId,
-      provider: "safepay",
-      safepay_subscription_id: subscriptionId,
-      safepay_customer_email: data.customer_email ?? null,
-      plan_id: planId,
-      plan_tier: tier,
-      status,
-      current_period_end: periodEnd,
-      updated_at: new Date().toISOString(),
-    },
-    { onConflict: "safepay_subscription_id" }
-  );
+  const row = {
+    workspace_id: workspaceId,
+    provider: "safepay",
+    safepay_subscription_id: subscriptionId,
+    safepay_customer_email: data.customer_email ?? null,
+    plan_id: planId,
+    plan_tier: tier,
+    status,
+    current_period_end: periodEnd,
+    updated_at: new Date().toISOString(),
+  };
 
-  if (upsertError) return { ok: false, error: `subscriptions upsert failed: ${upsertError.message}` };
+  const writeResult = await writeSubscriptionRow(supabase, existing?.id ?? null, subscriptionId, row);
+  if (!writeResult.ok) return writeResult;
 
   if (status === GRANTS_ACCESS && isNewBillingPeriod) {
     return applyPlanToWorkspace(supabase, workspaceId, tier);
