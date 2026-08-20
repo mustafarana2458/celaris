@@ -1,14 +1,48 @@
 "use client";
 
 import { useState } from "react";
-import { useSearchParams } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
+import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { createCheckoutUrl, createSafepayCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
 import type { BillingInterval } from "@/lib/lemonSqueezy";
 import { getPlanLimit, type Plan, type RemainingCredits } from "@/lib/aiCreditsCore";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { WorkspaceSubscription } from "../page";
+
+// Promo Code Engine Phase 3: response shape of POST /api/promo/redeem (see
+// app/api/promo/redeem/route.ts) -- kept in sync with that route's actual
+// return value, not the RPC's raw column names.
+type PromoReward = { type: string; payload: Record<string, unknown>; expiresAt: string | null };
+type PromoRedeemResponse =
+  | { ok: true; reward: PromoReward; workspace: { plan: string; ai_credits_used: number } }
+  | { ok: false; error: string; code?: string };
+
+const PROMO_ERROR_FALLBACK: Record<string, string> = {
+  INVALID: "That promo code isn't valid.",
+  EXPIRED: "That promo code has expired.",
+  ALREADY_REDEEMED: "This code has already been redeemed.",
+  CAP_REACHED: "This promo code has reached its redemption limit.",
+  UNSUPPORTED: "This promo code type isn't supported yet.",
+};
+
+// Human-facing summary of what redeeming actually granted. reward.payload
+// is untyped JSON from the DB (see promo_codes.reward_payload), so this
+// reads defensively rather than trusting its shape.
+function describePromoReward(reward: PromoReward): string {
+  if (reward.type === "ai_credits") {
+    const credits = Number(reward.payload.credits ?? 0);
+    return `Code applied! +${credits.toLocaleString()} AI credits added.`;
+  }
+  if (reward.type === "temp_plan_access") {
+    const planId = typeof reward.payload.plan === "string" ? reward.payload.plan : "";
+    const planName = TIER_CARDS.find((t) => t.id === planId)?.name ?? planId;
+    const days = Number(reward.payload.duration_days ?? 0);
+    return `Code applied! Upgraded to ${planName} plan for ${days} day${days === 1 ? "" : "s"}.`;
+  }
+  return "Code applied!";
+}
 
 const TIER_RANK: Record<Plan, number> = { solo: 1, team: 2, scale: 3 };
 
@@ -58,8 +92,20 @@ export function BillingTab({
   subscriptionInterval: BillingInterval | null;
   credits: RemainingCredits | null;
 }) {
-  const currentTier: Plan | null =
-    workspace && workspace.plan in TIER_RANK ? (workspace.plan as Plan) : null;
+  const router = useRouter();
+
+  // Set from a successful promo redemption's response (see
+  // handleRedeemPromoCode below) so the current-plan card and credit
+  // counters update immediately, without waiting on router.refresh()'s
+  // round trip back to the Server Component. router.refresh() is still
+  // called too, to reconcile everything else this page depends on (e.g.
+  // if a future reward type ever touches subscription/interval).
+  const [promoWorkspaceOverride, setPromoWorkspaceOverride] = useState<{ plan: string; ai_credits_used: number } | null>(
+    null
+  );
+  const effectivePlan = promoWorkspaceOverride?.plan ?? workspace?.plan ?? null;
+
+  const currentTier: Plan | null = effectivePlan && effectivePlan in TIER_RANK ? (effectivePlan as Plan) : null;
   const currentRank = currentTier ? TIER_RANK[currentTier] : 0;
 
   // A cancelled-but-not-yet-expired row still grants access (both gateways
@@ -97,6 +143,11 @@ export function BillingTab({
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+
+  const [promoCode, setPromoCode] = useState("");
+  const [promoLoading, setPromoLoading] = useState(false);
+  const [promoError, setPromoError] = useState<string | null>(null);
+  const [promoSuccess, setPromoSuccess] = useState<string | null>(null);
 
   async function handleCheckout(tier: Plan, interval: BillingInterval) {
     if (checkoutLoading) return;
@@ -149,6 +200,45 @@ export function BillingTab({
     window.open(result.url, "_blank", "noopener,noreferrer");
   }
 
+  async function handleRedeemPromoCode() {
+    const code = promoCode.trim();
+    if (!code || promoLoading) return;
+
+    setPromoLoading(true);
+    setPromoError(null);
+    setPromoSuccess(null);
+
+    let json: PromoRedeemResponse | null = null;
+    try {
+      const res = await fetch("/api/promo/redeem", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ code }),
+      });
+      json = (await res.json()) as PromoRedeemResponse;
+    } catch {
+      setPromoLoading(false);
+      setPromoError("Could not reach the server. Try again.");
+      return;
+    }
+
+    setPromoLoading(false);
+
+    if (!json.ok) {
+      setPromoError(json.error || (json.code && PROMO_ERROR_FALLBACK[json.code]) || "Could not redeem this promo code.");
+      return;
+    }
+
+    setPromoCode("");
+    setPromoSuccess(describePromoReward(json.reward));
+    setPromoWorkspaceOverride(json.workspace);
+    // Reconciles subscription/interval and anything else this page reads
+    // server-side (e.g. the sidebar's AI usage widget) with the DB state
+    // the RPC just wrote -- the override above is only for this card's
+    // own immediate feedback.
+    router.refresh();
+  }
+
   if (!workspace) {
     return (
       <div className="rounded-2xl border border-slate-200 bg-white p-6 text-sm text-slate-500 dark:border-slate-700 dark:bg-slate-800 dark:text-slate-400">
@@ -158,7 +248,14 @@ export function BillingTab({
   }
 
   const periodEndLabel = formatDate(subscription?.current_period_end ?? null);
-  const limit = getPlanLimit(workspace.plan);
+  const limit = getPlanLimit(effectivePlan);
+  const effectiveCredits: RemainingCredits | null = promoWorkspaceOverride
+    ? {
+        used: promoWorkspaceOverride.ai_credits_used,
+        limit,
+        remaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used),
+      }
+    : credits;
 
   const modalTierCard = gatewayModalTarget ? TIER_CARDS.find((t) => t.id === gatewayModalTarget.tier) : null;
   const modalPrice =
@@ -281,16 +378,16 @@ export function BillingTab({
               AI credits
             </dt>
             <dd className="mt-1 text-sm font-semibold text-slate-900 dark:text-slate-100">
-              {credits ? `${credits.used} / ${limit} used` : `-- / ${limit}`}
+              {effectiveCredits ? `${effectiveCredits.used} / ${limit} used` : `-- / ${limit}`}
             </dd>
           </div>
         </dl>
 
-        {credits && (
+        {effectiveCredits && (
           <div className="mt-3 h-1.5 w-full overflow-hidden rounded-full bg-slate-100 dark:bg-slate-700">
             <div
-              className={`h-full rounded-full ${credits.remaining === 0 ? "bg-red-500" : "bg-accent"}`}
-              style={{ width: `${Math.min(100, (credits.used / Math.max(1, limit)) * 100)}%` }}
+              className={`h-full rounded-full ${effectiveCredits.remaining === 0 ? "bg-red-500" : "bg-accent"}`}
+              style={{ width: `${Math.min(100, (effectiveCredits.used / Math.max(1, limit)) * 100)}%` }}
             />
           </div>
         )}
@@ -380,6 +477,64 @@ export function BillingTab({
           })}
         </div>
       </div>
+
+      {(workspace.role === "owner" || workspace.role === "admin") && (
+        <div className="rounded-2xl border border-slate-200 bg-white p-6 dark:border-slate-700 dark:bg-slate-800">
+          <h3 className="text-base font-semibold text-slate-900 dark:text-slate-100">Promo Code</h3>
+          <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">
+            Have a promo code? Redeem it below for AI credits or plan access.
+          </p>
+
+          {promoSuccess && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-emerald-50 p-3 text-sm text-emerald-700 dark:bg-emerald-950/40 dark:text-emerald-400">
+              <span>{promoSuccess}</span>
+              <button
+                type="button"
+                onClick={() => setPromoSuccess(null)}
+                aria-label="Dismiss"
+                className="shrink-0 text-emerald-600 hover:text-emerald-800 dark:text-emerald-400 dark:hover:text-emerald-300"
+              >
+                ×
+              </button>
+            </div>
+          )}
+          {promoError && (
+            <div className="mt-4 flex items-center justify-between gap-3 rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
+              <span>{promoError}</span>
+              <button
+                type="button"
+                onClick={() => setPromoError(null)}
+                aria-label="Dismiss"
+                className="shrink-0 text-red-600 hover:text-red-800 dark:text-red-400 dark:hover:text-red-300"
+              >
+                ×
+              </button>
+            </div>
+          )}
+
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              void handleRedeemPromoCode();
+            }}
+            className="mt-4 flex flex-col gap-3 sm:flex-row sm:items-end"
+          >
+            <div className="flex-1">
+              <Input
+                label="Have a promo code?"
+                name="promoCode"
+                value={promoCode}
+                onChange={(e) => setPromoCode(e.target.value)}
+                placeholder="e.g. WELCOME500"
+                disabled={promoLoading}
+              />
+            </div>
+            <Button type="submit" loading={promoLoading} disabled={!promoCode.trim()}>
+              Apply Code
+            </Button>
+          </form>
+        </div>
+      )}
 
       {error && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-950/40 dark:text-red-400">
