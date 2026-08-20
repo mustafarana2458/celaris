@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireSuperAdmin } from "@/lib/superAdmin";
+import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Promo Code wizard: pause/activate an existing code. Platform-admin
 // gated, same as app/api/admin/promo/create/route.ts. The client sends the
@@ -43,6 +44,15 @@ export async function POST(request: NextRequest) {
   if (!data) {
     return NextResponse.json({ ok: false, error: "Code not found." }, { status: 404 });
   }
+
+  await logAuditEvent({
+    actorUserId: auth.user.id,
+    actorEmail: auth.user.email ?? null,
+    action: "promo_code.toggle_active",
+    targetType: "promo_code",
+    targetId: data.id,
+    details: { is_active: data.is_active },
+  });
 
   return NextResponse.json({ ok: true, id: data.id, is_active: data.is_active });
 }

@@ -1,6 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireSuperAdmin } from "@/lib/superAdmin";
+import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Promo Code wizard: creates a new promo_codes row. Platform-admin
 // gated (requireSuperAdmin re-checks server-side -- the app/admin/layout.tsx
@@ -118,6 +119,21 @@ export async function POST(request: NextRequest) {
     console.error("[admin promo create] insert failed:", error.message);
     return NextResponse.json({ ok: false, error: "Could not create the promo code." }, { status: 500 });
   }
+
+  await logAuditEvent({
+    actorUserId: auth.user.id,
+    actorEmail: auth.user.email ?? null,
+    action: "promo_code.create",
+    targetType: "promo_code",
+    targetId: data.id,
+    details: {
+      code: data.code,
+      reward_type: data.reward_type,
+      reward_payload: data.reward_payload,
+      max_redemptions: data.max_redemptions,
+      expires_at: data.expires_at,
+    },
+  });
 
   return NextResponse.json({ ok: true, code: data });
 }
