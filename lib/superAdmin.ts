@@ -1,5 +1,6 @@
 import type { SupabaseClient, User } from "@supabase/supabase-js";
 import { NextResponse } from "next/server";
+import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 
 // Super Admin Portal Phase 1: checks the CURRENT session's user against
@@ -59,4 +60,32 @@ export async function requireSuperAdmin(): Promise<SuperAdminApiResult> {
   }
 
   return { ok: true, user, supabase };
+}
+
+// Page-render variant of requireSuperAdmin(), for a Server Component that
+// wants to make its own admin gate explicit rather than rely solely on
+// app/admin/layout.tsx having already run (belt-and-suspenders -- the
+// layout guard is real and does cover this, but a module fetching
+// platform-wide data via the service-role client is a good place to keep
+// that assumption visible and self-verifying rather than implicit).
+// Redirects itself (same destinations as the layout: /login if signed
+// out, /dashboard if signed in but not a platform admin), so callers
+// don't need to branch on a result -- if this returns at all, the caller
+// is a verified platform admin.
+export async function requireSuperAdminPage(): Promise<{ user: User; supabase: SupabaseClient }> {
+  const supabase = await createClient();
+  const {
+    data: { user },
+  } = await supabase.auth.getUser();
+
+  if (!user) {
+    redirect("/login");
+  }
+
+  const allowed = await isPlatformAdmin(supabase);
+  if (!allowed) {
+    redirect("/dashboard");
+  }
+
+  return { user, supabase };
 }
