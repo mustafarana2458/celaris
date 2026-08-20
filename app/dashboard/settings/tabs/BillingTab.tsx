@@ -401,7 +401,7 @@ export function BillingTab({
               {modalPrice !== null && <> (${modalPrice}/mo)</>}
             </p>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-accent bg-accent/5 p-4 dark:bg-accent/10">
+            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
               <div className="flex items-center justify-between gap-2">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safepay</span>
                 <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
@@ -413,7 +413,7 @@ export function BillingTab({
               </p>
               <Button
                 type="button"
-                variant="primary"
+                variant="secondary"
                 loading={isSafepayLoading}
                 disabled={checkoutLoading !== null}
                 onClick={() => handleSafepayCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
