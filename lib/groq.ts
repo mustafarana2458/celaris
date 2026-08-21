@@ -5,6 +5,12 @@ const GROQ_MODEL = "openai/gpt-oss-120b";
 const GROQ_ENDPOINT = "https://api.groq.com/openai/v1/chat/completions";
 const MISTRAL_MODEL = "mistral-small-2603";
 const MISTRAL_ENDPOINT = "https://api.mistral.ai/v1/chat/completions";
+// Admin Portal AI Engine module: last-resort safety net, off by default
+// (see fetchOpenAiFallbackFromDb below) -- only ever attempted after BOTH
+// the selected strategy's providers have already failed, via
+// tryFinalFallback(). Never a first or second choice in any mode.
+const OPENAI_MODEL = "gpt-4o-mini";
+const OPENAI_ENDPOINT = "https://api.openai.com/v1/chat/completions";
 const TIMEOUT_MS = 30_000;
 const MAX_RETRIES = 3;
 const BASE_DELAY_MS = 1000;
@@ -163,6 +169,99 @@ async function tryMistral(messages: GroqMessage[], options?: GroqOptions, format
   return { text };
 }
 
+// Single-shot last-resort attempt at OpenAI, mirroring tryMistral's shape
+// exactly (no retry loop -- by the time this is called, both Groq and
+// Mistral have already exhausted their own attempts). Only ever invoked
+// by tryFinalFallback() when the Admin Portal's OpenAI safety-net toggle
+// is on.
+async function tryOpenAI(messages: GroqMessage[], options?: GroqOptions, format?: "json"): Promise<GroqResult | null> {
+  const apiKey = process.env.OPENAI_API_KEY;
+  if (!apiKey) {
+    console.error("[AI] OpenAI fallback is enabled but OPENAI_API_KEY is not set; no safety net available.");
+    return null;
+  }
+
+  const body = buildBody(OPENAI_MODEL, messages, options, format);
+  const result = await requestOnce(OPENAI_ENDPOINT, body, apiKey);
+
+  if (result.kind === "timeout") {
+    console.error("[AI] OpenAI fallback request timed out.");
+    return null;
+  }
+  if (result.kind === "network-error") {
+    console.error("[AI] OpenAI fallback network error.");
+    return null;
+  }
+
+  const { response } = result;
+  if (!response.ok) {
+    console.error(`[AI] OpenAI fallback returned ${response.status}.`);
+    return null;
+  }
+
+  const text = extractText(await response.json());
+  if (!text) {
+    console.error("[AI] OpenAI fallback returned an empty response.");
+    return null;
+  }
+
+  return { text };
+}
+
+// Reads the Admin Portal's OpenAI-fallback-safety-net toggle directly from
+// app_settings (key "ai_engine_openai_fallback", value "true"/"false"),
+// bypassing the cache below -- same bypass-for-true-value pattern as
+// fetchModeFromDb, used by the admin page itself so it always shows the
+// true persisted value. Missing row/value defaults to disabled (false) --
+// this feature must be explicitly opted into, never silently on.
+export async function fetchOpenAiFallbackFromDb(supabase: SupabaseClient): Promise<boolean> {
+  const { data } = await supabase
+    .from("app_settings")
+    .select("value")
+    .eq("key", "ai_engine_openai_fallback")
+    .maybeSingle();
+
+  const value = (data as { value?: string } | null)?.value;
+  return value === "true";
+}
+
+let cachedOpenAiFallback = false;
+let cachedOpenAiFallbackAt = 0;
+
+// Called by the admin route right after a successful write, same reasoning
+// as invalidateProviderModeCache() above.
+export function invalidateOpenAiFallbackCache() {
+  cachedOpenAiFallbackAt = 0;
+}
+
+async function getOpenAiFallbackEnabled(): Promise<boolean> {
+  if (Date.now() - cachedOpenAiFallbackAt < MODE_CACHE_MS) return cachedOpenAiFallback;
+
+  try {
+    const supabase = await createClient();
+    cachedOpenAiFallback = await fetchOpenAiFallbackFromDb(supabase);
+  } catch {
+    // Any DB hiccup falls back to the safe default (disabled) rather than
+    // unexpectedly spending on a third provider.
+    cachedOpenAiFallback = false;
+  }
+  cachedOpenAiFallbackAt = Date.now();
+  return cachedOpenAiFallback;
+}
+
+// Shared terminal step for every mode branch in callGroq() below: called
+// only once every provider the active strategy allows has already failed.
+// If the Admin Portal's OpenAI safety net is enabled, this is the one and
+// only place it gets a chance to run before the caller sees an error.
+async function tryFinalFallback(messages: GroqMessage[], options?: GroqOptions, format?: "json"): Promise<GroqResult> {
+  if (await getOpenAiFallbackEnabled()) {
+    console.error(`[AI] Falling back to OpenAI (${OPENAI_MODEL}) safety net after all configured providers failed.`);
+    const openaiResult = await tryOpenAI(messages, options, format);
+    if (openaiResult) return openaiResult;
+  }
+  return { error: "AI is currently unavailable. Please try again in a bit." };
+}
+
 // Reads the developer-panel provider override directly from app_settings,
 // bypassing the cache below. Used by the dev panel itself so it always
 // shows/confirms the true persisted value, never a stale cached one.
@@ -212,12 +311,12 @@ export async function callGroq(
 
   if (mode === "groq") {
     const result = await tryGroq(messages, options, format);
-    return result ?? { error: "AI is currently unavailable. Please try again in a bit." };
+    return result ?? (await tryFinalFallback(messages, options, format));
   }
 
   if (mode === "mistral") {
     const result = await tryMistral(messages, options, format);
-    return result ?? { error: "AI is currently unavailable. Please try again in a bit." };
+    return result ?? (await tryFinalFallback(messages, options, format));
   }
 
   if (mode === "auto2") {
@@ -229,7 +328,7 @@ export async function callGroq(
     const groqResult = await tryGroq(messages, options, format);
     if (groqResult) return groqResult;
 
-    return { error: "AI is currently unavailable. Please try again in a bit." };
+    return await tryFinalFallback(messages, options, format);
   }
 
   // "auto" (default) -- unchanged from the original Groq-first, Mistral-
@@ -241,5 +340,5 @@ export async function callGroq(
   const mistralResult = await tryMistral(messages, options, format);
   if (mistralResult) return mistralResult;
 
-  return { error: "AI is currently unavailable. Please try again in a bit." };
+  return await tryFinalFallback(messages, options, format);
 }
