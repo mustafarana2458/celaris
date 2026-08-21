@@ -26,7 +26,16 @@ const ADMIN_HOST = "admin.celaris.cloud";
 //    real instead of a 404.
 //  - /admin: already the correct destination -- rewriting it again would
 //    double-prefix into /admin/admin/....
-const ADMIN_SUBDOMAIN_PASSTHROUGH = ["/api", "/login", "/dashboard", "/admin"];
+//  - /admin-login: Admin Auth Rebuild Phase 2's new login page (see
+//    app/admin-login/page.tsx). Temporary, non-/admin-prefixed location
+//    (the real /admin/login URL needs Phase 3's route-group restructure
+//    -- app/admin/layout.tsx's old guard would otherwise redirect an
+//    unauthenticated visitor away from it, same as any other /admin/*
+//    page). Without this entry, "/admin-login" doesn't match "/admin" or
+//    "/admin/" as a prefix (no trailing slash after "admin"), so it fell
+//    through to the rewrite -> became "/admin/admin-login" -> hit the
+//    OLD guard -> redirected to /login instead of ever rendering.
+const ADMIN_SUBDOMAIN_PASSTHROUGH = ["/api", "/login", "/dashboard", "/admin", "/admin-login"];
 
 function resolveAdminRewrite(request: NextRequest): URL | undefined {
   const host = (request.headers.get("host") ?? "").split(":")[0];
