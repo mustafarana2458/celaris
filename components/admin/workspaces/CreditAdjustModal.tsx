@@ -7,20 +7,22 @@ import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
 type Direction = "add" | "subtract";
-type AdjustResponse = { ok: true; ai_credits_used: number } | { ok: false; error: string };
+type AdjustResponse = { ok: true; ai_credits_used: number; purchased_ai_credits: number } | { ok: false; error: string };
 
 export function CreditAdjustModal({
   open,
   onClose,
   workspaceId,
   currentUsed,
+  currentPurchased,
   onApplied,
 }: {
   open: boolean;
   onClose: () => void;
   workspaceId: string;
   currentUsed: number;
-  onApplied: (newUsed: number) => void;
+  currentPurchased: number;
+  onApplied: (newUsed: number, newPurchased: number) => void;
 }) {
   const [direction, setDirection] = useState<Direction>("add");
   const [amount, setAmount] = useState("100");
@@ -30,15 +32,13 @@ export function CreditAdjustModal({
 
   const parsedAmount = Number(amount);
   const validAmount = Number.isInteger(parsedAmount) && parsedAmount > 0;
-  // "Add" grants headroom by reducing ai_credits_used (floored at 0);
-  // "Subtract" claws it back by increasing it. Computed here purely for
-  // the confirmation preview -- the route recomputes this itself from the
-  // DB's current value, not from whatever this modal displays.
-  const previewNewUsed = validAmount
-    ? direction === "add"
-      ? Math.max(0, currentUsed - parsedAmount)
-      : currentUsed + parsedAmount
-    : currentUsed;
+  // "Add" grants never-expiring purchased credits (purchased_ai_credits
+  // += amount); "Subtract" claws back headroom by increasing
+  // ai_credits_used. Computed here purely for the confirmation preview --
+  // the route recomputes this itself from the DB's current value, not
+  // from whatever this modal displays.
+  const previewNewUsed = validAmount && direction === "subtract" ? currentUsed + parsedAmount : currentUsed;
+  const previewNewPurchased = validAmount && direction === "add" ? currentPurchased + parsedAmount : currentPurchased;
 
   function handleClose() {
     if (submitting) return;
@@ -74,7 +74,7 @@ export function CreditAdjustModal({
       return;
     }
 
-    onApplied(json.ai_credits_used);
+    onApplied(json.ai_credits_used, json.purchased_ai_credits);
     setConfirming(false);
     onClose();
   }
@@ -85,9 +85,8 @@ export function CreditAdjustModal({
         {!confirming ? (
           <>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Credits are tracked as usage, not a balance -- &quot;Add&quot; gives the workspace more headroom (reduces
-              credits used), &quot;Subtract&quot; takes headroom away (increases credits used). No gateway charge
-              either way.
+              &quot;Add&quot; grants never-expiring purchased credits (used only after the monthly allowance runs out).
+              &quot;Subtract&quot; takes monthly headroom away (increases credits used). No gateway charge either way.
             </p>
 
             <div className="flex gap-3">
@@ -112,7 +111,17 @@ export function CreditAdjustModal({
             </div>
 
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Currently used: {currentUsed.toLocaleString()}. {validAmount ? `Will become: ${previewNewUsed.toLocaleString()}.` : ""}
+              {direction === "add" ? (
+                <>
+                  Purchased credits: {currentPurchased.toLocaleString()}.{" "}
+                  {validAmount ? `Will become: ${previewNewPurchased.toLocaleString()}.` : ""}
+                </>
+              ) : (
+                <>
+                  Currently used: {currentUsed.toLocaleString()}.{" "}
+                  {validAmount ? `Will become: ${previewNewUsed.toLocaleString()}.` : ""}
+                </>
+              )}
             </p>
 
             <div className="flex justify-end gap-3">
@@ -130,7 +139,15 @@ export function CreditAdjustModal({
               {direction === "add" ? "Add" : "Subtract"} {parsedAmount.toLocaleString()} credits for this workspace?
             </p>
             <p className="text-xs text-slate-500 dark:text-slate-400">
-              Credits used: {currentUsed.toLocaleString()} &rarr; {previewNewUsed.toLocaleString()}.
+              {direction === "add" ? (
+                <>
+                  Purchased credits: {currentPurchased.toLocaleString()} &rarr; {previewNewPurchased.toLocaleString()}.
+                </>
+              ) : (
+                <>
+                  Credits used: {currentUsed.toLocaleString()} &rarr; {previewNewUsed.toLocaleString()}.
+                </>
+              )}
             </p>
 
             {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}

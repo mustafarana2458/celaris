@@ -22,8 +22,10 @@ const DEFAULT_GATEWAYS: PaymentGatewaysEnabled = { lemonsqueezy: true, safepay: 
 // app/api/promo/redeem/route.ts) -- kept in sync with that route's actual
 // return value, not the RPC's raw column names.
 type PromoReward = { type: string; payload: Record<string, unknown>; expiresAt: string | null };
+// purchased_ai_credits added alongside sql/fix_promo_ai_credits.sql -- the
+// ai_credits reward now grants there instead of decrementing ai_credits_used.
 type PromoRedeemResponse =
-  | { ok: true; reward: PromoReward; workspace: { plan: string; ai_credits_used: number } }
+  | { ok: true; reward: PromoReward; workspace: { plan: string; ai_credits_used: number; purchased_ai_credits: number } }
   | { ok: false; error: string; code?: string };
 
 const PROMO_ERROR_FALLBACK: Record<string, string> = {
@@ -107,9 +109,11 @@ export function BillingTab({
   // round trip back to the Server Component. router.refresh() is still
   // called too, to reconcile everything else this page depends on (e.g.
   // if a future reward type ever touches subscription/interval).
-  const [promoWorkspaceOverride, setPromoWorkspaceOverride] = useState<{ plan: string; ai_credits_used: number } | null>(
-    null
-  );
+  const [promoWorkspaceOverride, setPromoWorkspaceOverride] = useState<{
+    plan: string;
+    ai_credits_used: number;
+    purchased_ai_credits: number;
+  } | null>(null);
   const effectivePlan = promoWorkspaceOverride?.plan ?? workspace?.plan ?? null;
 
   const currentTier: Plan | null = effectivePlan && effectivePlan in TIER_RANK ? (effectivePlan as Plan) : null;
@@ -273,11 +277,12 @@ export function BillingTab({
         used: promoWorkspaceOverride.ai_credits_used,
         limit,
         remaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used),
-        // promo redemption only ever grants ai_credits/temp_plan_access,
-        // never touches purchased_ai_credits -- reuse the workspace's
-        // existing value rather than treating it as reset to 0.
-        purchased: workspace?.purchasedAiCredits ?? 0,
-        totalRemaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used) + (workspace?.purchasedAiCredits ?? 0),
+        // An ai_credits reward now grants into purchased_ai_credits (see
+        // sql/fix_promo_ai_credits.sql), so the RPC's response carries the
+        // real post-redemption value here -- no longer a stale reuse of
+        // the pre-redemption workspace prop.
+        purchased: promoWorkspaceOverride.purchased_ai_credits,
+        totalRemaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used) + promoWorkspaceOverride.purchased_ai_credits,
       }
     : credits;
 

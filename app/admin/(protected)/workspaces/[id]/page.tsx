@@ -11,6 +11,7 @@ export type AdminWorkspaceDetail = {
   plan: string;
   ai_credits_used: number;
   ai_credits_reset_at: string | null;
+  purchased_ai_credits: number;
   ownerEmail: string | null;
   activeSubscriptionProvider: string | null;
   planLimit: number;
@@ -23,7 +24,7 @@ export default async function AdminWorkspaceDetailPage({ params }: { params: { i
 
   const { data: workspace, error } = await supabase
     .from("workspaces")
-    .select("id, name, plan, ai_credits_used, ai_credits_reset_at, owner_id")
+    .select("id, name, plan, ai_credits_used, ai_credits_reset_at, purchased_ai_credits, owner_id")
     .eq("id", params.id)
     .maybeSingle<{
       id: string;
@@ -31,6 +32,7 @@ export default async function AdminWorkspaceDetailPage({ params }: { params: { i
       plan: string | null;
       ai_credits_used: number | null;
       ai_credits_reset_at: string | null;
+      purchased_ai_credits: number | null;
       owner_id: string | null;
     }>();
 
@@ -58,6 +60,7 @@ export default async function AdminWorkspaceDetailPage({ params }: { params: { i
     plan,
     ai_credits_used: workspace.ai_credits_used ?? 0,
     ai_credits_reset_at: workspace.ai_credits_reset_at,
+    purchased_ai_credits: workspace.purchased_ai_credits ?? 0,
     ownerEmail,
     activeSubscriptionProvider: subscriptionRes.data?.provider ?? null,
     planLimit: getPlanLimit(plan),

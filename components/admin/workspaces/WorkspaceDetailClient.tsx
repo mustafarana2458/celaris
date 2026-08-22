@@ -16,6 +16,7 @@ export function WorkspaceDetailClient({ workspace }: { workspace: AdminWorkspace
   const router = useRouter();
   const [plan, setPlan] = useState(workspace.plan);
   const [creditsUsed, setCreditsUsed] = useState(workspace.ai_credits_used);
+  const [purchasedCredits, setPurchasedCredits] = useState(workspace.purchased_ai_credits);
   const [planModalOpen, setPlanModalOpen] = useState(false);
   const [creditModalOpen, setCreditModalOpen] = useState(false);
 
@@ -27,8 +28,9 @@ export function WorkspaceDetailClient({ workspace }: { workspace: AdminWorkspace
     router.refresh();
   }
 
-  function handleCreditsApplied(newUsed: number) {
+  function handleCreditsApplied(newUsed: number, newPurchased: number) {
     setCreditsUsed(newUsed);
+    setPurchasedCredits(newPurchased);
     router.refresh();
   }
 
@@ -42,7 +44,7 @@ export function WorkspaceDetailClient({ workspace }: { workspace: AdminWorkspace
         <p className="mt-1 text-sm text-slate-500 dark:text-slate-400">Owner: {workspace.ownerEmail ?? "--"}</p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-3">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Plan</p>
           <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{PLAN_LABELS[plan] ?? plan}</p>
@@ -52,6 +54,11 @@ export function WorkspaceDetailClient({ workspace }: { workspace: AdminWorkspace
           <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">
             {creditsUsed.toLocaleString()} / {limit.toLocaleString()}
           </p>
+        </div>
+        <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
+          <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Purchased AI credits</p>
+          <p className="mt-2 text-2xl font-semibold text-slate-900 dark:text-slate-100">{purchasedCredits.toLocaleString()}</p>
+          <p className="mt-1 text-xs text-slate-400 dark:text-slate-500">Never expire -- used only after the monthly allowance runs out.</p>
         </div>
         <div className="rounded-2xl border border-slate-200 bg-white p-5 dark:border-slate-700 dark:bg-slate-800">
           <p className="text-xs font-medium uppercase tracking-wide text-slate-400 dark:text-slate-500">Subscription</p>
@@ -89,6 +96,7 @@ export function WorkspaceDetailClient({ workspace }: { workspace: AdminWorkspace
         onClose={() => setCreditModalOpen(false)}
         workspaceId={workspace.id}
         currentUsed={creditsUsed}
+        currentPurchased={purchasedCredits}
         onApplied={handleCreditsApplied}
       />
     </div>

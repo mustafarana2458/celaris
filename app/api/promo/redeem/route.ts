@@ -44,7 +44,10 @@ type RedeemPromoCodeResult = {
   reward_type: string;
   reward_payload: Record<string, unknown>;
   redemption_expires_at: string | null;
-  workspace: { plan: string; ai_credits_used: number };
+  // purchased_ai_credits added by sql/fix_promo_ai_credits.sql -- the
+  // ai_credits reward now grants into this never-expiring column instead
+  // of subtracting from ai_credits_used (see that file for why).
+  workspace: { plan: string; ai_credits_used: number; purchased_ai_credits: number };
 };
 
 export async function POST(request: NextRequest) {
@@ -114,6 +117,7 @@ export async function POST(request: NextRequest) {
     workspace: {
       plan: result.workspace.plan,
       ai_credits_used: result.workspace.ai_credits_used,
+      purchased_ai_credits: result.workspace.purchased_ai_credits,
     },
   });
 }
