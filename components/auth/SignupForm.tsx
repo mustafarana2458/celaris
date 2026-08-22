@@ -115,7 +115,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         name="fullName"
         type="text"
         label="Full name"
-        placeholder="Rana Muhammad Bilal"
+        placeholder="Sara Khan"
         required
       />
 
@@ -125,7 +125,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
           name="businessName"
           type="text"
           label="Business name (optional)"
-          placeholder="Celaris Inc"
+          placeholder="Acme Inc"
         />
       )}
 
@@ -134,7 +134,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         name="email"
         type="email"
         label="Email"
-        placeholder="bilal@celaris.cloud"
+        placeholder="you@company.com"
         defaultValue={invite?.email}
         disabled={!!invite}
         required
