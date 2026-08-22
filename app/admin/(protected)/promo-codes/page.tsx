@@ -2,12 +2,12 @@ import { createServiceClient } from "@/lib/supabase/service";
 import { PromoCodesClient } from "@/components/admin/promo/PromoCodesClient";
 
 // Admin Promo Code wizard: list page. This is a Server Component nested
-// under app/admin/layout.tsx, which already ran its platform-admin guard
-// before this ever renders -- Next.js always executes the full layout
-// chain for any request to a nested route, so there is no way to reach
-// this page without passing that check first. (The two API routes this
-// module's client component calls are separate invocations and re-check
-// themselves -- see app/api/admin/promo/{create,toggle}/route.ts.)
+// under app/admin/(protected)/layout.tsx, which already ran its admin
+// session guard before this ever renders -- Next.js always executes the
+// full layout chain for any request to a nested route, so there is no
+// way to reach this page without passing that check first. (The two API
+// routes this module's client component calls are separate invocations
+// and re-check themselves -- see app/api/admin/promo/{create,toggle}/route.ts.)
 //
 // Reads via the service-role client, not the session client: promo_codes
 // has no SELECT policy for `authenticated` (service-role-only by RLS

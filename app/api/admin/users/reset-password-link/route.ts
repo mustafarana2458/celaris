@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Users module: generates a password-recovery link via the
@@ -28,7 +28,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 type ResetLinkBody = { userId?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: ResetLinkBody;
@@ -63,8 +63,8 @@ export async function POST(request: NextRequest) {
   // only needs to prove a reset was dispatched and for whom, not the
   // secret itself.
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "user.password_reset_dispatch",
     targetType: "user",
     targetId: userId,

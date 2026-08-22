@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/Input";
 import { Textarea } from "@/components/ui/Textarea";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
-import type { PromoCodeRow } from "@/app/admin/promo-codes/page";
+import type { PromoCodeRow } from "@/app/admin/(protected)/promo-codes/page";
 
 // Unambiguous uppercase alphanumeric charset (no 0/O, 1/I/L) -- 32
 // characters exactly, so `byte % 32` below is unbiased (256 % 32 === 0).

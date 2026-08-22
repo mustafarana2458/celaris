@@ -6,7 +6,7 @@ import { Modal } from "@/components/ui/Modal";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 import type { AiProviderMode } from "@/lib/groq";
-import type { AiEngineConfig } from "@/app/admin/ai-engine/page";
+import type { AiEngineConfig } from "@/app/admin/(protected)/ai-engine/page";
 
 const STRATEGY_OPTIONS: { value: AiProviderMode; label: string; description: string }[] = [
   { value: "auto", label: "Auto", description: "Primary: Groq (GPT OSS 120B). Fallback: Mistral Small, automatically." },

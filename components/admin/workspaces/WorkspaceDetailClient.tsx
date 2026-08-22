@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { getPlanLimit } from "@/lib/aiCreditsCore";
 import { PlanOverrideModal } from "./PlanOverrideModal";
 import { CreditAdjustModal } from "./CreditAdjustModal";
-import type { AdminWorkspaceDetail } from "@/app/admin/workspaces/[id]/page";
+import type { AdminWorkspaceDetail } from "@/app/admin/(protected)/workspaces/[id]/page";
 
 const PLAN_LABELS: Record<string, string> = { free: "Free", solo: "Solo", team: "Team", scale: "Scale" };
 const PROVIDER_LABELS: Record<string, string> = { lemonsqueezy: "Lemon Squeezy", safepay: "Safepay" };

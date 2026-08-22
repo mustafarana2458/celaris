@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { getAuthEmailMap } from "@/lib/adminUsers";
 import { MetricCard } from "@/components/admin/overview/MetricCard";
 import { Select } from "@/components/ui/Select";
@@ -108,7 +108,7 @@ export default async function AdminFinancialsPage({
 }: {
   searchParams: { provider?: string; status?: string };
 }) {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const providerFilter = searchParams.provider?.trim() ?? "";
   const statusFilter = searchParams.status?.trim() ?? "";

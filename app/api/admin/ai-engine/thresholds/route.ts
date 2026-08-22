@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Portal AI Engine module: Groq latency threshold. Storage +
@@ -19,7 +19,7 @@ const MAX_MS = 30_000;
 type ThresholdsBody = { groqLatencyThresholdMs?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: ThresholdsBody;
@@ -47,12 +47,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, noChange: true, groqLatencyThresholdMs: ms });
   }
 
+  // Deliberately NOT setting updated_by -- see the identical comment in
+  // app/api/admin/ai-engine/strategy/route.ts.
   const { error } = await supabase.from("app_settings").upsert(
     {
       key: "ai_engine_groq_latency_threshold_ms",
       value: String(ms),
       updated_at: new Date().toISOString(),
-      updated_by: auth.user.id,
     },
     { onConflict: "key" }
   );
@@ -63,8 +64,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "ai_engine.threshold_change",
     targetType: "platform",
     targetId: null,

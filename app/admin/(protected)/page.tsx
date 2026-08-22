@@ -1,23 +1,23 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { getAdminOverviewMetrics } from "@/lib/adminAnalytics";
 import { MetricCard } from "@/components/admin/overview/MetricCard";
 import { BreakdownTable } from "@/components/admin/overview/BreakdownTable";
 import { AiThroughputChart } from "@/components/admin/overview/AiThroughputChart";
 
 // Admin Portal Overview module: read-only, platform-wide metrics. No
-// mutations anywhere on this page. requireSuperAdminPage() re-verifies
-// the platform-admin gate explicitly (app/admin/layout.tsx already
+// mutations anywhere on this page. requireAdminSessionPage() re-verifies
+// the admin session explicitly (app/admin/(protected)/layout.tsx already
 // covers this page's render, but a module reading across every
 // workspace via the service-role client is worth keeping that
 // assumption visible rather than implicit -- see the comment on
-// requireSuperAdminPage in lib/superAdmin.ts). All metrics come from
+// requireAdminSessionPage in lib/adminAuth.ts). All metrics come from
 // getAdminOverviewMetrics(), which is handed the service-role client
 // here, never the session client -- normal RLS would scope every one of
 // these tables to the caller's own workspace, silently turning a
 // "platform-wide" number into "just mine".
 export default async function AdminOverviewPage() {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const supabase = createServiceClient();
   const metrics = await getAdminOverviewMetrics(supabase);

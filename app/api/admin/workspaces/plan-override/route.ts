@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Workspaces module: manual plan override -- sets workspaces.plan
@@ -18,7 +18,7 @@ const PLAN_VALUES = new Set(["free", "solo", "team", "scale"]);
 type PlanOverrideBody = { workspaceId?: unknown; newPlan?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: PlanOverrideBody;
@@ -78,8 +78,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "workspace.plan_override",
     targetType: "workspace",
     targetId: workspaceId,

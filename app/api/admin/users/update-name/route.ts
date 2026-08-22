@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Users module: edits public.users.full_name -- this app's own
@@ -20,7 +20,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 type UpdateNameBody = { userId?: unknown; fullName?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: UpdateNameBody;
@@ -65,8 +65,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "user.profile_update",
     targetType: "user",
     targetId: userId,

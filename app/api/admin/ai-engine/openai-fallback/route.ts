@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 import { fetchOpenAiFallbackFromDb, invalidateOpenAiFallbackCache } from "@/lib/groq";
 
@@ -15,7 +15,7 @@ import { fetchOpenAiFallbackFromDb, invalidateOpenAiFallbackCache } from "@/lib/
 type OpenAiFallbackBody = { enabled?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: OpenAiFallbackBody;
@@ -37,12 +37,13 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, noChange: true, enabled: oldEnabled });
   }
 
+  // Deliberately NOT setting updated_by -- see the identical comment in
+  // app/api/admin/ai-engine/strategy/route.ts.
   const { error } = await supabase.from("app_settings").upsert(
     {
       key: "ai_engine_openai_fallback",
       value: enabled ? "true" : "false",
       updated_at: new Date().toISOString(),
-      updated_by: auth.user.id,
     },
     { onConflict: "key" }
   );
@@ -55,8 +56,8 @@ export async function POST(request: NextRequest) {
   invalidateOpenAiFallbackCache();
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "ai_engine.openai_fallback_change",
     targetType: "platform",
     targetId: null,

@@ -1,11 +1,12 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
-// Admin Promo Code wizard: creates a new promo_codes row. Platform-admin
-// gated (requireSuperAdmin re-checks server-side -- the app/admin/layout.tsx
-// guard covers page renders only, not this separate route invocation).
+// Admin Promo Code wizard: creates a new promo_codes row. Admin-session
+// gated (requireAdminSession re-checks server-side -- the
+// app/admin/(protected)/layout.tsx guard covers page renders only, not
+// this separate route invocation).
 // All validation happens here rather than trusting a client-built
 // reward_payload -- the request body is flat, typed fields; this route
 // constructs the actual JSON payload itself, which is also what makes
@@ -43,7 +44,7 @@ function asPositiveInt(value: unknown): number | null {
 }
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: CreatePromoBody;
@@ -121,8 +122,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "promo_code.create",
     targetType: "promo_code",
     targetId: data.id,

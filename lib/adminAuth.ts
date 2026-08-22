@@ -1,5 +1,7 @@
 import crypto from "node:crypto";
 import { cookies } from "next/headers";
+import { redirect } from "next/navigation";
+import { NextResponse } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
 
 // Admin Auth Rebuild Phase 2: session lifecycle for the NEW, independent
@@ -115,11 +117,46 @@ export async function getAdminSessionFromToken(token: string | undefined | null)
 }
 
 // Convenience wrapper for Server Components / Route Handlers -- reads the
-// cookie via next/headers and resolves it the same way. This is what
-// Phase 3's requireAdminSession()/requireAdminSessionPage() will call;
-// not used anywhere yet.
+// cookie via next/headers and resolves it the same way.
 export async function getAdminSession(): Promise<AdminUser | null> {
   const cookieStore = await cookies();
   const token = cookieStore.get(ADMIN_SESSION_COOKIE)?.value;
   return getAdminSessionFromToken(token);
+}
+
+// Admin Auth Rebuild Phase 3: the unified guard, mirroring the shape of
+// the OLD lib/superAdmin.ts's requireSuperAdmin()/requireSuperAdminPage()
+// exactly, so every call site swap is mechanical (same import shape,
+// same .ok check, same .response escape hatch) rather than a rewrite.
+// Only one failure mode here (unlike the old "signed in but not a
+// platform admin" vs "not signed in" split) -- admin_users has no
+// separate tier, so "no valid admin session" is the only case.
+
+export type AdminSessionApiResult = { ok: true; admin: AdminUser } | { ok: false; response: NextResponse };
+
+// For app/api/admin/**/route.ts. Every route under app/api/admin/** MUST
+// call this itself -- there is no layout-equivalent for the API route
+// tree (see the Phase A report), so this is the one place that
+// enforcement actually lives for API routes.
+export async function requireAdminSession(): Promise<AdminSessionApiResult> {
+  const admin = await getAdminSession();
+  if (!admin) {
+    return {
+      ok: false,
+      response: NextResponse.json({ ok: false, error: "Not signed in." }, { status: 401 }),
+    };
+  }
+  return { ok: true, admin };
+}
+
+// For app/admin/(protected)/**/page.tsx (via the (protected)/layout.tsx
+// that wraps all of them). Redirects itself to /admin/login -- NOT the
+// regular app's /login, since this admin is never expected to have a
+// Supabase session at all.
+export async function requireAdminSessionPage(): Promise<AdminUser> {
+  const admin = await getAdminSession();
+  if (!admin) {
+    redirect("/admin/login");
+  }
+  return admin;
 }

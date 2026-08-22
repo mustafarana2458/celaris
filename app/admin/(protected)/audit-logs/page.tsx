@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { Input } from "@/components/ui/Input";
 import { Button } from "@/components/ui/Button";
 
@@ -9,18 +9,17 @@ import { Button } from "@/components/ui/Button";
 // admin actions being audited (currently: the Promo Code wizard's create
 // and toggle routes).
 //
-// requireSuperAdminPage() re-verifies the platform-admin gate explicitly,
-// same reasoning as app/admin/page.tsx (Overview): this module reads
-// across every workspace/actor, so keeping that assumption visible here
-// rather than relying solely on the layout matters more than for a
-// module that only ever touches the current admin's own data.
+// requireAdminSessionPage() re-verifies the admin session explicitly,
+// same reasoning as app/admin/(protected)/page.tsx (Overview): this
+// module reads across every workspace/actor, so keeping that assumption
+// visible here rather than relying solely on the layout matters more
+// than for a module that only ever touches the current admin's own data.
 //
-// Reads via the service-role client rather than the RLS SELECT policy --
-// audit_logs does allow platform admins to SELECT directly (is_platform_
-// admin() in its policy), so the session client would also work here, but
-// using the service-role client keeps this page consistent with every
-// other admin module's read path (Promo Codes list, Overview) rather than
-// having one module quietly depend on a different code path succeeding.
+// Reads via the service-role client -- audit_logs has no SELECT policy
+// for anon/authenticated (service-role-only by RLS design, same as every
+// other admin module's read path), and admin_users sessions have no
+// Supabase role/RLS standing to lean on anyway now that admin auth is
+// fully independent of Supabase.
 //
 // Filtering is a plain GET form (action/actor text inputs) -- no client
 // component needed; the browser's own form submission re-navigates this
@@ -57,7 +56,7 @@ export default async function AdminAuditLogsPage({
 }: {
   searchParams: { action?: string; actor?: string };
 }) {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const actionFilter = searchParams.action?.trim() ?? "";
   const actorFilter = searchParams.actor?.trim() ?? "";

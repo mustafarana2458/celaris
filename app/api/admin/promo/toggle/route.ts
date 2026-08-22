@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 
 // Admin Promo Code wizard: pause/activate an existing code. Platform-admin
@@ -13,7 +13,7 @@ import { logAuditEvent } from "@/lib/auditLog";
 type ToggleBody = { id?: unknown; is_active?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: ToggleBody;
@@ -46,8 +46,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "promo_code.toggle_active",
     targetType: "promo_code",
     targetId: data.id,

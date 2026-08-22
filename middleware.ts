@@ -15,27 +15,28 @@ const ADMIN_HOST = "admin.celaris.cloud";
 //    and is called via relative fetch("/api/admin/...") from admin UI
 //    running ON admin.celaris.cloud -- rewriting /api would break every
 //    one of those calls, plus every other API route/webhook.
-//  - /login: where app/admin/layout.tsx redirects a signed-out visitor.
-//    Must render the real login page here (no /admin/login route
-//    exists) -- the session cookie a super-admin already has on
-//    celaris.cloud is host-only and is NOT sent to this subdomain (see
-//    the subdomain build report), so they sign in again, right here.
-//  - /dashboard: where that same layout redirects a signed-in-but-not-
-//    platform-admin user. Must render the real dashboard (no
-//    /admin/dashboard route exists) so that redirect lands somewhere
-//    real instead of a 404.
-//  - /admin: already the correct destination -- rewriting it again would
+//  - /login: the regular app's login page. Admin Auth Rebuild Phase 3
+//    made admin auth fully independent of Supabase, so nothing in the
+//    admin guard redirects here anymore (app/admin/(protected)/layout.tsx
+//    redirects to /admin/login instead, already covered by the /admin
+//    entry below) -- kept passthrough anyway so this host doesn't lose
+//    the ability to serve the regular login page at all, on the off
+//    chance anything else ever links to it from here.
+//  - /dashboard: same reasoning -- no longer an admin-guard redirect
+//    target either (see above), kept passthrough so it still resolves
+//    to something real rather than a confusing rewrite into /admin/*.
+//  - /admin: covers every real admin URL, including /admin/login (the
+//    permanent login page as of Phase 3 -- see app/admin/login/page.tsx)
+//    and /admin/(protected)/* -- rewriting any of these again would
 //    double-prefix into /admin/admin/....
-//  - /admin-login: Admin Auth Rebuild Phase 2's new login page (see
-//    app/admin-login/page.tsx). Temporary, non-/admin-prefixed location
-//    (the real /admin/login URL needs Phase 3's route-group restructure
-//    -- app/admin/layout.tsx's old guard would otherwise redirect an
-//    unauthenticated visitor away from it, same as any other /admin/*
-//    page). Without this entry, "/admin-login" doesn't match "/admin" or
-//    "/admin/" as a prefix (no trailing slash after "admin"), so it fell
-//    through to the rewrite -> became "/admin/admin-login" -> hit the
-//    OLD guard -> redirected to /login instead of ever rendering.
-const ADMIN_SUBDOMAIN_PASSTHROUGH = ["/api", "/login", "/dashboard", "/admin", "/admin-login"];
+// /admin-login (Phase 2's temporary login URL) is deliberately NOT
+// listed here anymore -- it's now just a redirect stub
+// (app/admin-login/page.tsx) to /admin/login, and letting it fall
+// through to the rewrite is harmless: it becomes /admin/admin-login,
+// 404s inside the (protected) tree, the new guard still fail-closes
+// correctly (redirects to /admin/login) for a signed-out visitor either
+// way.
+const ADMIN_SUBDOMAIN_PASSTHROUGH = ["/api", "/login", "/dashboard", "/admin"];
 
 function resolveAdminRewrite(request: NextRequest): URL | undefined {
   const host = (request.headers.get("host") ?? "").split(":")[0];

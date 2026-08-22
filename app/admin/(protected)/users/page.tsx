@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { listAllAuthUsers, isCurrentlyBanned } from "@/lib/adminUsers";
 
 // Admin Users module: list page. Pure Server Component, same pattern as
@@ -18,7 +18,7 @@ function formatDate(iso: string | null): string {
 }
 
 export default async function AdminUsersPage() {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const supabase = createServiceClient();
 

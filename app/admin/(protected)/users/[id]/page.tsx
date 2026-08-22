@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { getAuthUser, isCurrentlyBanned } from "@/lib/adminUsers";
 import { UserDetailClient } from "@/components/admin/users/UserDetailClient";
 
@@ -15,7 +15,7 @@ export type AdminUserDetail = {
 };
 
 export default async function AdminUserDetailPage({ params }: { params: { id: string } }) {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const supabase = createServiceClient();
 

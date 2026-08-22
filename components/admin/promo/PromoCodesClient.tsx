@@ -4,7 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { CreatePromoCodeModal } from "./CreatePromoCodeModal";
-import type { PromoCodeRow } from "@/app/admin/promo-codes/page";
+import type { PromoCodeRow } from "@/app/admin/(protected)/promo-codes/page";
 
 function summarizeReward(rewardType: string, rewardPayload: Record<string, unknown>): string {
   if (rewardType === "ai_credits") {

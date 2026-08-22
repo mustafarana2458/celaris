@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 import { fetchModeFromDb, invalidateProviderModeCache, type AiProviderMode } from "@/lib/groq";
 
@@ -17,7 +17,7 @@ const VALID_MODES: AiProviderMode[] = ["auto", "auto2", "groq", "mistral"];
 type StrategyBody = { strategy?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: StrategyBody;
@@ -39,9 +39,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ ok: true, noChange: true, strategy: oldStrategy });
   }
 
+  // Deliberately NOT setting updated_by here: this column is also
+  // written by the Dev Panel with a real Supabase auth.users id
+  // (lib/actions/devPanel.ts setAiProviderMode), so it likely carries an
+  // FK to auth.users -- writing an admin_users id there could fail the
+  // whole upsert outright (unlike audit_logs.actor_user_id, whose FK the
+  // boss is dropping separately, this column's constraint is unverified
+  // and out of scope here). Who changed it is already fully captured by
+  // the logAuditEvent call below via actor_email.
   const { error } = await supabase
     .from("app_settings")
-    .upsert({ key: "ai_provider_mode", value: strategy, updated_at: new Date().toISOString(), updated_by: auth.user.id }, { onConflict: "key" });
+    .upsert({ key: "ai_provider_mode", value: strategy, updated_at: new Date().toISOString() }, { onConflict: "key" });
 
   if (error) {
     console.error("[admin ai-engine strategy] update failed:", error.message);
@@ -51,8 +59,8 @@ export async function POST(request: NextRequest) {
   invalidateProviderModeCache();
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "ai_engine.strategy_change",
     targetType: "platform",
     targetId: null,

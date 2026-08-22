@@ -1,6 +1,6 @@
 import { NextResponse, type NextRequest } from "next/server";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdmin } from "@/lib/superAdmin";
+import { requireAdminSession } from "@/lib/adminAuth";
 import { logAuditEvent } from "@/lib/auditLog";
 import { isCurrentlyBanned } from "@/lib/adminUsers";
 
@@ -40,7 +40,7 @@ const SUSPEND_DURATION = "876000h"; // ~100 years -- effectively indefinite, unt
 type SuspendBody = { userId?: unknown; suspended?: unknown };
 
 export async function POST(request: NextRequest) {
-  const auth = await requireSuperAdmin();
+  const auth = await requireAdminSession();
   if (!auth.ok) return auth.response;
 
   let body: SuspendBody;
@@ -80,8 +80,8 @@ export async function POST(request: NextRequest) {
   }
 
   await logAuditEvent({
-    actorUserId: auth.user.id,
-    actorEmail: auth.user.email ?? null,
+    actorUserId: auth.admin.id,
+    actorEmail: auth.admin.email,
     action: "user.suspend_toggle",
     targetType: "user",
     targetId: userId,

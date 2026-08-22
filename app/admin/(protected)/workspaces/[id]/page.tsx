@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { getAuthEmail } from "@/lib/adminUsers";
 import { getPlanLimit } from "@/lib/aiCreditsCore";
 import { WorkspaceDetailClient } from "@/components/admin/workspaces/WorkspaceDetailClient";
@@ -17,7 +17,7 @@ export type AdminWorkspaceDetail = {
 };
 
 export default async function AdminWorkspaceDetailPage({ params }: { params: { id: string } }) {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const supabase = createServiceClient();
 

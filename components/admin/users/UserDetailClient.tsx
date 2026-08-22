@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/Button";
 import { PasswordResetModal } from "./PasswordResetModal";
 import { EditNameModal } from "./EditNameModal";
 import { SuspendModal } from "./SuspendModal";
-import type { AdminUserDetail } from "@/app/admin/users/[id]/page";
+import type { AdminUserDetail } from "@/app/admin/(protected)/users/[id]/page";
 
 function formatDate(iso: string | null): string {
   if (!iso) return "--";

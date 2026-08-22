@@ -1,5 +1,5 @@
 import { createServiceClient } from "@/lib/supabase/service";
-import { requireSuperAdminPage } from "@/lib/superAdmin";
+import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { fetchModeFromDb, fetchOpenAiFallbackFromDb, type AiProviderMode } from "@/lib/groq";
 import { MetricCard } from "@/components/admin/overview/MetricCard";
 import { AiEngineClient } from "@/components/admin/ai-engine/AiEngineClient";
@@ -23,7 +23,7 @@ export type AiEngineConfig = {
 };
 
 export default async function AdminAiEnginePage() {
-  await requireSuperAdminPage();
+  await requireAdminSessionPage();
 
   const supabase = createServiceClient();
 
