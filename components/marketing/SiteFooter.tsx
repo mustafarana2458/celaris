@@ -78,8 +78,19 @@ export function SiteFooter() {
           <FooterColumn title="Legal" links={LEGAL_LINKS} />
         </div>
 
-        <div className="mt-12 border-t border-gray-200 pt-8 text-sm text-gray-400 dark:border-neutral-800 dark:text-neutral-500">
-          © {new Date().getFullYear()} Celaris. All rights reserved.
+        <div className="mt-12 flex flex-col items-center justify-between gap-4 border-t border-gray-200 pt-8 text-sm text-gray-400 dark:border-neutral-800 dark:text-neutral-500 sm:flex-row">
+          <p>© {new Date().getFullYear()} Celaris. All rights reserved.</p>
+          <p>
+            Engineered by{" "}
+            <a
+              href="https://aevia.site"
+              target="_blank"
+              rel="noopener noreferrer"
+              className="text-gray-900 transition-colors hover:text-blue-500 dark:text-white dark:hover:text-blue-500"
+            >
+              Aevia
+            </a>
+          </p>
         </div>
       </div>
     </footer>
