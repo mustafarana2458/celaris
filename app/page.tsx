@@ -160,7 +160,7 @@ export default async function Home() {
               Start for free
             </Link>
             <Link
-              href="mailto:sales@celaris.cloud"
+              href="mailto:hello@aevia.site"
               className="rounded-xl border border-slate-200 bg-white px-8 py-3.5 text-sm font-medium text-slate-700 transition-all hover:bg-slate-50 dark:border-white/20 dark:bg-transparent dark:text-white dark:hover:bg-white/5"
             >
               Talk to sales
