@@ -1,9 +1,10 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Modal } from "@/components/ui/Modal";
 import { Button } from "@/components/ui/Button";
 import { createCreditTopUpCheckoutUrl } from "@/lib/actions/aiCreditsTopUp";
+import { getEnabledPaymentGateways, type PaymentGatewaysEnabled } from "@/lib/actions/paymentGateways";
 import { TOPUP_MIN_CREDITS, TOPUP_MAX_CREDITS, TOPUP_CENTS_PER_CREDIT, isValidTopUpAmount } from "@/lib/aiCreditsCore";
 
 // Celaris Improvements Phase 3: mirrors BillingTab.tsx's "Choose a payment
@@ -12,6 +13,15 @@ import { TOPUP_MIN_CREDITS, TOPUP_MAX_CREDITS, TOPUP_CENTS_PER_CREDIT, isValidTo
 // checkout flow" instruction. The one addition that modal doesn't need is
 // the credit-amount input, since a top-up (unlike a plan tier) has no
 // fixed price.
+//
+// Gateway visibility: reads the admin-controlled toggle via
+// getEnabledPaymentGateways() -- the same server action BillingTab.tsx's
+// gateway modal reads, so both modals stay in sync with one setting.
+// Fails safe to the same {lemonsqueezy: true, safepay: false} default the
+// setting itself defaults to (lib/paymentGateways.ts) while loading or on
+// a fetch error, rather than briefly showing a gateway that's actually
+// disabled.
+const DEFAULT_GATEWAYS: PaymentGatewaysEnabled = { lemonsqueezy: true, safepay: false };
 
 const STEP = 500;
 
@@ -23,6 +33,18 @@ export function TopUpCreditsModal({ open, onClose }: { open: boolean; onClose: (
   const [credits, setCredits] = useState(TOPUP_MIN_CREDITS);
   const [loadingGateway, setLoadingGateway] = useState<"lemonsqueezy" | "safepay" | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const [gateways, setGateways] = useState<PaymentGatewaysEnabled>(DEFAULT_GATEWAYS);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    getEnabledPaymentGateways().then((result) => {
+      if (!cancelled) setGateways(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [open]);
 
   const amountValid = isValidTopUpAmount(credits);
 
@@ -117,41 +139,43 @@ export function TopUpCreditsModal({ open, onClose }: { open: boolean; onClose: (
           )}
         </div>
 
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-          <div className="flex items-center justify-between gap-2">
+        {gateways.safepay && (
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
             <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safepay</span>
-            <span className="inline-flex w-fit items-center gap-1 rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-amber-700 dark:bg-amber-900/40 dark:text-amber-400">
-              Not yet live
-            </span>
+            <p className="text-xs text-slate-500 dark:text-slate-400">Pay in PKR via local cards, bank transfer, or wallets.</p>
+            <Button
+              type="button"
+              variant="secondary"
+              loading={loadingGateway === "safepay"}
+              disabled={loadingGateway !== null || !amountValid}
+              onClick={() => handleCheckout("safepay")}
+            >
+              Pay with Safepay (PKR)
+            </Button>
           </div>
-          <p className="text-xs text-slate-500 dark:text-slate-400">
-            Pay in PKR via local cards, bank transfer, or wallets. Safepay go-live is still pending -- this option is not
-            confirmed working yet.
-          </p>
-          <Button
-            type="button"
-            variant="secondary"
-            loading={loadingGateway === "safepay"}
-            disabled={loadingGateway !== null || !amountValid}
-            onClick={() => handleCheckout("safepay")}
-          >
-            Pay with Safepay (PKR)
-          </Button>
-        </div>
+        )}
 
-        <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-          <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lemon Squeezy</span>
-          <p className="text-xs text-slate-500 dark:text-slate-400">International card payments (USD).</p>
-          <Button
-            type="button"
-            variant="secondary"
-            loading={loadingGateway === "lemonsqueezy"}
-            disabled={loadingGateway !== null || !amountValid}
-            onClick={() => handleCheckout("lemonsqueezy")}
-          >
-            Pay with card (International)
-          </Button>
-        </div>
+        {gateways.lemonsqueezy && (
+          <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+            <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lemon Squeezy</span>
+            <p className="text-xs text-slate-500 dark:text-slate-400">International card payments (USD).</p>
+            <Button
+              type="button"
+              variant="secondary"
+              loading={loadingGateway === "lemonsqueezy"}
+              disabled={loadingGateway !== null || !amountValid}
+              onClick={() => handleCheckout("lemonsqueezy")}
+            >
+              Pay with card (International)
+            </Button>
+          </div>
+        )}
+
+        {!gateways.safepay && !gateways.lemonsqueezy && (
+          <p className="text-sm text-slate-500 dark:text-slate-400">
+            No payment methods are currently available. Please contact support.
+          </p>
+        )}
 
         {error && <p className="text-sm text-red-600 dark:text-red-400">{error}</p>}
 

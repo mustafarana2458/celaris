@@ -1,15 +1,22 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/Button";
 import { Input } from "@/components/ui/Input";
 import { Modal } from "@/components/ui/Modal";
 import { createCheckoutUrl, createSafepayCheckoutUrl, getCustomerPortalUrl } from "@/lib/actions/billing";
+import { getEnabledPaymentGateways, type PaymentGatewaysEnabled } from "@/lib/actions/paymentGateways";
 import type { BillingInterval } from "@/lib/lemonSqueezy";
 import { getPlanLimit, type Plan, type RemainingCredits } from "@/lib/aiCreditsCore";
 import type { CurrentWorkspace } from "@/lib/workspace";
 import type { WorkspaceSubscription } from "../page";
+
+// Same admin-controlled gateway toggle both payment modals read (see
+// components/assistant/TopUpCreditsModal.tsx's identical comment) -- one
+// setting, fetched via the same server action, so this modal and the AI
+// credit top-up modal can never disagree about which gateways are live.
+const DEFAULT_GATEWAYS: PaymentGatewaysEnabled = { lemonsqueezy: true, safepay: false };
 
 // Promo Code Engine Phase 3: response shape of POST /api/promo/redeem (see
 // app/api/promo/redeem/route.ts) -- kept in sync with that route's actual
@@ -143,6 +150,18 @@ export function BillingTab({
   const [checkoutLoading, setCheckoutLoading] = useState<string | null>(null);
   const [portalLoading, setPortalLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [gateways, setGateways] = useState<PaymentGatewaysEnabled>(DEFAULT_GATEWAYS);
+
+  useEffect(() => {
+    if (!gatewayModalTarget) return;
+    let cancelled = false;
+    getEnabledPaymentGateways().then((result) => {
+      if (!cancelled) setGateways(result);
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [gatewayModalTarget]);
 
   const [promoCode, setPromoCode] = useState("");
   const [promoLoading, setPromoLoading] = useState(false);
@@ -561,42 +580,47 @@ export function BillingTab({
               {modalPrice !== null && <> (${modalPrice}/mo)</>}
             </p>
 
-            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-              <div className="flex items-center justify-between gap-2">
+            {gateways.safepay && (
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
                 <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Safepay</span>
-                <span className="inline-flex w-fit items-center gap-1 rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold uppercase tracking-wide text-emerald-700 dark:bg-emerald-900/40 dark:text-emerald-400">
-                  Preferred for Pakistan
-                </span>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  Pay in PKR via local cards, bank transfer, or wallets.
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={isSafepayLoading}
+                  disabled={checkoutLoading !== null}
+                  onClick={() => handleSafepayCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
+                >
+                  Pay with Safepay (PKR)
+                </Button>
               </div>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                Pay in PKR via local cards, bank transfer, or wallets.
-              </p>
-              <Button
-                type="button"
-                variant="secondary"
-                loading={isSafepayLoading}
-                disabled={checkoutLoading !== null}
-                onClick={() => handleSafepayCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
-              >
-                Pay with Safepay (PKR)
-              </Button>
-            </div>
+            )}
 
-            <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
-              <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lemon Squeezy</span>
-              <p className="text-xs text-slate-500 dark:text-slate-400">
-                International card payments (USD).
+            {gateways.lemonsqueezy && (
+              <div className="flex flex-col gap-3 rounded-xl border border-slate-200 p-4 dark:border-slate-700">
+                <span className="text-sm font-semibold text-slate-900 dark:text-slate-100">Lemon Squeezy</span>
+                <p className="text-xs text-slate-500 dark:text-slate-400">
+                  International card payments (USD).
+                </p>
+                <Button
+                  type="button"
+                  variant="secondary"
+                  loading={isLsModalLoading}
+                  disabled={checkoutLoading !== null}
+                  onClick={() => handleCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
+                >
+                  Pay with card (International)
+                </Button>
+              </div>
+            )}
+
+            {!gateways.safepay && !gateways.lemonsqueezy && (
+              <p className="text-sm text-slate-500 dark:text-slate-400">
+                No payment methods are currently available. Please contact support.
               </p>
-              <Button
-                type="button"
-                variant="secondary"
-                loading={isLsModalLoading}
-                disabled={checkoutLoading !== null}
-                onClick={() => handleCheckout(gatewayModalTarget.tier, gatewayModalTarget.interval)}
-              >
-                Pay with card (International)
-              </Button>
-            </div>
+            )}
 
             <div className="flex justify-end">
               <Button

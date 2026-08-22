@@ -1,7 +1,9 @@
 import { createServiceClient } from "@/lib/supabase/service";
 import { requireAdminSessionPage } from "@/lib/adminAuth";
 import { getAuthEmailMap } from "@/lib/adminUsers";
+import { fetchPaymentGatewayEnabledFromDb } from "@/lib/paymentGateways";
 import { MetricCard } from "@/components/admin/overview/MetricCard";
+import { PaymentGatewayToggles } from "@/components/admin/financials/PaymentGatewayToggles";
 import { Select } from "@/components/ui/Select";
 import { Button } from "@/components/ui/Button";
 
@@ -126,11 +128,13 @@ export default async function AdminFinancialsPage({
   // Metrics are computed over EVERY row (unfiltered, uncapped) so the
   // summary cards always reflect true platform-wide totals regardless of
   // what the table below is currently filtered to.
-  const [metricsRes, tableRes, workspacesRes, emailMap] = await Promise.all([
+  const [metricsRes, tableRes, workspacesRes, emailMap, lemonsqueezyEnabled, safepayEnabled] = await Promise.all([
     supabase.from("subscriptions").select("provider, status, updated_at"),
     tableQuery,
     supabase.from("workspaces").select("id, name, owner_id"),
     getAuthEmailMap(supabase),
+    fetchPaymentGatewayEnabledFromDb(supabase, "lemonsqueezy"),
+    fetchPaymentGatewayEnabledFromDb(supabase, "safepay"),
   ]);
 
   const metricRows = (metricsRes.data as SubscriptionMetricRow[] | null) ?? [];
@@ -185,6 +189,8 @@ export default async function AdminFinancialsPage({
           </div>
         ))}
       </div>
+
+      <PaymentGatewayToggles config={{ lemonsqueezy: lemonsqueezyEnabled, safepay: safepayEnabled }} />
 
       <div className="rounded-2xl border border-dashed border-slate-300 bg-white p-5 text-xs text-slate-500 dark:border-slate-600 dark:bg-slate-800 dark:text-slate-400">
         <strong className="text-slate-700 dark:text-slate-300">Not available yet:</strong> payment failure alerts require a
