@@ -36,8 +36,20 @@ import {
   type ExecuteResult,
 } from "@/lib/assistantTools";
 import { deductAiCredits, getRemainingCreditsAfter, requireAiCredits, resetCreditsIfDue, type RemainingCredits } from "@/lib/aiCredits";
+import { normalizePlanTier, getLockedModulesForPlan, type PlanTier } from "@/lib/planLimits";
 import type { ReadTool, WriteTool } from "@/lib/assistantToolLabels";
 import type { CompanyIndustry, CompanySize, ContactType, DealStage, ProjectStatus, TaskPriority } from "@/lib/types";
+
+// Celaris Improvements Phase 4: display labels for buildIntentPrompt's
+// refusal directive below -- purely cosmetic (turns a moduleKey into the
+// English name a user would recognize). The actual set of which modules
+// are locked always comes from lib/planLimits.ts's getLockedModulesForPlan
+// (itself backed by the same LOCKED_MODULES_BY_PLAN the Phase 2B backend
+// gate enforces) -- this map never decides locking, only how to phrase it.
+const MODULE_DISPLAY_LABELS: Record<string, string> = {
+  projects: "Projects",
+  team: "Team management",
+};
 
 const MAX_QUESTION_LENGTH = 500;
 
@@ -76,10 +88,38 @@ type RawIntent = {
   params?: Record<string, unknown>;
 };
 
-function buildIntentPrompt(summaryText: string, todayISO: string, question: string) {
+// Celaris Improvements Phase 4: AI contextual upselling -- a prompt-level
+// nudge only, NOT a security boundary. Real enforcement is Phase 2B's
+// backend gate (requirePlanAllowsModule / isModuleLockedByPlan, called
+// from lib/actions/{projects,milestones,projectTemplates,team,...}.ts
+// before any write happens) -- this directive is a complement to that,
+// so the model politely declines and suggests an upgrade *before* even
+// attempting a restricted create_* tool call, rather than the user
+// hitting a raw 403-style error from the backend gate. If the model
+// ignores this and emits create_project anyway, the backend gate still
+// blocks it -- this text changes nothing about what's actually allowed.
+function buildPlanContextBlock(planTier: PlanTier, lockedModules: readonly string[]): string {
+  if (lockedModules.length === 0) {
+    return `The active user's workspace is on the ${planTier} plan.`;
+  }
+
+  const lockedLabels = lockedModules.map((key) => MODULE_DISPLAY_LABELS[key] ?? key).join(" or ");
+
+  return `The active user's workspace is on the ${planTier} plan. If they request data generation or mutations for restricted modules (e.g., ${lockedLabels} while on the ${planTier} plan), you must politely refuse the request and instruct them to upgrade their workspace tier. Do this using the "chat" tool with a short, polite refusal + upgrade suggestion as the answer -- do NOT attempt create_project or any other write action for a restricted module in that case.`;
+}
+
+function buildIntentPrompt(
+  summaryText: string,
+  todayISO: string,
+  question: string,
+  planTier: PlanTier,
+  lockedModules: readonly string[]
+) {
   return `You are a business assistant for a CRM app. For every user message, respond with ONLY one JSON object choosing exactly one action below — no markdown, no extra text.
 
 Today's date is ${todayISO}.
+
+${buildPlanContextBlock(planTier, lockedModules)}
 
 Business data summary (use this for direct answers, do not invent numbers not shown here):
 ${summaryText}
@@ -243,7 +283,14 @@ export async function askAssistant(question: string): Promise<AssistantActionRes
 
   const summary = await buildWorkspaceSummary(ctx.supabase, workspace.id, visibility);
   const todayISO = new Date().toISOString().slice(0, 10);
-  const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed);
+  // Celaris Improvements Phase 4: workspaces.plan (already loaded on
+  // `workspace`, the same source of truth Phase 2B's backend gate reads)
+  // resolved through the same normalizePlanTier/getLockedModulesForPlan
+  // lib/planLimits.ts already exports -- no separate plan-tier or
+  // locked-module logic duplicated here.
+  const planTier = normalizePlanTier(workspace.plan);
+  const lockedModules = getLockedModulesForPlan(workspace.plan);
+  const prompt = buildIntentPrompt(formatWorkspaceSummary(summary), todayISO, trimmed, planTier, lockedModules);
 
   const history = await loadConversationHistory(ctx.supabase, ctx.userId, workspace.id);
   const messages: GroqMessage[] = [...history, { role: "user", content: prompt }];

@@ -31,7 +31,7 @@ import type { CurrentWorkspace } from "@/lib/workspace";
 // rather than fail-open.
 export type PlanTier = Plan | "free";
 
-function normalizePlanTier(plan: string | null | undefined): PlanTier {
+export function normalizePlanTier(plan: string | null | undefined): PlanTier {
   if (plan === "solo" || plan === "team" || plan === "scale") return plan;
   return "free";
 }
@@ -50,6 +50,15 @@ const LOCKED_MODULES_BY_PLAN: Record<PlanTier, readonly string[]> = {
 
 export function isModuleLockedByPlan(plan: string | null | undefined, moduleKey: string): boolean {
   return LOCKED_MODULES_BY_PLAN[normalizePlanTier(plan)].includes(moduleKey);
+}
+
+// Celaris Improvements Phase 4: read-only accessor for the same
+// LOCKED_MODULES_BY_PLAN map above, so the AI assistant's system prompt
+// (lib/actions/assistant.ts buildIntentPrompt) can tell the model which
+// modules the active workspace's plan restricts -- without a second,
+// separately-maintained list that could drift from the real backend gate.
+export function getLockedModulesForPlan(plan: string | null | undefined): readonly string[] {
+  return LOCKED_MODULES_BY_PLAN[normalizePlanTier(plan)];
 }
 
 // Server-side gate for every action inside a plan-locked module (Projects:
