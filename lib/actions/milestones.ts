@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireFullAccess } from "@/lib/permissions";
+import { requirePlanAllowsModule } from "@/lib/planLimits";
 
 export type MilestoneActionResult = { error?: string };
 
@@ -65,6 +66,9 @@ export async function createMilestone(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
   if (permError) return permError;
 
@@ -99,6 +103,9 @@ export async function toggleMilestone(id: string, isDone: boolean): Promise<Mile
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
   if (permError) return permError;
 
@@ -118,6 +125,9 @@ export async function toggleMilestone(id: string, isDone: boolean): Promise<Mile
 export async function deleteMilestone(id: string): Promise<MilestoneActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
 
   const permError = requireFullAccess(ctx.workspace, "projects", "milestones");
   if (permError) return permError;

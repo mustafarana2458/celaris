@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireFullAccess } from "@/lib/permissions";
+import { requirePlanAllowsModule } from "@/lib/planLimits";
 import { getProjectTemplate } from "@/lib/projectTemplates";
 import { parseAssigneeKey } from "@/lib/assignee";
 import type { ProjectHealth, ProjectStatus, ProjectTemplateStructure, TaskPriority } from "@/lib/types";
@@ -115,6 +116,9 @@ export async function createProject(formData: FormData): Promise<ProjectActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
 
@@ -181,6 +185,9 @@ export async function updateProject(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
 
@@ -207,6 +214,9 @@ export async function updateProject(
 export async function deleteProject(id: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
 
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
@@ -235,6 +245,9 @@ export async function getProjectAssignments(projectId: string): Promise<ProjectA
   const ctx = await requireWorkspace();
   if ("error" in ctx) return { assignees: [], departments: [], error: ctx.error };
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return { assignees: [], departments: [], error: planError.error };
+
   const [{ data: assignees, error: assigneesError }, { data: departments, error: departmentsError }] =
     await Promise.all([
       ctx.supabase
@@ -262,6 +275,9 @@ export async function addProjectAssignee(projectId: string, assignee: string): P
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
 
@@ -285,6 +301,9 @@ export async function addProjectAssignee(projectId: string, assignee: string): P
 export async function removeProjectAssignee(id: string, projectId: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
 
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
@@ -310,6 +329,9 @@ export async function addProjectDepartment(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;
 
@@ -329,6 +351,9 @@ export async function addProjectDepartment(
 export async function removeProjectDepartment(id: string, projectId: string): Promise<ProjectActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "projects");
+  if (planError) return planError;
 
   const permError = requireFullAccess(ctx.workspace, "projects", "all_projects");
   if (permError) return permError;

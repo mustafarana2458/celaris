@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { requireFullAccess } from "@/lib/permissions";
+import { requirePlanAllowsModule } from "@/lib/planLimits";
 
 export type TeamActionResult = { error?: string };
 
@@ -46,6 +47,9 @@ export async function createTeamMember(formData: FormData): Promise<TeamActionRe
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
   if (permError) return permError;
 
@@ -72,6 +76,9 @@ export async function updateTeamMember(
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
+
   const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
   if (permError) return permError;
 
@@ -95,6 +102,9 @@ export async function updateTeamMember(
 export async function deleteTeamMember(id: string): Promise<TeamActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
 
   const permError = requireFullAccess(ctx.workspace, "team", "team_directory");
   if (permError) return permError;

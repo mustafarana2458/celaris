@@ -4,6 +4,7 @@ import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
 import { getCurrentWorkspace } from "@/lib/workspace";
 import { parseAssigneeKey } from "@/lib/assignee";
+import { requirePlanAllowsModule } from "@/lib/planLimits";
 
 export type DepartmentActionResult = { error?: string };
 
@@ -38,6 +39,9 @@ export async function createDepartment(formData: FormData): Promise<DepartmentAc
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
+
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;
 
@@ -60,6 +64,9 @@ export async function createDepartment(formData: FormData): Promise<DepartmentAc
 export async function renameDepartment(id: string, formData: FormData): Promise<DepartmentActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
 
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;
@@ -86,6 +93,9 @@ export async function deleteDepartment(id: string): Promise<DepartmentActionResu
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
 
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
+
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;
 
@@ -110,6 +120,9 @@ export async function addDepartmentMember(
 ): Promise<DepartmentActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
 
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;
@@ -136,6 +149,9 @@ export async function removeDepartmentMember(
 ): Promise<DepartmentActionResult> {
   const ctx = await requireWorkspace();
   if ("error" in ctx) return ctx;
+
+  const planError = requirePlanAllowsModule(ctx.workspace, "team");
+  if (planError) return planError;
 
   const permError = requireOwnerOrAdmin(ctx.workspace.role);
   if (permError) return permError;

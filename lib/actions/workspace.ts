@@ -2,6 +2,8 @@
 
 import { revalidatePath } from "next/cache";
 import { createClient } from "@/lib/supabase/server";
+import { getCurrentWorkspace } from "@/lib/workspace";
+import { requireWorkspaceSlotAvailable } from "@/lib/planLimits";
 
 export type WorkspaceActionResult = { error?: string };
 
@@ -56,6 +58,17 @@ export async function createWorkspace(formData: FormData): Promise<WorkspaceActi
   const ctx = await requireUser();
   if ("error" in ctx) return ctx;
   const { supabase, user } = ctx;
+
+  // Workspace limit (Team: 1 workspace per subscription) -- gated by the
+  // CURRENT (acting) workspace's plan, not the brand-new one being
+  // created (which always starts on "free" regardless). No current
+  // workspace at all (shouldn't happen once signed in, but defensively
+  // skipped rather than blocking) means there's nothing to gate against.
+  const currentWorkspace = await getCurrentWorkspace(supabase, user.id);
+  if (currentWorkspace) {
+    const limitError = await requireWorkspaceSlotAvailable(supabase, currentWorkspace.plan, user.id);
+    if (limitError) return limitError;
+  }
 
   const { data: workspace, error: workspaceError } = await supabase
     .from("workspaces")
