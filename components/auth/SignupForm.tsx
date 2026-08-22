@@ -115,7 +115,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         name="fullName"
         type="text"
         label="Full name"
-        placeholder="Sara Khan"
+        placeholder="Your name"
         required
       />
 
@@ -125,7 +125,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
           name="businessName"
           type="text"
           label="Business name (optional)"
-          placeholder="Acme Inc"
+          placeholder="Your company"
         />
       )}
 
@@ -134,7 +134,7 @@ export function SignupForm({ invite }: { invite?: SignupInvite | null }) {
         name="email"
         type="email"
         label="Email"
-        placeholder="you@company.com"
+        placeholder="Your email"
         defaultValue={invite?.email}
         disabled={!!invite}
         required
