@@ -52,10 +52,18 @@ export type DeductAiCreditsResult = { ok: true; cost: number } | { ok: false; er
 
 // Phase 2/3: call after the AI action has actually succeeded (never before
 // -- a failed Groq call or failed write shouldn't burn a credit). Atomic via
-// the deduct_ai_credits RPC (UPDATE ... WHERE ai_credits_used + cost <=
-// limit), so two concurrent requests from the same workspace can't both
-// slip past the cap the way a JS-side read-then-write could. Also logs the
-// deduction to ai_usage_log for traceability and the chat feedback tag.
+// the deduct_ai_credits_with_topup RPC (sql/phase3_purchased_credits.sql --
+// a single UPDATE whose WHERE clause re-checks the live row, same shape as
+// the original deduct_ai_credits it replaces here), so two concurrent
+// requests from the same workspace can't both slip past the cap the way a
+// JS-side read-then-write could. Also logs the deduction to ai_usage_log
+// for traceability and the chat feedback tag.
+//
+// Celaris Improvements Phase 3: this now deducts from the monthly
+// allowance first, purchased_ai_credits only once that's exhausted --
+// entirely inside the RPC (it reads purchased_ai_credits off the same row
+// it's already updating), so nothing here needs to pass that value in or
+// know the waterfall happened.
 export async function deductAiCredits(
   workspace: Pick<CurrentWorkspace, "id" | "plan">,
   actionType: AiActionType,
@@ -65,7 +73,7 @@ export async function deductAiCredits(
   const cost = CREDIT_COSTS[actionType];
   const limit = getPlanLimit(workspace.plan);
 
-  const { data, error } = await supabase.rpc("deduct_ai_credits", {
+  const { data, error } = await supabase.rpc("deduct_ai_credits_with_topup", {
     p_workspace_id: workspace.id,
     p_cost: cost,
     p_limit: limit,

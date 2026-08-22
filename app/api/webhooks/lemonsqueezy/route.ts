@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { syncSubscriptionEvent } from "@/lib/subscriptionSync";
+import { syncLemonSqueezyCreditTopUp } from "@/lib/creditTopUpSync";
 
 // Lemon Squeezy webhook receiver. Phase 2 built signature verification;
 // Phase 3 (this file, now) adds the actual DB sync -- verified events are
@@ -68,6 +69,14 @@ function logWebhookPayload(payload: unknown) {
   });
 }
 
+// Same narrow, defensive-read style as logWebhookPayload above.
+function isCreditTopUpOrderEvent(payload: unknown): boolean {
+  if (typeof payload !== "object" || payload === null) return false;
+  const meta = ((payload as Record<string, unknown>).meta ?? {}) as Record<string, unknown>;
+  const customData = (meta.custom_data ?? {}) as Record<string, unknown>;
+  return meta.event_name === "order_created" && customData.kind === "ai_credit_topup";
+}
+
 export async function POST(request: NextRequest) {
   const secret = process.env.LEMONSQUEEZY_WEBHOOK_SECRET;
 
@@ -105,7 +114,16 @@ export async function POST(request: NextRequest) {
 
   logWebhookPayload(payload);
 
-  const result = await syncSubscriptionEvent(payload);
+  // Celaris Improvements Phase 3: an order_created event for the AI
+  // credit top-up variant is NOT a subscription event -- route it to
+  // syncLemonSqueezyCreditTopUp instead of syncSubscriptionEvent. That
+  // function itself re-checks meta.custom_data.kind === "ai_credit_topup"
+  // (a plan-tier subscription's own first-payment order_created has no
+  // such marker and falls through to the branch below unaffected).
+  // Checked here, not inside syncSubscriptionEvent, so that file's
+  // HANDLED_EVENTS stays scoped purely to subscription lifecycle events
+  // as originally designed, rather than growing a top-up-specific carve-out.
+  const result = isCreditTopUpOrderEvent(payload) ? await syncLemonSqueezyCreditTopUp(payload) : await syncSubscriptionEvent(payload);
 
   if (!result.ok) {
     // A genuine write failure (transient DB error, etc.) -- 500 so Lemon

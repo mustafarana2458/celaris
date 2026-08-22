@@ -101,6 +101,19 @@ export function getPlanLimit(plan: string | null | undefined): number {
   return plan && plan in PLAN_LIMITS ? PLAN_LIMITS[plan as Plan] : DEFAULT_PLAN_LIMIT;
 }
 
+// Celaris Improvements Phase 3: AI credit top-up pricing. $0.01/credit
+// flat ($5 = 500 credits, $50 = 5,000 credits) -- shared by the checkout
+// builder (lib/actions/aiCreditsTopUp.ts, server) and the top-up modal
+// (client) so both price the same purchase identically, no separate
+// client-side pricing logic to drift out of sync.
+export const TOPUP_MIN_CREDITS = 500;
+export const TOPUP_MAX_CREDITS = 5000;
+export const TOPUP_CENTS_PER_CREDIT = 1;
+
+export function isValidTopUpAmount(credits: number): boolean {
+  return Number.isInteger(credits) && credits >= TOPUP_MIN_CREDITS && credits <= TOPUP_MAX_CREDITS;
+}
+
 export type CreditPeriodState = {
   effectiveUsed: number;
   resetDue: boolean;
@@ -135,23 +148,34 @@ export function resolveCreditPeriod(used: number, resetAt: string, now: Date = n
 
 export type RequireAiCreditsResult = { ok: true } | { ok: false; error: string };
 
-// Phase 2/3: call this right before running an AI action (after
-// resetCreditsIfDue() if the caller wants the rollover persisted first --
-// see its doc comment). Pure/synchronous: reads only the workspace fields
-// already loaded by getCurrentWorkspace(), no extra DB round trip for the
-// check itself.
+// Celaris Improvements Phase 3: the waterfall pre-check -- monthly
+// allowance first, purchased_ai_credits only once that's exhausted. This
+// is the READ-side mirror of the atomic deduct_ai_credits_with_topup RPC
+// (sql/phase3_purchased_credits.sql) that actually performs the
+// deduction; the RPC's own WHERE clause is the real enforcement (this
+// function can't prevent a race, only give an early, friendlier error
+// before attempting the call). Phase 2/3: call this right before running
+// an AI action (after resetCreditsIfDue() if the caller wants the
+// rollover persisted first -- see its doc comment). Pure/synchronous:
+// reads only the workspace fields already loaded by getCurrentWorkspace(),
+// no extra DB round trip for the check itself.
 export function requireAiCredits(
-  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt">,
+  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt" | "purchasedAiCredits">,
   actionType: AiActionType
 ): RequireAiCreditsResult {
   const cost = CREDIT_COSTS[actionType];
   const limit = getPlanLimit(workspace.plan);
   const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
+  const monthlyRemaining = Math.max(limit - effectiveUsed, 0);
+  const totalAvailable = monthlyRemaining + workspace.purchasedAiCredits;
 
-  if (effectiveUsed + cost > limit) {
+  if (cost > totalAvailable) {
     return {
       ok: false,
-      error: "You've reached this month's AI credit limit. Upgrade your plan or wait for next month's reset.",
+      error:
+        workspace.purchasedAiCredits > 0
+          ? "You've used up your monthly AI credits and purchased credit balance. Buy more credits or wait for next month's reset."
+          : "You've reached this month's AI credit limit. Purchase more credits, upgrade your plan, or wait for next month's reset.",
     };
   }
   return { ok: true };
@@ -160,16 +184,35 @@ export function requireAiCredits(
 // `cost` is only set by getRemainingCreditsAfter() below (the delta an
 // action just charged) -- getRemainingCredits() reports a point-in-time
 // balance with no associated action, so it leaves `cost` undefined.
-export type RemainingCredits = { used: number; limit: number; remaining: number; cost?: number };
+// `purchased`/`totalRemaining` are Phase 3 additions -- `remaining` keeps
+// its original "monthly allowance only" meaning (existing UI text like
+// "X / Y AI credits left this month" stays correct unchanged);
+// `totalRemaining` is what should gate the chat composer lock, since a
+// workspace at 0 monthly but with a purchased balance can still chat.
+export type RemainingCredits = {
+  used: number;
+  limit: number;
+  remaining: number;
+  purchased: number;
+  totalRemaining: number;
+  cost?: number;
+};
 
 // Phase 4 (UI): effective remaining balance for display, accounting for a
 // reset that's due but not yet persisted. Read-only, writes nothing.
 export function getRemainingCredits(
-  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt">
+  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt" | "purchasedAiCredits">
 ): RemainingCredits {
   const limit = getPlanLimit(workspace.plan);
   const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
-  return { used: effectiveUsed, limit, remaining: Math.max(0, limit - effectiveUsed) };
+  const remaining = Math.max(0, limit - effectiveUsed);
+  return {
+    used: effectiveUsed,
+    limit,
+    remaining,
+    purchased: workspace.purchasedAiCredits,
+    totalRemaining: remaining + workspace.purchasedAiCredits,
+  };
 }
 
 // Phase 2/3: pure calculation of the balance *after* deducting actionType's
@@ -178,12 +221,22 @@ export function getRemainingCredits(
 // "480/500 left"). Doesn't re-read the DB -- the caller's `workspace` is
 // whatever was loaded/reset at the start of the request, so this reports
 // "what your balance should now be" rather than issuing another query.
+// Phase 3: mirrors the waterfall -- cost comes out of the monthly
+// allowance first, purchased_ai_credits only for the remainder, matching
+// exactly what deduct_ai_credits_with_topup actually did in the DB.
 export function getRemainingCreditsAfter(
-  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt">,
+  workspace: Pick<CurrentWorkspace, "plan" | "aiCreditsUsed" | "aiCreditsResetAt" | "purchasedAiCredits">,
   actionType: AiActionType
 ): RemainingCredits {
   const limit = getPlanLimit(workspace.plan);
   const { effectiveUsed } = resolveCreditPeriod(workspace.aiCreditsUsed, workspace.aiCreditsResetAt);
-  const used = effectiveUsed + CREDIT_COSTS[actionType];
-  return { used, limit, remaining: Math.max(0, limit - used), cost: CREDIT_COSTS[actionType] };
+  const cost = CREDIT_COSTS[actionType];
+  const monthlyRemainingBefore = Math.max(limit - effectiveUsed, 0);
+  const fromMonthly = Math.min(cost, monthlyRemainingBefore);
+  const fromPurchased = cost - fromMonthly;
+
+  const used = effectiveUsed + fromMonthly;
+  const purchased = Math.max(0, workspace.purchasedAiCredits - fromPurchased);
+  const remaining = Math.max(0, limit - used);
+  return { used, limit, remaining, purchased, totalRemaining: remaining + purchased, cost };
 }

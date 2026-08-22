@@ -8,6 +8,7 @@ import { askAssistant, confirmAssistantAction } from "@/lib/actions/assistant";
 import { saveAiChatMessage } from "@/lib/actions/aiChatHistory";
 import { setSaveAiHistory } from "@/lib/actions/userPreferences";
 import { ClearChatDialog } from "./ClearChatDialog";
+import { TopUpCreditsModal } from "./TopUpCreditsModal";
 import { TOOL_LABELS, CREATE_ACTION_LABELS, type ReadTool, type WriteTool } from "@/lib/assistantToolLabels";
 import type { RemainingCredits } from "@/lib/aiCredits";
 import type {
@@ -87,8 +88,16 @@ export function AssistantPageClient({
   const [saveHistory, setSaveHistory] = useState(initialSaveHistory);
   const [confirmingClear, setConfirmingClear] = useState(false);
   const [credits, setCredits] = useState<RemainingCredits>(initialCredits);
+  const [topUpOpen, setTopUpOpen] = useState(false);
   const listEndRef = useRef<HTMLDivElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  // Celaris Improvements Phase 3: gates on totalRemaining (monthly +
+  // purchased), not `remaining` (monthly-only) -- a workspace at 0 monthly
+  // but with a purchased balance should still be able to chat, since the
+  // deduct_ai_credits_with_topup waterfall (sql/phase3_purchased_credits.sql)
+  // would draw from purchased_ai_credits for that request.
+  const outOfCredits = credits.totalRemaining === 0;
 
   // Only the final user prompt / assistant answer is persisted -- intermediate
   // tool-call confirmation prompts are not, per the "final response only" scope.
@@ -132,7 +141,7 @@ export function AssistantPageClient({
 
   async function sendQuestion(question: string) {
     const trimmed = question.trim();
-    if (!trimmed || loading) return;
+    if (!trimmed || loading || outOfCredits) return;
 
     setError(null);
     setInput("");
@@ -234,18 +243,28 @@ export function AssistantPageClient({
           </p>
           <p
             className={`mt-1 text-xs font-medium ${
-              credits.remaining === 0
+              outOfCredits
                 ? "text-red-600 dark:text-red-400"
-                : credits.limit > 0 && credits.remaining / credits.limit < 0.1
+                : credits.remaining === 0
                   ? "text-amber-600 dark:text-amber-400"
-                  : "text-slate-400 dark:text-slate-500"
+                  : credits.limit > 0 && credits.remaining / credits.limit < 0.1
+                    ? "text-amber-600 dark:text-amber-400"
+                    : "text-slate-400 dark:text-slate-500"
             }`}
-            title={`${credits.used} of ${credits.limit} AI credits used this month`}
+            title={`${credits.used} of ${credits.limit} AI credits used this month${credits.purchased > 0 ? `, plus ${credits.purchased} purchased credits` : ""}`}
           >
             {credits.remaining} / {credits.limit} AI credits left this month
+            {credits.purchased > 0 && ` (+${credits.purchased} purchased)`}
           </p>
         </div>
         <div className="flex items-center gap-3">
+          <button
+            type="button"
+            onClick={() => setTopUpOpen(true)}
+            className="rounded-lg border border-accent px-3 py-1.5 text-xs font-medium text-accent transition-colors hover:bg-accent/5 dark:hover:bg-accent/10"
+          >
+            Purchase Credits
+          </button>
           <label className="flex items-center gap-2 text-sm text-slate-600 dark:text-slate-300">
             <span>Save Chat History</span>
             <input
@@ -371,6 +390,15 @@ export function AssistantPageClient({
           </div>
         )}
 
+        {outOfCredits && (
+          <div className="flex items-center justify-between gap-3 border-t border-slate-200 bg-red-50 px-5 py-3 text-sm text-red-700 dark:border-slate-700 dark:bg-red-950/40 dark:text-red-400">
+            <span>You&apos;re out of AI credits -- purchase more to keep chatting.</span>
+            <Button type="button" onClick={() => setTopUpOpen(true)}>
+              Purchase Credits
+            </Button>
+          </div>
+        )}
+
         <form onSubmit={handleSubmit} className="border-t border-slate-200 p-4 dark:border-slate-700">
           <div className="flex items-end gap-2 rounded-xl border border-slate-200 bg-white px-3 py-2 transition-shadow focus-within:border-accent focus-within:ring-2 focus-within:ring-accent/20 dark:border-slate-600 dark:bg-slate-800">
             <button
@@ -387,15 +415,19 @@ export function AssistantPageClient({
               value={input}
               onChange={(e) => setInput(e.target.value)}
               onKeyDown={handleKeyDown}
-              placeholder="Ask about your data, or ask it to create a contact, task, or deal..."
-              disabled={loading}
+              placeholder={
+                outOfCredits
+                  ? "You're out of AI credits -- purchase more to keep chatting."
+                  : "Ask about your data, or ask it to create a contact, task, or deal..."
+              }
+              disabled={loading || outOfCredits}
               maxLength={500}
               rows={1}
               className="max-h-[200px] flex-1 resize-none overflow-y-auto bg-transparent py-1.5 text-sm text-slate-900 placeholder:text-slate-400 outline-none disabled:opacity-60 dark:text-slate-100 dark:placeholder:text-slate-500"
             />
             <button
               type="submit"
-              disabled={loading || !input.trim()}
+              disabled={loading || outOfCredits || !input.trim()}
               aria-label="Send message"
               title="Send"
               className="mb-1 flex h-7 w-7 shrink-0 items-center justify-center rounded-lg bg-accent text-white transition-colors hover:bg-accent-hover disabled:cursor-not-allowed disabled:opacity-40"
@@ -416,6 +448,8 @@ export function AssistantPageClient({
         onClose={() => setConfirmingClear(false)}
         onCleared={handleChatCleared}
       />
+
+      <TopUpCreditsModal open={topUpOpen} onClose={() => setTopUpOpen(false)} />
     </div>
   );
 }

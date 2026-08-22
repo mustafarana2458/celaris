@@ -254,6 +254,11 @@ export function BillingTab({
         used: promoWorkspaceOverride.ai_credits_used,
         limit,
         remaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used),
+        // promo redemption only ever grants ai_credits/temp_plan_access,
+        // never touches purchased_ai_credits -- reuse the workspace's
+        // existing value rather than treating it as reset to 0.
+        purchased: workspace?.purchasedAiCredits ?? 0,
+        totalRemaining: Math.max(0, limit - promoWorkspaceOverride.ai_credits_used) + (workspace?.purchasedAiCredits ?? 0),
       }
     : credits;
 

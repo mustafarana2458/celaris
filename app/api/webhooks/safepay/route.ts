@@ -1,6 +1,7 @@
 import { createHmac, timingSafeEqual } from "crypto";
 import { NextResponse, type NextRequest } from "next/server";
 import { applySafepaySubscriptionUpdate } from "@/lib/safepaySubscriptionSync";
+import { syncSafepayCreditTopUp } from "@/lib/creditTopUpSync";
 
 // Safepay webhook receiver. Phase 3b-fix built signature verification;
 // Phase 3c (this file, now) adds the actual DB sync -- verified events are
@@ -108,14 +109,19 @@ export async function POST(request: NextRequest) {
     console.warn("[safepay webhook] verified but payload is not an object:", payload);
   }
 
-  // applySafepaySubscriptionUpdate() itself filters to the handled
-  // subscription-scoped events (subscription.created/.payment.succeeded/
-  // .canceled/.unpaid/.ended) and no-ops (ok:true, skipped:"unhandled
-  // event: ...") on anything else, including "payment.succeeded" (the
-  // non-subscription-scoped, tracker-based event) -- so there's no separate
-  // event-name filter here; that would just duplicate the one source of
-  // truth for which events matter.
-  const result = await applySafepaySubscriptionUpdate(payload);
+  // Celaris Improvements Phase 3: "payment.succeeded" (no "subscription."
+  // prefix) is the tracker-based, non-subscription-scoped one-time-payment
+  // event -- applySafepaySubscriptionUpdate() deliberately no-ops on it
+  // (see that file's HANDLED_EVENTS comment). Routed here to
+  // syncSafepayCreditTopUp instead, which currently only logs the event
+  // (see lib/creditTopUpSync.ts's OPEN GAP) since there's no reliable way
+  // yet to resolve which workspace a tracker belongs to. Everything else
+  // (the actual subscription-scoped events) still goes through
+  // applySafepaySubscriptionUpdate unchanged.
+  const result =
+    typeof payload === "object" && payload !== null && (payload as Record<string, unknown>).type === "payment.succeeded"
+      ? await syncSafepayCreditTopUp(payload)
+      : await applySafepaySubscriptionUpdate(payload);
 
   if (!result.ok) {
     // A genuine write failure (transient DB error, etc.) -- 500 so Safepay

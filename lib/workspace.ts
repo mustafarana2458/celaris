@@ -17,6 +17,13 @@ export type CurrentWorkspace = {
   plan: string;
   aiCreditsUsed: number;
   aiCreditsResetAt: string;
+  // Celaris Improvements Phase 3: one-time purchased credits -- never
+  // expire, never touched by the monthly reset (see
+  // sql/phase3_purchased_credits.sql's comment on exactly which existing
+  // write paths were checked to confirm that). Consumed only after the
+  // monthly allowance (aiCreditsUsed vs the plan limit) is exhausted --
+  // see lib/aiCreditsCore.ts's requireAiCredits/getRemainingCredits.
+  purchasedAiCredits: number;
 };
 
 export type WorkspaceSummary = {
@@ -37,15 +44,17 @@ type MembershipRow = {
     plan: string | null;
     ai_credits_used: number | null;
     ai_credits_reset_at: string | null;
+    purchased_ai_credits: number | null;
   } | null;
 };
 
 const WORKSPACE_COLUMNS =
-  "id, name, logo_url, module_preferences, plan, ai_credits_used, ai_credits_reset_at";
+  "id, name, logo_url, module_preferences, plan, ai_credits_used, ai_credits_reset_at, purchased_ai_credits";
 
-// ai_credits_used/ai_credits_reset_at have DB defaults (0 / today) but
-// aren't guaranteed NOT NULL, so coalesce defensively rather than let a
-// null slip into arithmetic in lib/aiCredits.ts.
+// ai_credits_used/ai_credits_reset_at/purchased_ai_credits have DB
+// defaults (0 / today / 0) but aren't guaranteed NOT NULL, so coalesce
+// defensively rather than let a null slip into arithmetic in
+// lib/aiCredits.ts.
 function toCurrentWorkspace(role: string, permissions: WorkspacePermissions | null, ws: NonNullable<MembershipRow["workspaces"]>): CurrentWorkspace {
   return {
     id: ws.id,
@@ -57,6 +66,7 @@ function toCurrentWorkspace(role: string, permissions: WorkspacePermissions | nu
     plan: ws.plan ?? "free",
     aiCreditsUsed: ws.ai_credits_used ?? 0,
     aiCreditsResetAt: ws.ai_credits_reset_at ?? new Date().toISOString().slice(0, 10),
+    purchasedAiCredits: ws.purchased_ai_credits ?? 0,
   };
 }
 

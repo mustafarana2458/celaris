@@ -57,7 +57,7 @@ export default async function AssistantPage() {
 
   const initialCredits = workspace
     ? getRemainingCredits(workspace)
-    : { used: 0, limit: getPlanLimit(null), remaining: getPlanLimit(null) };
+    : { used: 0, limit: getPlanLimit(null), remaining: getPlanLimit(null), purchased: 0, totalRemaining: getPlanLimit(null) };
 
   return (
     <AssistantPageClient
