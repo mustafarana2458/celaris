@@ -208,6 +208,39 @@ export async function logIn(formData: FormData): Promise<AuthActionResult> {
   redirect("/dashboard");
 }
 
+// Celaris Improvements Phase 1: sends a Supabase recovery email. Always
+// returns success (`{}`) from this function's point of view regardless
+// of whether Supabase actually found an account for `email` -- returning
+// a distinct error for "no such account" vs "email sent" would let a
+// caller enumerate which emails have accounts, which is exactly what the
+// neutral "if an account exists..." message on ResetPasswordForm is
+// built to avoid. Any real Supabase-side error (rate limit, SMTP down,
+// etc.) is logged server-side for ops visibility but never surfaced to
+// the client for the same reason.
+export async function requestPasswordReset(formData: FormData): Promise<AuthActionResult> {
+  const email = String(formData.get("email") ?? "").trim();
+  if (!email) {
+    return { error: "Please enter your email address." };
+  }
+
+  const appUrl = process.env.NEXT_PUBLIC_APP_URL;
+  if (!appUrl) {
+    console.error("[auth] NEXT_PUBLIC_APP_URL is not set -- cannot build the password reset redirect URL.");
+    return { error: "This feature isn't fully configured yet. Please contact support." };
+  }
+
+  const supabase = await createClient();
+  const { error } = await supabase.auth.resetPasswordForEmail(email, {
+    redirectTo: `${appUrl}/update-password`,
+  });
+
+  if (error) {
+    console.error("[auth] resetPasswordForEmail failed:", error.message);
+  }
+
+  return {};
+}
+
 export async function logOut() {
   const supabase = await createClient();
   await supabase.auth.signOut();

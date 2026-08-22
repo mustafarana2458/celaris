@@ -38,6 +38,14 @@ export function LoginForm() {
         placeholder="Your password"
         required
       />
+      <div className="-mt-2 text-right">
+        <Link
+          href="/reset-password"
+          className="text-xs font-medium text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300"
+        >
+          Forgot password?
+        </Link>
+      </div>
 
       {error && (
         <div className="rounded-lg bg-red-50 p-3 text-sm text-red-700 dark:bg-red-500/10 dark:text-red-400">
