@@ -125,9 +125,10 @@ export async function getAdminSession(): Promise<AdminUser | null> {
 }
 
 // Admin Auth Rebuild Phase 3: the unified guard, mirroring the shape of
-// the OLD lib/superAdmin.ts's requireSuperAdmin()/requireSuperAdminPage()
-// exactly, so every call site swap is mechanical (same import shape,
-// same .ok check, same .response escape hatch) rather than a rewrite.
+// the old (deleted -- see Phase 4 cleanup) Supabase-based
+// requireSuperAdmin()/requireSuperAdminPage() exactly, so every call
+// site swap was mechanical (same import shape, same .ok check, same
+// .response escape hatch) rather than a rewrite.
 // Only one failure mode here (unlike the old "signed in but not a
 // platform admin" vs "not signed in" split) -- admin_users has no
 // separate tier, so "no valid admin session" is the only case.
